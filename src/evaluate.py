@@ -33,4 +33,7 @@ def evaluate(
     with open(out_json, "w") as f:
         json.dump(res, f, indent=2)
 
+    # Print to stdout for verification
+    print(json.dumps(res, indent=2))
+
     return res

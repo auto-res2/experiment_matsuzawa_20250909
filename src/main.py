@@ -23,7 +23,7 @@ class DotDict(dict):
     __setattr__ = dict.__setitem__
 
 
-def load_cfg(path: str = "config/config.yaml") -> DotDict:
+def load_cfg(path: str = "config/config.yaml") -> "DotDict":
     with open(path, "r") as f:
         cfg = yaml.safe_load(f)
     return DotDict(cfg)
@@ -51,7 +51,8 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
 
     results = {}
 
-    for seed in global_cfg.global["seed_list"]:
+    # Access the global section safely using dict-style to avoid keyword issues
+    for seed in global_cfg["global"]["seed_list"]:
         set_seed(seed)
         for model_name in exp_cfg["models"]:
             print(f"===== {exp_name} | {model_name} | seed {seed} =====")
@@ -115,7 +116,7 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
                         backbone,
                         val_loader,
                         device,
-                        out_json=Path(".research/iteration2")
+                        out_json=Path(".research/iteration3")
                         / f"{exp_name}_{model_name}_seed{seed}_e{epoch+1}.json",
                     )
                     val_top1.append(metrics["top1"])
@@ -125,7 +126,7 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
     # ----------------------------------------------------------------------
     # Persist per-experiment summary
     # ----------------------------------------------------------------------
-    out_dir = Path(".research/iteration2")
+    out_dir = Path(".research/iteration3")
     out_dir.mkdir(parents=True, exist_ok=True)
     summary_path = out_dir / f"{exp_name}_summary.json"
     with open(summary_path, "w") as f:
