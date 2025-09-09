@@ -1,43 +1,36 @@
 [project]
 name = "adasmooth_ode"
-version = "0.1.1"  # bumped after wheel-based dependency hot-fix
+version = "0.1.2"  # bumped after dependency resolution hot-fix
 description = "Depth-scalable GNNs with node-adaptive smoothing times (AdaSmooth-ODE)"
 requires-python = ">=3.9"
 
 # ---------------------------------------------------------------------------
 # Dependency pinning strategy (wheel-only – *no local builds*)
 # ---------------------------------------------------------------------------
-# We observed repeated build failures for the `torch-scatter` and `torch-sparse`
-# C++ extensions when the resolver fell back to source distributions.  PyG
-# provides pre-compiled wheels that exactly match a given <torch, CUDA, python>
-# triple.  We therefore replace the generic requirement specifiers with direct
-# wheel links that are guaranteed to be compatible with:
-#   • Python   : 3.11 (cp311)
-#   • PyTorch  : 2.1.0+cu118
-#   • CUDA     : 11.8 (the default for the Tesla T4 runner)
-#
-# The wheels are hosted on https://data.pyg.org/whl  (official PyG mirror).
-# By pinning to these artefacts we completely sidestep the brittle compile
-# chain and dramatically reduce cold-start times.
+# Previous attempt used CUDA-enabled wheels ("+cu118") for PyTorch 2.1.0.
+# Unfortunately the default PyPI index does **not** expose these local-version
+# variants, which caused the resolver to fail.  We therefore switch to the CPU
+# build of PyTorch while still relying on fully pre-compiled wheels for the
+# PyG stack that are ABI-compatible with the CPU runtime ("+pt21cpu").  This
+# guarantees a successful, build-free installation on the execution backend
+# while retaining full functionality for the small-to-medium datasets used in
+# our experiments.
 # ---------------------------------------------------------------------------
 
-# NOTE: the `+cu118` local version tag *must* match the torch wheel – do NOT
-#       change independently.
 dependencies = [
   # ---------- core ML stack ----------
-  "torch==2.1.0+cu118",                           # picked to match available PyG wheels
-  "torchvision==0.16.0+cu118",                   # useful utility; same CUDA toolchain
-  
+  "torch==2.1.0",                 # CPU wheel available on the default index
+  "torchvision==0.16.0",          # CPU build automatically selected
+
   # ---------- PyG + compiled ops (wheel links – no recompilation) ----------
-  "torch_sparse @ https://data.pyg.org/whl/torch-2.1.0%2Bcu118/torch_sparse-0.6.18%2Bpt21cu118-cp311-cp311-linux_x86_64.whl",
-  "torch_scatter @ https://data.pyg.org/whl/torch-2.1.0%2Bcu118/torch_scatter-2.1.2%2Bpt21cu118-cp311-cp311-linux_x86_64.whl",
-  "torch_geometric==2.4.0",                      # pure-python, relies on wheels above
+  "torch_sparse @ https://data.pyg.org/whl/torch-2.1.0%2Bcpu/torch_sparse-0.6.18%2Bpt21cpu-cp311-cp311-linux_x86_64.whl",
+  "torch_scatter @ https://data.pyg.org/whl/torch-2.1.0%2Bcpu/torch_scatter-2.1.2%2Bpt21cpu-cp311-cp311-linux_x86_64.whl",
+  "torch_geometric==2.4.0",      # pure-python, relies on wheels above
 
   # ---------- research helpers ----------
   "torchdiffeq", "ogb", "networkx", "scikit-learn",
   "seaborn", "matplotlib", "pyyaml", "tqdm"
 ]
 
-# No `extra-build-dependencies` are required any longer because every compiled
-# extension is satisfied via pre-built wheels.  Removing the stanza avoids the
-# spurious warning spam emitted by recent versions of `uv`.
+# No `extra-build-dependencies` stanza required – all binary wheels are pulled
+# directly from the official PyG mirror, eliminating local compilation steps.

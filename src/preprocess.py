@@ -4,8 +4,8 @@ from __future__ import annotations
 This revision updates the research output directories in compliance with the
 project-wide specification:
 
-  • All image artifacts must be saved inside  ``.research/iteration3/images``
-  • All JSON artefacts must live directly in ``.research/iteration3``
+  • All image artifacts must be saved inside  ``.research/iteration5/images``
+  • All JSON artefacts must live directly in ``.research/iteration5``
 
 No other functional changes were introduced.
 """
@@ -32,9 +32,9 @@ from ogb.nodeproppred import PygNodePropPredDataset
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # NOTE: mandatory path update (specification requirement) -------------------
-RESEARCH_DIR = BASE_DIR / ".research" / "iteration3"  # <- UPDATED to iteration3
+RESEARCH_DIR = BASE_DIR / ".research" / "iteration5"  # <- UPDATED to iteration5
 IMAGE_DIR = RESEARCH_DIR / "images"
-RESULT_DIR = RESEARCH_DIR  # JSON files live directly in iteration3/
+RESULT_DIR = RESEARCH_DIR  # JSON files live directly in iteration5/
 # ---------------------------------------------------------------------------
 
 DATA_DIR = BASE_DIR / "data"
