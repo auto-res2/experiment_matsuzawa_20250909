@@ -1,7 +1,7 @@
 """src/train.py – model definitions and training loop for AdaSmooth-ODE experiments"""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 import math
@@ -164,11 +164,17 @@ class TrainConfig:
     hidden_dim: int = 64
     poly_order: int = 10
     dropout: float = 0.5
-    lr: float = 0.01
-    weight_decay: float = 5e-4
+    lr: float | str = 0.01  # allow scientific notation strings from YAML
+    weight_decay: float | str = 5e-4
     epochs: int = 2000
     patience: int = 100
     seed: int = 42
+
+    # YAML parses numbers like "5e-4" as strings.  Cast them proactively so the
+    # optimiser receives proper floats and we avoid "<' not supported" errors.
+    def __post_init__(self):
+        object.__setattr__(self, "lr", float(self.lr))
+        object.__setattr__(self, "weight_decay", float(self.weight_decay))
 
 
 class Trainer:
