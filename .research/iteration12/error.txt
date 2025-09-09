@@ -1,0 +1,73 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+Resolved 80 packages in 1.27s
+Downloading triton (148.3MiB)
+Downloading torch-geometric (1.1MiB)
+Downloading nvidia-cusparse-cu12 (274.9MiB)
+Downloading nvidia-cudnn-cu12 (674.0MiB)
+Downloading setuptools (1.1MiB)
+Downloading nvidia-nvjitlink-cu12 (37.4MiB)
+Downloading aiohttp (1.7MiB)
+Downloading nvidia-cusolver-cu12 (255.1MiB)
+Downloading sympy (6.0MiB)
+Downloading nvidia-cufft-cu12 (184.2MiB)
+ Downloading aiohttp
+ Downloading setuptools
+ Downloading nvidia-nvjitlink-cu12
+ Downloading torch-geometric
+ Downloading nvidia-cufft-cu12
+ Downloading triton
+ Downloading nvidia-cusolver-cu12
+ Downloading nvidia-cusparse-cu12
+ Downloading sympy
+ Downloading nvidia-cudnn-cu12
+Prepared 32 packages in 49.02s
+error: Failed to install: matplotlib-3.10.6-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (matplotlib==3.10.6)
+  Caused by: failed to read directory `/home/toma/.cache/uv/archive-v0/WML1AutCOUFvt1AVPKSE6`: No such file or directory (os error 2)
+Downloading matplotlib (8.3MiB)
+Downloading numpy (16.2MiB)
+Downloading nvidia-nccl-cu12 (307.4MiB)
+Downloading nvidia-cublas-cu12 (566.8MiB)
+Downloading networkx (1.9MiB)
+Downloading scipy (33.7MiB)
+Downloading fonttools (4.7MiB)
+Downloading scikit-learn (9.3MiB)
+Downloading pandas (11.8MiB)
+Downloading nvidia-curand-cu12 (60.7MiB)
+Downloading torch (846.9MiB)
+Downloading nvidia-cufile-cu12 (1.1MiB)
+Downloading nvidia-cuda-cupti-cu12 (9.8MiB)
+Downloading pillow (6.3MiB)
+Downloading kiwisolver (1.4MiB)
+Downloading nvidia-cusparselt-cu12 (273.9MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (84.0MiB)
+ Downloading nvidia-cufile-cu12
+ Downloading kiwisolver
+ Downloading fonttools
+ Downloading networkx
+ Downloading pillow
+ Downloading nvidia-cuda-cupti-cu12
+ Downloading matplotlib
+ Downloading scikit-learn
+ Downloading numpy
+ Downloading scipy
+ Downloading nvidia-curand-cu12
+ Downloading nvidia-cuda-nvrtc-cu12
+ Downloading pandas
+ Downloading nvidia-cusparselt-cu12
+ Downloading nvidia-nccl-cu12
+ Downloading nvidia-cublas-cu12
+ Downloading torch
+Installed 32 packages in 5.40s
+/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/outdated/__init__.py:36: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import parse_version
+Downloading https://github.com/kimiyoung/planetoid/raw/master/data/ind.cora.x
+Downloading https://github.com/kimiyoung/planetoid/raw/master/data/ind.cora.tx
+Downloading https://github.com/kimiyoung/planetoid/raw/master/data/ind.cora.allx
+Downloading https://github.com/kimiyoung/planetoid/raw/master/data/ind.cora.y
+Downloading https://github.com/kimiyoung/planetoid/raw/master/data/ind.cora.ty
+Downloading https://github.com/kimiyoung/planetoid/raw/master/data/ind.cora.ally
+Downloading https://github.com/kimiyoung/planetoid/raw/master/data/ind.cora.graph
+Downloading https://github.com/kimiyoung/planetoid/raw/master/data/ind.cora.test.index
+Processing...
+Done!

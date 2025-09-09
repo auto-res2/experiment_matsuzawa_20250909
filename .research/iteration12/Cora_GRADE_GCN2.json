@@ -1,0 +1,6 @@
+{
+  "dataset": "Cora",
+  "method": "GRADE_GCN2",
+  "test_acc": 0.156,
+  "runtime_sec": 1.6282751560211182
+}
