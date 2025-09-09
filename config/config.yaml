@@ -1,1 +1,17 @@
-[KEEP_ORIGINAL_FILE
+optimiser:
+  lr: 0.1
+  momentum: 0.9
+  weight_decay: 0.0005
+
+hvq:
+  commitment_cost: 0.25
+  num_embeddings: 256
+  embedding_dim: 32
+
+common:
+  seeds: [0, 1, 2]
+  batch_size: 128
+
+exp1:
+  name: "ultra_low_footprint_scaling"
+  memory_grid: [8192, 16384, 32768, 65536]

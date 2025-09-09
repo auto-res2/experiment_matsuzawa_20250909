@@ -1,1 +1,15 @@
-[KEEP_ORIGINAL_FILE
+[project]
+name = "ultra-low-footprint"
+version = "0.1.0"
+description = "Continual learning experiments for H-VQ ReGen"
+authors = ["Research Team <research@example.com>"]
+requires-python = ">=3.10"
+
+[project.dependencies]
+torch = "*"
+torchvision = "*"
+avalanche-lib = "*"
+matplotlib = "*"
+seaborn = "*"
+pyyaml = "*"
+pytorchcv = "*"
