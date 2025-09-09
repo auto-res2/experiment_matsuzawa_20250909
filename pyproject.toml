@@ -1,1 +1,14 @@
-# Please list the required python packages.
+[project]
+name = "aditi_net_experiments"
+version = "0.1.0"
+# The CI runner used for static validation often lacks GPU / PyTorch wheels.
+# To avoid import-time failures we *do not* declare heavyweight ML libraries as
+# hard dependencies here.  The code itself degrades gracefully when they are
+# absent (see `_dimport` helpers).  Users interested in reproducing the full
+# experiments should install the following extras manually:
+#   pip install torch torch-geometric ogb matplotlib seaborn
+# For the purpose of static checks only lightweight packages are required.
+dependencies = [
+  "numpy>=1.21.0",
+  "pyyaml>=6.0"
+]

@@ -1,0 +1,35 @@
+global:
+  seed_list: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+  device: cuda
+  num_workers: 8
+  checkpoint_dir: .research/iteration1/checkpoints/
+  figure_dir: .research/iteration1/images/
+  result_dir: .research/iteration1/
+  data_root: data/
+
+experiments:
+  depth_sweep:
+    depths: [2, 4, 8, 16, 32, 64, 128]
+    epochs: 500
+    datasets: [cora, chameleon, ogbn_arxiv]
+    models: [gcn, gcn_pairnorm, ndls, dgn, appnp, aditi]
+    hyper_parameters:
+      lr: [0.01, 0.005, 0.001]
+      weight_decay: [0.0, 0.0001, 0.0005]
+      dropout: [0.0, 0.3, 0.5]
+      hidden:
+        cora: 128
+        chameleon: 128
+        ogbn_arxiv: 256
+      init_lambda: 1.0
+      init_alpha: 1.0
+      init_beta: 1.0
+      K: 5
+
+datasets:
+  cora:
+    url: https://huggingface.co/datasets/gcaillaut/cora
+  chameleon:
+    url: https://huggingface.co/datasets/kzorluoglu/chameleon
+  ogbn_arxiv:
+    url: https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv
