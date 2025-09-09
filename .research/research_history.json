@@ -6,5 +6,82 @@
     "over-smoothing regularization",
     "residual connections GNN",
     "graph rewiring GNN"
+  ],
+  "research_study_list": [
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "Towards Deeper Graph Neural Networks with Differentiable Group Normalization"
+    },
+    {
+      "title": "Demystifying Oversmoothing in Attention-Based Graph Neural Networks"
+    },
+    {
+      "title": "Graph Neural Networks Do Not Always Oversmooth"
+    },
+    {
+      "title": "Revisiting Over-smoothing and Over-squashing Using Ollivier-Ricci Curvature"
+    },
+    {
+      "title": "Mip-Splatting: Alias-free 3D Gaussian Splatting"
+    },
+    {
+      "title": "Mip-Splatting: Alias-free 3D Gaussian Splatting"
+    },
+    {
+      "title": "Node Dependent Local Smoothing for Scalable Graph Learning"
+    },
+    {
+      "title": "Node Dependent Local Smoothing for Scalable Graph Learning"
+    },
+    {
+      "title": "Not too little, not too much: a theoretical analysis of graph (over)smoothing"
+    },
+    {
+      "title": "Mind the spikes: Benign overfitting of kernels and neural networks in fixed dimension"
+    },
+    {
+      "title": "Optimal Regularization can Mitigate Double Descent"
+    },
+    {
+      "title": "On the Frequency-bias of Coordinate-MLPs"
+    },
+    {
+      "title": "On the training dynamics of deep networks with $L_2$ regularization"
+    },
+    {
+      "title": "On the training dynamics of deep networks with $L_2$ regularization"
+    },
+    {
+      "title": "Graph Neural Networks with Adaptive Residual"
+    },
+    {
+      "title": "Deep Graph Neural Networks via Posteriori-Sampling-based Node-Adaptative Residual Module"
+    },
+    {
+      "title": "Simple and Deep Graph Convolutional Networks"
+    },
+    {
+      "title": "Scattering GCN: Overcoming Oversmoothness in Graph Convolutional Networks"
+    },
+    {
+      "title": "Riemannian Residual Neural Networks"
+    },
+    {
+      "title": "Locality-Aware Graph Rewiring in GNNs"
+    },
+    {
+      "title": "Probabilistic Graph Rewiring via Virtual Nodes"
+    },
+    {
+      "title": "Probabilistically Rewired Message-Passing Neural Networks"
+    },
+    {
+      "title": "FoSR: First-order spectral rewiring for addressing oversquashing in GNNs"
+    },
+    {
+      "title": "Towards Understanding and Reducing Graph Structural Noise for GNNs"
+    }
   ]
 }
