@@ -1,0 +1,10 @@
+{
+  "best_val_acc": 0.6580000519752502,
+  "test_acc_last": 0.6110000014305115,
+  "best_epoch": 409,
+  "epochs_ran": 509,
+  "figures": [
+    "training_loss_exp1_cora_gcn_vanilla_d16.pdf",
+    "accuracy_exp1_cora_gcn_vanilla_d16.pdf"
+  ]
+}

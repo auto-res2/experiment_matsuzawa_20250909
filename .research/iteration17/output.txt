@@ -1,0 +1,86 @@
+=== uv sync start Tue Sep  9 10:14:07 AM UTC 2025 ===
+=== uv install end Tue Sep  9 10:14:13 AM UTC 2025 ===
+=== experiment start Tue Sep  9 10:14:13 AM UTC 2025 ===
+================================================================================
+Running Experiment: exp1_cora_gcn_meta_d16
+Configuration:
+{
+  "name": "exp1_cora_gcn_meta_d16",
+  "dataset_name": "cora",
+  "backbone": "gcn",
+  "variant": "meta",
+  "depth": 16,
+  "num_classes": 7,
+  "hidden_dim": 128,
+  "batch_size": 0,
+  "controller": {
+    "hidden": 32,
+    "tau": 0.5,
+    "kl_alpha": 0.1,
+    "kl_edge": 0.1
+  },
+  "optim": {
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "epochs": 2000,
+    "patience": 100
+  }
+}
+Experiment description: Node classification with depth 16
+Experimental numerical data:
+{
+  "best_val_acc": 0.12200000882148743,
+  "test_acc_last": 0.1300000101327896,
+  "best_epoch": 1,
+  "epochs_ran": 101,
+  "figures": [
+    "training_loss_exp1_cora_gcn_meta_d16.pdf",
+    "accuracy_exp1_cora_gcn_meta_d16.pdf"
+  ]
+}
+Names of figures summarizing the numerical data:
+training_loss_exp1_cora_gcn_meta_d16.pdf
+accuracy_exp1_cora_gcn_meta_d16.pdf
+================================================================================
+================================================================================
+Running Experiment: exp1_cora_gcn_vanilla_d16
+Configuration:
+{
+  "name": "exp1_cora_gcn_vanilla_d16",
+  "dataset_name": "cora",
+  "backbone": "gcn",
+  "variant": "vanilla",
+  "depth": 16,
+  "num_classes": 7,
+  "hidden_dim": 128,
+  "batch_size": 0,
+  "controller": {
+    "hidden": 32,
+    "tau": 0.5,
+    "kl_alpha": 0.1,
+    "kl_edge": 0.1
+  },
+  "optim": {
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "epochs": 2000,
+    "patience": 100
+  }
+}
+Experiment description: Node classification with depth 16
+Experimental numerical data:
+{
+  "best_val_acc": 0.6580000519752502,
+  "test_acc_last": 0.6110000014305115,
+  "best_epoch": 409,
+  "epochs_ran": 509,
+  "figures": [
+    "training_loss_exp1_cora_gcn_vanilla_d16.pdf",
+    "accuracy_exp1_cora_gcn_vanilla_d16.pdf"
+  ]
+}
+Names of figures summarizing the numerical data:
+training_loss_exp1_cora_gcn_vanilla_d16.pdf
+accuracy_exp1_cora_gcn_vanilla_d16.pdf
+================================================================================
+=== experiment end Tue Sep  9 10:14:49 AM UTC 2025 ===
