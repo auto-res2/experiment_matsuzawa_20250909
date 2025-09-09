@@ -1,13 +1,24 @@
-experiments:
-  - name: exp1_cora_gcn_meta_d16
-    dataset_name: cora
-    backbone: gcn
-    variant: meta
-    depth: 16
-    num_classes: 7
-  - name: exp1_cora_gcn_vanilla_d16
-    dataset_name: cora
-    backbone: gcn
-    variant: vanilla
-    depth: 16
-    num_classes: 7
+# config/config.yaml
+# Minimal example configuration.  Extend as needed.
+
+name: "meta_mpn_test"
+datasets: ["Cora"]
+backbones: ["gcn"]
+variants: ["Meta-MPNN"]
+depth:
+  gcn: 2
+seeds: [0]
+
+hp_grid: {}
+
+controller:
+  hidden: 32
+  tau: 0.5
+  lambda_kl: 0.1
+  entropy_min: 0.2
+
+optim:
+  lr: 0.001
+  weight_decay: 0.0
+  epochs: 200
+  patience: 50

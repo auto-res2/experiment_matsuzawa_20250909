@@ -1,90 +1,75 @@
-from __future__ import annotations
+# main.py
+"""Entry-point that orchestrates the whole experimental workflow.
 
-"""src/main.py
-Entry-point orchestrating the whole experimental suite.
-Can be run via:  python -m src.main
+USAGE
+-----
+python -m main   # (the repo root is expected to be on PYTHONPATH)
 """
 
-import json
-from dataclasses import asdict
-from pathlib import Path
-from typing import List
+from __future__ import annotations
 
+import sys
+import pathlib
+import glob
+import importlib
+
+import torch_sparse  # noqa: F401 – used for kernel check only
 import yaml
 
-from .preprocess import load_dataset, set_seed, PROJECT_ROOT  # type: ignore
-from .train import ExperimentConfig, build_model, train
+from preprocess import get_dataset
+from train import MetaGCN, train_one
+from utils import set_seed  # local util – see utils/__init__.py below
 
-# -----------------------------------------------------------------------------
-# I/O paths --------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-# Mandatory research directory for this iteration (updated to iteration17)
-RESEARCH_DIR = PROJECT_ROOT / ".research" / "iteration17"
-IMAGE_DIR = RESEARCH_DIR / "images"
-RESULTS_DIR = RESEARCH_DIR  # JSON files live directly here per instruction
-for _d in [IMAGE_DIR, RESULTS_DIR]:
-    _d.mkdir(parents=True, exist_ok=True)
+###############################################################################
+#                          SPARSE-KERNELS NO-FALLBACK                         #
+###############################################################################
 
-# -----------------------------------------------------------------------------
-# Configuration ----------------------------------------------------------------
-# -----------------------------------------------------------------------------
-CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"
-
-
-def _load_experiment_cfgs() -> List[ExperimentConfig]:
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        raw_cfg = yaml.safe_load(f)
-    exps = []
-    for exp_dict in raw_cfg.get("experiments", []):
-        exps.append(ExperimentConfig(**exp_dict))
-    return exps
-
-
-# -----------------------------------------------------------------------------
-# Main routine -----------------------------------------------------------------
-# -----------------------------------------------------------------------------
-
-def main():
-    set_seed(11)
-    device = (
-        "cuda"
-        if (Path("/proc/driver/nvidia").exists() and __import__("torch").cuda.is_available())
-        else "cpu"
+try:
+    torch_sparse.matmul.dense_sparse(
+        torch_sparse.SparseTensor.eye(1), torch_sparse.SparseTensor.eye(1)
     )
-    device = __import__("torch").device(device)
+except Exception:
+    sys.exit("torch-sparse kernels missing – please rebuild before training.")
 
-    experiments = _load_experiment_cfgs()
+###############################################################################
+#                                 CONFIG                                     #
+###############################################################################
 
-    for cfg in experiments:
-        print("=" * 80)
-        print(f"Running Experiment: {cfg.name}")
-        print("Configuration:")
-        print(json.dumps(asdict(cfg), indent=2))
+CONFIG_PATH = pathlib.Path("config/config.yaml")
+if not CONFIG_PATH.exists():
+    sys.exit("Config file config/config.yaml not found – aborting.")
 
-        # ---------------- data ----------------
-        data = load_dataset(cfg.dataset_name)
-        in_dim = data.num_node_features
+with open(CONFIG_PATH) as f:
+    raw_cfg = yaml.safe_load(f)
 
-        # ---------------- model --------------
-        model = build_model(cfg, in_dim)
+# ---------------------------------------------------------------------------
+# Convert YAML ➔ simple Namespace-like object (keep code short & explicit).
+# ---------------------------------------------------------------------------
+class DotDict(dict):
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
 
-        # ---------------- train --------------
-        metrics = train(model, data, cfg, device, IMAGE_DIR)
+cfg = DotDict(raw_cfg)
 
-        # --------------- save ----------------
-        result_path = RESULTS_DIR / f"{cfg.name}.json"
-        with open(result_path, "w", encoding="utf-8") as f:
-            json.dump(metrics, f, indent=2)
+###############################################################################
+#                           RUN THE EXPERIMENT GRID                           #
+###############################################################################
 
-        # --------------- print ---------------
-        print("Experiment description: Node classification with depth", cfg.depth)
-        print("Experimental numerical data:")
-        print(json.dumps(metrics, indent=2))
-        print("Names of figures summarizing the numerical data:")
-        for fig in metrics["figures"]:
-            print(fig)
-        print("=" * 80)
-
-
-if __name__ == "__main__":
-    main()
+for seed in cfg.seeds:
+    set_seed(seed)
+    for ds_name in cfg.datasets:
+        dataset = get_dataset(ds_name, root=f"data/{ds_name}")
+        data = dataset[0]
+        for backbone in cfg.backbones:
+            depth = cfg.depth[str(backbone)]
+            for variant in cfg.variants:
+                exp_name = f"{cfg.name}_{ds_name}_{backbone}{depth}_{variant}_seed{seed}"
+                cfg.name = exp_name  # inject dynamic name for downstream logs
+                model = MetaGCN(
+                    dataset.num_features,
+                    dataset.num_classes,
+                    depth,
+                    cfg,
+                    variant="meta" if variant.lower() == "meta-mpnn" else variant.lower(),
+                )
+                train_one(model, data, cfg)

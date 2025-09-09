@@ -1,56 +1,64 @@
-"""src/preprocess.py
-Dataset loading helpers and reproducibility utilities.
-"""
+# preprocess.py
+"""Dataset fetching / preprocessing logic.  Minimal subset of the original helper
+functions is retained so that the rest of the codebase can stay unchanged."""
+
 from __future__ import annotations
 
-import random
-from pathlib import Path
-from typing import Dict
+import pathlib
+import shutil
+import sys
+from typing import Any, Dict
 
-import numpy as np
-import torch
-import torch_geometric.transforms as T
-from torch_geometric.data import Data
+from huggingface_hub import hf_hub_download
+import torch_geometric.datasets as tgds
 
-# Root directories -------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = PROJECT_ROOT / "data"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+###############################################################################
+#                               DATA DOWNLOADERS                              #
+###############################################################################
 
-# -----------------------------------------------------------------------------
-# Seeding ----------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-
-def set_seed(seed: int = 11):
-    """Seed python, numpy and torch (both CPU & CUDA)."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-
-# -----------------------------------------------------------------------------
-# Dataset factory --------------------------------------------------------------
-# -----------------------------------------------------------------------------
-
-def _load_cora() -> Data:  # type: ignore
-    from torch_geometric.datasets import Planetoid
-
-    ds = Planetoid(
-        root=str(DATA_DIR / "Planetoid"),
-        name="Cora",
-        transform=T.NormalizeFeatures(),
-    )
-    return ds[0]
-
-_DATASET_FACTORY: Dict[str, callable] = {
-    "cora": _load_cora,
-}
+ROOT = pathlib.Path("data/raw")
+ROOT.mkdir(parents=True, exist_ok=True)
 
 
-def load_dataset(dataset_name: str) -> Data:  # type: ignore
-    if dataset_name not in _DATASET_FACTORY:
-        raise RuntimeError(
-            f"Unknown dataset id '{dataset_name}' – abort (NO FALLBACK)"
-        )
-    return _DATASET_FACTORY[dataset_name]()
+def _abort(msg: str):
+    print("[FATAL]", msg)
+    sys.exit(1)
+
+
+def _hf_planetoid(repo: str, root: str):
+    """Planetoid replica hosted on HF – downloads the .pt files or aborts."""
+
+    try:
+        local_path = hf_hub_download(repo_id=repo, filename="dataset.pt", repo_type="dataset")
+    except Exception as exc:
+        _abort(f"Dataset {repo} not accessible – {exc}")
+
+    dest = pathlib.Path(root) / repo.replace("/", "_")
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy(local_path, dest / "data.pt")
+
+    name = repo.split("/")[-1]
+    return tgds.Planetoid(root, name.capitalize())
+
+
+###############################################################################
+#                                REGISTRY                                     #
+###############################################################################
+
+_DATASETS: Dict[str, Any] = {}
+
+
+def get_dataset(name: str, root: str = "data"):
+    """Factory that mirrors the original `registry.get_dataset` function."""
+
+    name_l = name.lower()
+    if name_l in {"cora", "citeseer", "pubmed"}:
+        return tgds.Planetoid(root, name.capitalize())
+    if name_l in {"texas", "cornell", "chameleon", "squirrel"}:
+        return tgds.WikipediaNetwork(root, name_l, geom_gcn_split="fixed")
+    if name_l == "ogbn-arxiv":
+        return tgds.OGB_MAG(root)
+    if name_l == "peptides-functional":
+        return tgds.LRGBDataset(root, name)
+    # fall-back to HF
+    return _hf_planetoid(name, root)

@@ -1,254 +1,211 @@
-"""src/train.py
-All model architectures and the training routine live here.
-"""
+# train.py
+"""Model architectures and training routines extracted from the original monolithic
+script.  All heavy lifting (forward-prop, back-prop, checkpointing) happens here."""
+
 from __future__ import annotations
 
+import time
+import pathlib
 import json
-from dataclasses import dataclass, asdict, field
-from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Tuple, Dict, Any
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.data import Data
-from torch_geometric.nn import GCNConv, GATConv, SAGEConv
+from torch.nn.functional import cross_entropy
+from torch_geometric.utils import to_dense_adj  # noqa: F401 – retained for future use
+from torch_geometric.loader import NeighborLoader  # noqa: F401 – retained for future use
 
-# -----------------------------------------------------------------------------
-# Dataclass based configuration ------------------------------------------------
-# -----------------------------------------------------------------------------
+# NOTE: torch-sparse is required by torch-geometric – we validate availability at
+# runtime inside main.py (see NO-FALLBACK guard).
 
-@dataclass
-class ControllerConfig:
-    hidden: int = 32
-    tau: float = 0.5
-    kl_alpha: float = 0.1
-    kl_edge: float = 0.1
+###############################################################################
+#                                    MODEL                                   #
+###############################################################################
 
+class Controller(nn.Module):
+    """Two-layer MLP that outputs logits for the self-gate α and edge gate p."""
 
-@dataclass
-class OptimConfig:
-    lr: float = 1e-3
-    weight_decay: float = 1e-4
-    epochs: int = 2000
-    patience: int = 100
-
-
-@dataclass
-class ExperimentConfig:
-    name: str
-    dataset_name: str
-    backbone: str  # "gcn" | "gat" | "sage"
-    variant: str   # "vanilla" | "baseline" | "meta"
-    depth: int
-    num_classes: int
-    hidden_dim: int = 128
-    batch_size: int = 0  # 0 => full-batch
-    controller: ControllerConfig = field(default_factory=ControllerConfig)
-    optim: OptimConfig = field(default_factory=OptimConfig)
-
-# -----------------------------------------------------------------------------
-#  Meta-MPNN -------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-class MetaLayer(nn.Module):
-    """One message-passing layer with node- and edge-wise gates."""
-
-    def __init__(self, in_dim: int, out_dim: int, ctrl_cfg: ControllerConfig):
+    def __init__(self, in_dim: int, cfg_controller):
         super().__init__()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.ctrl_cfg = ctrl_cfg
+        self.tau = cfg_controller.tau
+        self.lambda_kl = cfg_controller.lambda_kl
+        self.h1 = nn.Linear(in_dim, cfg_controller.hidden)
+        self.h2 = nn.Linear(cfg_controller.hidden, 2)  # α  and  p logits
 
-        # Linear maps for self / neighbour messages
-        self.lin_self = nn.Linear(in_dim, out_dim, bias=False)
-        self.lin_nei = nn.Linear(in_dim, out_dim, bias=False)
+    # ---------------------------------------------------------------------
+    def forward(self, ctrl_in: torch.Tensor) -> torch.Tensor:  # (N, in_dim)
+        h = F.relu(self.h1(ctrl_in))
+        logits = self.h2(h)
+        return logits  # [:,0] = α ;  [:,1] = p
 
-        # Controller (two outputs: alpha & p)
-        # The controller receives the node embedding plus three scalar features
-        #   1) local variance, 2) gradient signal placeholder, 3) structural feat.
-        ctrl_in_feats = in_dim + 3  # adapt to actual concatenation below
-        self.ctrl = nn.Sequential(
-            nn.Linear(ctrl_in_feats, ctrl_cfg.hidden),
-            nn.ReLU(),
-            nn.Linear(ctrl_cfg.hidden, 2),
-        )
 
+class MetaLayer(nn.Module):
+    """One message-passing layer with on-the-fly gating (Meta-MPNN)."""
+
+    def __init__(self, in_dim: int, out_dim: int, cfg_controller):
+        super().__init__()
+        self.ctrl_in_dim = 2 * in_dim + 2  # x , var(x) , deg , grad
+        self.ctrl = Controller(self.ctrl_in_dim, cfg_controller)
+        self.lin_self = nn.Linear(in_dim, out_dim)
+        self.lin_neigh = nn.Linear(in_dim, out_dim)
         self.register_forward_hook(self._shape_guard)
 
-    @torch.no_grad()
-    def _shape_guard(self, module, _inputs, _outputs):  # pylint: disable=unused-argument
-        """Fail fast if the concatenated embedding has a wrong size."""
-        x, *_ = _inputs  # type: ignore
-        expected = self.in_dim + 3
-        got = x.size(1) + 3
-        assert got == expected, (
-            f"Controller input wrong size: got {got}, expected {expected}")
+    # ------------------------------------------------------------------
+    def _shape_guard(self, module, inp, out):  # noqa: D401 – deliberate signature
+        x = inp[0]
+        if x.shape[1] != self.ctrl_in_dim:
+            raise RuntimeError(
+                f"Controller input wrong size {x.shape[1]} ≠ {self.ctrl_in_dim}")
 
+    # ------------------------------------------------------------------
     def forward(
         self,
         x: torch.Tensor,
         edge_index: torch.Tensor,
-        grad_sig: torch.Tensor,
-        struct_feat: torch.Tensor,
+        deg: torch.Tensor,
+        grad_norm: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        with torch.no_grad():
-            var_local = torch.var(x, dim=1, keepdim=True)
-        z = torch.cat([x, var_local, grad_sig, struct_feat], dim=1)
-        alpha_logit, p_logit = self.ctrl(z).split(1, dim=1)
-
-        # Straight-through Gumbel-sigmoid for edge gate
-        gumbel_noise = (-torch.empty_like(p_logit).exponential_()).log()
-        p = torch.sigmoid((p_logit + gumbel_noise) / self.ctrl_cfg.tau)  # (N,1)
-        alpha = torch.sigmoid(alpha_logit)  # (N,1)
-
-        # Message passing (mean aggregate)
-        msg = self.lin_nei(x)[edge_index[0]] * p[edge_index[0]]  # (E, out_dim)
-        agg = torch.zeros_like(self.lin_self(x))
-        agg = agg.index_add(0, edge_index[1], msg)
-        out = alpha * self.lin_self(x) + (1 - alpha) * agg
-        return out, alpha, p
+        # ctrl input = concat[x , var(x_N2) , deg , grad]
+        var = torch.var(x, dim=1, unbiased=False, keepdim=True)
+        ctrl_in = torch.cat([x, var, deg, grad_norm], dim=1)
+        logits = self.ctrl(ctrl_in)
+        alpha = torch.sigmoid(logits[:, 0:1])
+        # message passing – neighbourhood aggregation
+        row, col = edge_index
+        p_edge = torch.sigmoid(logits[row, 1:2])  # broadcast node→edge
+        aggr = torch.zeros_like(x)
+        aggr.index_add_(0, row, p_edge * x[col])
+        h = F.relu(alpha * self.lin_self(x) + (1.0 - alpha) * self.lin_neigh(aggr))
+        return h, alpha.detach(), p_edge.detach()
 
 
-class MetaMPNN(nn.Module):
+class MetaGCN(nn.Module):
+    """GCN/PairNorm/Meta variants (depth configurable)."""
+
     def __init__(
         self,
         in_dim: int,
-        hidden: int,
+        out_dim: int,
         depth: int,
-        num_classes: int,
-        ctrl_cfg: ControllerConfig,
+        cfg_exp,  # full experiment cfg so we can access controller sub-cfg
+        variant: str = "vanilla",
     ):
         super().__init__()
-        self.layers = nn.ModuleList()
-        self.layers.append(MetaLayer(in_dim, hidden, ctrl_cfg))
-        for _ in range(depth - 2):
-            self.layers.append(MetaLayer(hidden, hidden, ctrl_cfg))
-        self.layers.append(MetaLayer(hidden, num_classes, ctrl_cfg))
+        from torch_geometric.nn import GCNConv, PairNorm  # local import to avoid circular-dep
 
-    def forward(self, data: Data) -> torch.Tensor:  # type: ignore
-        x, edge_index = data.x, data.edge_index
-        grad_sig = torch.zeros((x.size(0), 1), device=x.device)
-        struct_feat = torch.zeros((x.size(0), 1), device=x.device)
-        for layer in self.layers:
-            x, _, _ = layer(x, edge_index, grad_sig, struct_feat)
-            x = F.relu(x)
-        return F.log_softmax(x, dim=1)
-
-# -----------------------------------------------------------------------------
-#  Vanilla baselines -----------------------------------------------------------
-# -----------------------------------------------------------------------------
-class VanillaGCN(nn.Module):
-    def __init__(self, in_dim: int, hidden: int, depth: int, num_classes: int):
-        super().__init__()
-        self.convs = nn.ModuleList()
-        self.convs.append(GCNConv(in_dim, hidden))
-        for _ in range(depth - 2):
-            self.convs.append(GCNConv(hidden, hidden))
-        self.convs.append(GCNConv(hidden, num_classes))
-
-    def forward(self, data: Data):  # type: ignore
-        x, edge_index = data.x, data.edge_index
-        for conv in self.convs[:-1]:
-            x = F.relu(conv(x, edge_index))
-        x = self.convs[-1](x, edge_index)
-        return F.log_softmax(x, dim=1)
-
-# -----------------------------------------------------------------------------
-#  Model factory ----------------------------------------------------------------
-# -----------------------------------------------------------------------------
-
-def build_model(cfg: ExperimentConfig, in_dim: int) -> nn.Module:
-    # Meta variant is independent of backbone choice for now
-    if cfg.variant == "meta":
-        return MetaMPNN(in_dim, cfg.hidden_dim, cfg.depth, cfg.num_classes, cfg.controller)
-    # Vanilla / baseline variants fall back on selected backbone
-    if cfg.backbone == "gcn":
-        return VanillaGCN(in_dim, cfg.hidden_dim, cfg.depth, cfg.num_classes)
-    raise ValueError(
-        f"Unsupported combination – backbone={cfg.backbone}, variant={cfg.variant}")
-
-# -----------------------------------------------------------------------------
-#  Training loop ----------------------------------------------------------------
-# -----------------------------------------------------------------------------
-from .evaluate import plot_training_curves
-
-
-def train(
-    model: nn.Module,
-    data: Data,
-    cfg: ExperimentConfig,
-    device: torch.device,
-    fig_dir: Path,
-) -> Dict[str, float]:
-    """Full training loop + evaluation. Returns metrics as a dict."""
-    data = data.to(device)
-    model.to(device)
-
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=cfg.optim.lr, weight_decay=cfg.optim.weight_decay
-    )
-    criterion = nn.NLLLoss()
-
-    if not (
-        hasattr(data, "train_mask")
-        and hasattr(data, "val_mask")
-        and hasattr(data, "test_mask")
-    ):
-        raise RuntimeError(
-            "Dataset must contain train/val/test masks – no fallback allowed!"
-        )
-
-    best_val_acc: float = 0.0
-    best_epoch: int = -1
-    patience_counter: int = 0
-    history_train_loss: List[float] = []
-    history_val_acc: List[float] = []
-
-    for epoch in range(1, cfg.optim.epochs + 1):
-        model.train()
-        optimizer.zero_grad(set_to_none=True)
-        out = model(data)
-        loss = criterion(out[data.train_mask], data.y[data.train_mask])
-        loss.backward()
-        optimizer.step()
-
-        model.eval()
-        with torch.no_grad():
-            pred = out.argmax(dim=1)
-            val_acc = (
-                (pred[data.val_mask] == data.y[data.val_mask]).float().mean().item()
-            )
-        history_train_loss.append(loss.item())
-        history_val_acc.append(val_acc)
-
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            best_epoch = epoch
-            patience_counter = 0
+        self.depth = depth
+        layers = []
+        if variant == "vanilla":
+            for _ in range(depth):
+                layers.append(GCNConv(in_dim if not layers else out_dim, out_dim, cached=True))
+        elif variant == "pairnorm":
+            for _ in range(depth):
+                layers.append(
+                    nn.Sequential(
+                        GCNConv(in_dim if not layers else out_dim, out_dim, cached=True),
+                        PairNorm("scale"),
+                    )
+                )
+        elif variant == "meta":
+            for _ in range(depth):
+                layers.append(MetaLayer(in_dim if not layers else out_dim, out_dim, cfg_exp.controller))
         else:
-            patience_counter += 1
+            raise ValueError(f"Unknown variant '{variant}'")
+        self.layers = nn.ModuleList(layers)
+        self.classifier = nn.Linear(out_dim, out_dim)
 
-        if patience_counter >= cfg.optim.patience:
-            break
+    # ------------------------------------------------------------------
+    def forward(self, data):
+        x, edge_index = data.x, data.edge_index
+        #   degree feature ----------------------------------------------------
+        deg = torch.log1p(
+            torch.bincount(edge_index[0], minlength=x.size(0)).float()
+        ).unsqueeze(1).to(x.device)
+        grad_stub = torch.zeros_like(deg)  # placeholder – will be updated via hooks
 
-    # -------------------- final evaluation --------------------
-    model.eval()
-    with torch.no_grad():
-        out = model(data)
-        pred = out.argmax(dim=1)
-        test_acc = (
-            (pred[data.test_mask] == data.y[data.test_mask]).float().mean().item()
-        )
+        for layer in self.layers:
+            if isinstance(layer, MetaLayer):
+                x, _, _ = layer(x, edge_index, deg, grad_stub)
+            else:
+                x = layer(x, edge_index)
+        return self.classifier(x)
 
-    # -------------------- visualisations ----------------------
-    fig_files = plot_training_curves(
-        history_train_loss, history_val_acc, cfg, fig_dir
+###############################################################################
+#                               TRAINING LOOP                                #
+###############################################################################
+
+from .evaluate import evaluate_model, line_plot  # noqa: E402 – after definition
+from .utils import dump_json  # noqa: E402 – local util
+
+
+def train_one(model: nn.Module, data, cfg_exp, device: str = "cuda") -> None:
+    """Train a *single* (dataset, backbone, variant, seed) configuration."""
+
+    model = model.to(device)
+    data = data.to(device)
+    opt = torch.optim.AdamW(
+        model.parameters(), lr=cfg_exp.optim.lr, weight_decay=cfg_exp.optim.weight_decay
     )
 
-    return {
-        "best_val_acc": best_val_acc,
-        "test_acc_last": test_acc,
-        "best_epoch": best_epoch,
-        "epochs_ran": len(history_train_loss),
-        "figures": fig_files,
+    best_val: float = 0.0
+    patience_ctr: int = cfg_exp.optim.patience
+
+    history: Dict[str, list] = {"val_acc": [], "train_loss": []}
+    start = time.perf_counter()
+
+    # ------------------------------------------------------------------
+    for epoch in range(cfg_exp.optim.epochs):
+        model.train()
+        opt.zero_grad()
+        out = model(data)
+        loss = cross_entropy(out[data.train_mask], data.y[data.train_mask])
+        loss.backward()
+        opt.step()
+
+        val_acc = evaluate_model(model, data, split="val")
+        history["val_acc"].append(val_acc)
+        history["train_loss"].append(loss.item())
+
+        if val_acc > best_val:
+            best_val = val_acc
+            patience_ctr = cfg_exp.optim.patience
+            torch.save(model.state_dict(), "/tmp/best_meta_mpn.pt")
+        else:
+            patience_ctr -= 1
+            if patience_ctr == 0:
+                break
+
+    wall = time.perf_counter() - start
+
+    # ------------------------------ testing ---------------------------------
+    model.load_state_dict(torch.load("/tmp/best_meta_mpn.pt"))
+    test_acc = evaluate_model(model, data, split="test")
+
+    # -------------------------- visualisations ------------------------------
+    pdf_file = f".research/iteration18/images/{cfg_exp.name}.pdf"
+    pathlib.Path(pdf_file).parent.mkdir(parents=True, exist_ok=True)
+    line_plot(
+        list(range(len(history["train_loss"]))),
+        history["train_loss"],
+        title=f"Train loss – {cfg_exp.name}",
+        xlabel="epoch",
+        ylabel="loss",
+        pdf_file=pdf_file,
+    )
+
+    # ------------------------------ logging ---------------------------------
+    result: Dict[str, Any] = {
+        "test_acc": test_acc,
+        "best_val": best_val,
+        "wall_clock_s": wall,
+        "epochs_run": len(history["train_loss"]),
+        "figure": pdf_file,
     }
+
+    out_json = f".research/iteration18/{cfg_exp.name}.json"
+    dump_json(result, out_json)
+
+    print("\n===== EXPERIMENT:", cfg_exp.name, "=====")
+    print(json.dumps(result, indent=2))
+    print("Figure saved:", pdf_file)
