@@ -34,11 +34,13 @@ import matplotlib.pyplot as plt
 # ────────────────────────────────────────────────────────────────────────────────
 # Helper – cosine LR schedule ----------------------------------------------------
 
+
 def _cosine_schedule(total_epochs: int):
     return lambda epoch: 0.5 * (1 + math.cos(math.pi * epoch / total_epochs))
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Core CER helper ----------------------------------------------------------------
+
 
 def cer_loss(original_logits: torch.Tensor, cf_logits: torch.Tensor) -> torch.Tensor:
     """Contextual Effect Regularisation loss (L1 difference)."""
@@ -46,6 +48,7 @@ def cer_loss(original_logits: torch.Tensor, cf_logits: torch.Tensor) -> torch.Te
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Main training routine ----------------------------------------------------------
+
 
 def _safe_get_validation_split(exp_cfg: ExperimentConfig | Dict):
     """Attempt to load the most common names for the validation split.
@@ -121,9 +124,16 @@ def run_training(exp_key: str, exp_cfg: ExperimentConfig) -> Dict:
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
 
-    def _tf(example):
-        example["image"] = transform(example["image"])
-        return example
+    # NOTE: 🤗 Datasets applies the transform function on *batches* of examples
+    # (see `Dataset.set_transform`). Therefore, we must be able to handle both
+    # a single PIL image **and** a list of PIL images.
+    def _tf(examples):
+        imgs = examples["image"]
+        if isinstance(imgs, list):
+            examples["image"] = [transform(img) for img in imgs]
+        else:
+            examples["image"] = transform(imgs)
+        return examples
 
     train_ds.set_transform(_tf)
     val_ds.set_transform(_tf)
