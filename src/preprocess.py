@@ -2,10 +2,10 @@ from __future__ import annotations
 
 """src/preprocess.py – utility helpers (I/O, datasets, Laplacian, randomness)
 This revision updates the research output directories in compliance with the
-project-wide specification:
+project-wide specification (iteration **8**):
 
-  • All image artefacts must be saved inside  ``.research/iteration7/images``
-  • All JSON artefacts must live directly in ``.research/iteration7``
+  • All image artefacts must be saved inside  ``.research/iteration8/images``
+  • All JSON artefacts must live directly in ``.research/iteration8``
 
 It also fixes an incorrect import for the *Texas* and *Wisconsin* datasets by
 using the generic ``WebKB`` wrapper provided by PyG.  No other functional
@@ -30,9 +30,9 @@ from ogb.nodeproppred import PygNodePropPredDataset
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # NOTE: mandatory path update (specification requirement) -------------------
-RESEARCH_DIR = BASE_DIR / ".research" / "iteration7"  # <-- UPDATED to iteration7
+RESEARCH_DIR = BASE_DIR / ".research" / "iteration8"  # <-- UPDATED to iteration8
 IMAGE_DIR = RESEARCH_DIR / "images"
-RESULT_DIR = RESEARCH_DIR  # JSON files live directly in iteration7/
+RESULT_DIR = RESEARCH_DIR  # JSON files live directly in iteration8/
 # ---------------------------------------------------------------------------
 
 DATA_DIR = BASE_DIR / "data"

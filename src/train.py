@@ -10,7 +10,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
-from torch_geometric.nn import APPNP, GCNConv, GCN2Conv
+from torch_geometric.nn import GCNConv, GCN2Conv  # base layers
+from torch_geometric.nn.models import APPNP  # <-- import the *model* variant
 from torch_geometric.data import Data
 
 import torch_sparse  # <- required for Laplacian matmul
@@ -101,8 +102,9 @@ def make_baseline(model_name: str, in_dim: int, hidden: int, out_dim: int, num_l
         return _GCN(layers)
 
     if model_name == "appnp":
-        # PyG APPNP implements MLP+propagation internally – create 2-layer perceptron variant
-        return APPNP(in_dim, hidden, out_dim, K=10, alpha=0.1)
+        # The correct APPNP model lives in ``torch_geometric.nn.models``.
+        # Signature: (in_channels, hidden_channels, out_channels, K=10, alpha=0.1, dropout=0.5)
+        return APPNP(in_dim, hidden, out_dim, K=10, alpha=0.1, dropout=0.5)
 
     if model_name == "gcnii":
         class _GCNII(nn.Module):
