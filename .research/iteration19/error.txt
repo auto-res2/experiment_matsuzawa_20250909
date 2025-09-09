@@ -1,0 +1,34 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+  × No solution found when resolving dependencies for split (markers:
+  │ python_full_version >= '3.8' and python_full_version < '3.10'):
+  ╰─▶ Because the requested Python version (>=3.8) does not satisfy
+      Python>=3.10 and pytorchcv==0.0.73 depends on Python>=3.10, we can
+      conclude that pytorchcv==0.0.73 cannot be used.
+      And because your project depends on pytorchcv==0.0.73, we can conclude
+      that your project's requirements are unsatisfiable.
+
+      hint: The `requires-python` value (>=3.8) includes Python versions that
+      are not supported by your dependencies (e.g., pytorchcv==0.0.73 only
+      supports >=3.10). Consider using a more restrictive `requires-python`
+      value (like >=3.10).
+
+      hint: While the active Python version is 3.11, the resolution failed for
+      other Python versions supported by your project. Consider limiting your
+      project's supported Python versions using `requires-python`.
+  × No solution found when resolving dependencies for split (markers:
+  │ python_full_version >= '3.8' and python_full_version < '3.10'):
+  ╰─▶ Because the requested Python version (>=3.8) does not satisfy
+      Python>=3.10 and pytorchcv==0.0.73 depends on Python>=3.10, we can
+      conclude that pytorchcv==0.0.73 cannot be used.
+      And because your project depends on pytorchcv==0.0.73, we can conclude
+      that your project's requirements are unsatisfiable.
+
+      hint: The `requires-python` value (>=3.8) includes Python versions that
+      are not supported by your dependencies (e.g., pytorchcv==0.0.73 only
+      supports >=3.10). Consider using a more restrictive `requires-python`
+      value (like >=3.10).
+
+      hint: While the active Python version is 3.11, the resolution failed for
+      other Python versions supported by your project. Consider limiting your
+      project's supported Python versions using `requires-python`.
