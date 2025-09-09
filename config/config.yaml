@@ -1,0 +1,35 @@
+data_root: data
+exp_root: results
+seed: 0
+num_workers: 8
+experiments:
+  exp1:
+    name: DistractImageNet++ Spurious-Patch Localisation and Reliance Reduction
+    dataset_script: distract_imagenet
+    rho: [0.9, 0.7, 0.5]
+    train_size: 450000
+    val_size: 25000
+    test_size: 25000
+    epochs: 50
+    batch_size: 1024
+    backbones:
+      - arch: resnet50
+        pretrained: imagenet
+      - arch: vit_base_patch16_224
+        pretrained: imagenet21k
+    baselines: [ERM, RSC, AutoACER, GroupDRO_oracle]
+    method_ours: C3D
+    lambda_grid: [0.5, 1.0, 2.0]
+  exp2:
+    name: Context-Aware vs Global Invariance on Mixed-Correlation Benchmarks
+    datasets: [grodino/waterbirds, flwrlabs/celeba, imagenet9_swapped]
+    epochs: 90
+    batch_size: 512
+    methods: [ERM, RSC, ENP_pred, GC_DRO, C3D]
+  exp3:
+    name: Stress-testing C3D under Novel Distractors & Certified Robustness
+    imagenet_training_epochs: 120
+    sigma_certify: 0.25
+    shiftA_patches: [hexagon, emoji]
+    shiftB: imagenet_c
+    shiftC: domainnet_real_clipart
