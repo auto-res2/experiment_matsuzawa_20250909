@@ -29,7 +29,7 @@ def run_split_cifar100(**kwargs: Any):
     )
     benchmark = SplitCIFAR100(
         20,
-        DATA_DIR,
+        dataset_root=DATA_DIR,
         return_task_id=True,
         train_transform=transform,
         eval_transform=transform,

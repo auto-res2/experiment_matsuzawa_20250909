@@ -12,12 +12,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # ---------------------------------------------------------------------------
-# Global paths that are shared across all modules – MANDATORY DIRECTORY UPDATE
+# Global paths that are shared across all modules – UPDATED TO ITERATION16
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
-# All JSON artefacts must live under “.research/iteration15/”
-RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration15"
-# All figure artefacts must live under “.research/iteration15/images”
+# All JSON artefacts must live under “.research/iteration16/”
+RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration16"
+# All figure artefacts must live under “.research/iteration16/images”
 FIG_DIR = RESULTS_DIR / "images"
 # Keep the original data dir unchanged
 DATA_DIR = PROJECT_ROOT / "data"
@@ -77,9 +77,12 @@ class ByteCappedBuffer:
 # Core components of H-VQ-ReGen (minimal viable implementation)
 # ---------------------------------------------------------------------------
 class VectorQuantizer(nn.Module):
+    """Straightforward VQ layer with EMA-free codebook updates (no commitment loss)."""
+
     def __init__(self, num_codes: int = 256, code_dim: int = 32):
         super().__init__()
         self.codebook = nn.Embedding(num_codes, code_dim)
+        # Commitment loss weight – kept as a buffer so it travels with .to()
         self.register_buffer("beta", torch.tensor(0.25))
         nn.init.uniform_(
             self.codebook.weight,
@@ -88,21 +91,44 @@ class VectorQuantizer(nn.Module):
         )
 
     def forward(self, z: torch.Tensor):  # type: ignore[override]
-        flat_z = z.view(-1, z.size(-1))  # (B*H*W, D)
-        # Efficient pairwise L2 distance
+        """Quantise last-dimension vectors irrespective of spatial rank (2D or 4D)."""
+        original_shape = z.shape
+
+        # Bring channel/code dimension to the end so that the last dim is `D`.
+        if z.dim() == 4:  # (B, D, H, W) → (B, H, W, D)
+            z_perm = z.permute(0, 2, 3, 1).contiguous()
+        elif z.dim() == 2:  # (B, D)
+            z_perm = z
+        else:
+            raise ValueError("Unsupported tensor rank for VectorQuantizer")
+
+        flat_z = z_perm.view(-1, z_perm.size(-1))  # (N, D) where D = code_dim
+
+        # Efficient pair-wise L2 distance to every codebook vector
         dist = (
             flat_z.pow(2).sum(-1, keepdim=True)
             - 2 * flat_z @ self.codebook.weight.t()
             + self.codebook.weight.pow(2).sum(-1)
-        )
-        idx = dist.argmin(-1)
-        z_q = self.codebook(idx).view_as(z)
-        # Straight-through estimator
-        z_q_st = (z_q.detach() - z).detach() + z
-        loss = ((z_q_st.detach() - z.detach()) ** 2).mean() + self.beta * (
-            (z_q - z.detach()) ** 2
+        )  # (N, num_codes)
+
+        idx = dist.argmin(-1)  # (N,)
+        z_q = self.codebook(idx).view_as(flat_z)  # (N, D)
+
+        # Straight-through estimator – gradients flow to encoder, codebook gets none
+        z_q_st = (z_q.detach() - flat_z).detach() + flat_z
+
+        # Commitment loss (MSE between encoder output and its quantised version)
+        loss = ((z_q_st.detach() - flat_z.detach()) ** 2).mean() + self.beta * (
+            (z_q - flat_z.detach()) ** 2
         ).mean()
-        return z_q_st, idx.view(z.shape[0], -1), loss
+
+        # Reshape back to original layout
+        if z.dim() == 4:
+            z_q_st = z_q_st.view(*z_perm.shape).permute(0, 3, 1, 2).contiguous()
+        else:  # 2-D
+            z_q_st = z_q_st.view(*z_perm.shape)
+
+        return z_q_st, idx.view(original_shape[0], -1), loss
 
 
 class TinyEncoder(nn.Module):
@@ -150,13 +176,14 @@ class HVQReGen(nn.Module):
         z = self.encoder1(x)
         z_q1, idx1, _ = self.vq1(z)
         z_mean = z_q1.mean(dim=[2, 3])  # (B, D)
-        z_q2, idx2, _ = self.vq2(z_mean.unsqueeze(-1))
+        z_q2, idx2, _ = self.vq2(z_mean)
         return idx1.cpu(), idx2.cpu()
 
     @torch.no_grad()
     def decode(self, idx1: torch.Tensor, idx2: torch.Tensor):
         # Decoding only uses the tier-2 indices for the toy sanity-check
-        z2 = self.vq2.codebook(idx2.to(self.vq2.codebook.weight.device))  # (B, D)
+        device = self.vq2.codebook.weight.device
+        z2 = self.vq2.codebook(idx2.to(device)).view(idx2.shape[0], -1)  # (B, D)
         feat = self.decoder(z2)
         return feat
 

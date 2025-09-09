@@ -6,11 +6,14 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 
-# PEP-621 – dependencies must be a list, not a table
 dependencies = [
   "torch>=1.12",
   "torchvision>=0.13",
+  # Avalanche 0.4.x pulls in cvxpy 1.4+, which in turn hard-depends on proxsuite
+  # (no wheels for CPython 3.11). We therefore explicitly pin cvxpy to <1.4 and
+  # relax Avalanche's version constraints to avoid the transitive dependency
   "avalanche-lib>=0.4",
+  "cvxpy<1.4",
   "matplotlib>=3.5",
   "PyYAML>=6.0"
 ]
