@@ -11,14 +11,32 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
 from torch_geometric.nn import GCNConv, GCN2Conv  # base layers
-from torch_geometric.nn.models import APPNP  # <-- import the *model* variant
+
+# ---------------------------------------------------------------------------
+# APPNP import – the exact location changed across PyG versions --------------
+# ---------------------------------------------------------------------------
+# In some releases (e.g. 2.4.0) the ``APPNP`` class resides inside
+# ``torch_geometric.nn``, while in older/newer releases it is re-exported from
+# ``torch_geometric.nn.models``.  To remain compatible with both we try the
+# new path first and fall back to the old one.  If neither works we raise a
+# *hard* error in accordance with the NO-Fallback policy.
+# ---------------------------------------------------------------------------
+
+try:
+    from torch_geometric.nn import APPNP as _APPNP
+except ImportError:  # pragma: no cover – triggered on very old wheels
+    try:
+        from torch_geometric.nn.models import APPNP as _APPNP
+    except ImportError as e:  # noqa: F841
+        _APPNP = None  # handled later
+
 from torch_geometric.data import Data
 
-import torch_sparse  # <- required for Laplacian matmul
+import torch_sparse  # required for Laplacian matmul
 
 try:
     from torch_geometric.nn import DGNConv  # optional, newer PyG installs
-except ImportError:
+except ImportError:  # pragma: no cover – old wheels
     DGNConv = None  # handled later
 
 from .preprocess import DEVICE, get_normalised_laplacian
@@ -38,7 +56,12 @@ class AdaSmoothODELayer(nn.Module):
         self.poly_order = poly_order
 
     @torch.cuda.amp.autocast(enabled=True)
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor, edge_weight: Optional[torch.Tensor] = None):
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weight: Optional[torch.Tensor] = None,
+    ):
         tau = F.softplus(self.gate(x)).clamp_max(5.0)  # regularise very large values early-on
         L = get_normalised_laplacian(edge_index, edge_weight, x.size(0))
 
@@ -56,7 +79,15 @@ class AdaSmoothODELayer(nn.Module):
 # ---------------------------------------------------------------------------
 
 class AdaSmoothODE(nn.Module):
-    def __init__(self, in_dim: int, hidden_dim: int, out_dim: int, *, poly_order: int = 10, dropout: float = 0.5):
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        *,
+        poly_order: int = 10,
+        dropout: float = 0.5,
+    ):
         super().__init__()
         self.dropout = dropout
         self.layer1 = AdaSmoothODELayer(in_dim, hidden_dim, poly_order)
@@ -102,18 +133,18 @@ def make_baseline(model_name: str, in_dim: int, hidden: int, out_dim: int, num_l
         return _GCN(layers)
 
     if model_name == "appnp":
-        # The correct APPNP model lives in ``torch_geometric.nn.models``.
+        if _APPNP is None:
+            raise RuntimeError("APPNP class not found in current PyG install – aborting as per NO-Fallback policy.")
         # Signature: (in_channels, hidden_channels, out_channels, K=10, alpha=0.1, dropout=0.5)
-        return APPNP(in_dim, hidden, out_dim, K=10, alpha=0.1, dropout=0.5)
+        return _APPNP(in_dim, hidden, out_dim, K=10, alpha=0.1, dropout=0.5)
 
     if model_name == "gcnii":
         class _GCNII(nn.Module):
             def __init__(self, in_dim_: int, hidden_dim_: int, out_dim_: int, num_layers_: int):
                 super().__init__()
-                self.convs = nn.ModuleList([
-                    GCN2Conv(hidden_dim_, alpha=0.5, theta=1.0, layer=i + 1)
-                    for i in range(num_layers_)
-                ])
+                self.convs = nn.ModuleList(
+                    [GCN2Conv(hidden_dim_, alpha=0.5, theta=1.0, layer=i + 1) for i in range(num_layers_)]
+                )
                 self.lin1 = nn.Linear(in_dim_, hidden_dim_)
                 self.lin2 = nn.Linear(hidden_dim_, out_dim_)
 

@@ -1,28 +1,27 @@
 [project]
 name = "adasmooth_ode"
-version = "0.1.3"  # bumped after NumPy compatibility fix
+version = "0.1.4"  # bumped after PyTorch & path compatibility fix
 description = "Depth-scalable GNNs with node-adaptive smoothing times (AdaSmooth-ODE)"
 requires-python = ">=3.9"
 
 # ---------------------------------------------------------------------------
 # Dependency pinning strategy (wheel-only – *no local builds*)
 # ---------------------------------------------------------------------------
-# A hard pin to NumPy < 2 is required because the compiled PyG extension
-# modules shipped on the official wheel repository are still built against the
-# 1.x NumPy C-API.  Loading them with NumPy>=2 raises a hard error at runtime.
-# We therefore lock to the latest 1.x release that is compatible with CPython
-# 3.11 (currently 1.26.x).
+# We downgrade to PyTorch 2.0.1 (CPU wheel ~230 MB) to avoid extraction
+# failures experienced with the larger 2.1.0 wheel.  Corresponding PyG
+# wheels compiled against *pt20* are used.  NumPy remains < 2 to stay ABI-
+# compatible with the compiled PyG extensions.
 # ---------------------------------------------------------------------------
 
 dependencies = [
   # ---------- core ML stack ----------
-  "numpy>=1.26,<2",                # <-- explicit pin to avoid ABI mismatch
-  "torch==2.1.0",                 # CPU wheel available on the default index
-  "torchvision==0.16.0",          # CPU build automatically selected
+  "numpy>=1.26,<2",                # explicit pin to avoid ABI mismatch
+  "torch==2.0.1",                 # CPU wheel – smaller & stable
+  "torchvision==0.15.2",          # matching torch 2.0.x
 
   # ---------- PyG + compiled ops (wheel links – no recompilation) ----------
-  "torch_sparse @ https://data.pyg.org/whl/torch-2.1.0%2Bcpu/torch_sparse-0.6.18%2Bpt21cpu-cp311-cp311-linux_x86_64.whl",
-  "torch_scatter @ https://data.pyg.org/whl/torch-2.1.0%2Bcpu/torch_scatter-2.1.2%2Bpt21cpu-cp311-cp311-linux_x86_64.whl",
+  "torch_sparse @ https://data.pyg.org/whl/torch-2.0.1%2Bcpu/torch_sparse-0.6.17%2Bpt20cpu-cp311-cp311-linux_x86_64.whl",
+  "torch_scatter @ https://data.pyg.org/whl/torch-2.0.1%2Bcpu/torch_scatter-2.1.2%2Bpt20cpu-cp311-cp311-linux_x86_64.whl",
   "torch_geometric==2.4.0",      # pure-python, relies on wheels above
 
   # ---------- research helpers ----------
