@@ -158,8 +158,21 @@ class MetaLayer(nn.Module):
         super().__init__()
         self.self_lin = nn.Linear(in_dim, out_dim, bias=False)
         self.nei_lin = nn.Linear(in_dim, out_dim, bias=False)
+        # ------------------------------------------------------------------
+        #  INPUT SIZE FIX
+        #  -------------
+        #  z is a concatenation of:
+        #    • x           – dim = in_dim
+        #    • var2        – dim = in_dim (std deviation per feature)
+        #    • grad_sig    – dim = 1
+        #    • struc_feat  – dim = 1
+        #  Hence the correct input dimension is 2 * in_dim + 2 (NOT in_dim + 4).
+        # ------------------------------------------------------------------
+        ctrl_in_dim = 2 * in_dim + 2
         self.ctrl = nn.Sequential(
-            nn.Linear(in_dim + 4, ctrl_hidden), nn.ReLU(), nn.Linear(ctrl_hidden, 2)
+            nn.Linear(ctrl_in_dim, ctrl_hidden),
+            nn.ReLU(),
+            nn.Linear(ctrl_hidden, 2),
         )
         self.tau = tau
 
@@ -316,8 +329,8 @@ class Trainer:
     # ------------------------------------------------------------------
     def run_exp1(self):
         exp_cfg = self.cfg["experiment1"]
-        # Mandatory research directory (iteration-10 as per instructions)
-        research_dir = Path(".research/iteration10")
+        # Mandatory research directory (iteration-11 as per instructions)
+        research_dir = Path(".research/iteration11")
         img_dir = research_dir / "images"
         research_dir.mkdir(parents=True, exist_ok=True)
         img_dir.mkdir(exist_ok=True)
@@ -390,7 +403,7 @@ class Trainer:
             json.dump(all_results, fh, indent=2)
         print("DEPTH-SCALING STRESS-TEST (Experiment 1)")
         print(json.dumps(all_results, indent=2))
-        print("Generated figures (stored in .research/iteration10/images):")
+        print("Generated figures (stored in .research/iteration11/images):")
         for dname in exp_cfg["datasets"]:
             if len(load_dataset(dname)) != 1:
                 continue
