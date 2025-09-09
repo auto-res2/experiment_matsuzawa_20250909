@@ -1,30 +1,41 @@
 [project]
 name = "adasmooth_ode"
-version = "0.1.5"  # bumped after wheel URL removal & path update
+version = "0.1.6"  # patched: Python 3.11 compatibility + path update
 description = "Depth-scalable GNNs with node-adaptive smoothing times (AdaSmooth-ODE)"
 requires-python = ">=3.9"
 
 # ---------------------------------------------------------------------------
-# Dependency pinning strategy (wheel-only – *no local builds*)
-# ---------------------------------------------------------------------------
-# Direct URL wheels were returning *403 Forbidden*.  We therefore switch back
-# to standard PyPI resolution which hosts pre-built wheels for the required
-# packages.  All versions remain unchanged to preserve full compatibility
-# with PyTorch 2.0.1.
+# Dependency matrix – *wheel-only, no local builds*
+# Compatible with Python 3.11 out-of-the-box to avoid source compilation.
 # ---------------------------------------------------------------------------
 
 dependencies = [
   # ---------- core ML stack ----------
-  "numpy>=1.26,<2",          # explicit pin to avoid ABI mismatch
-  "torch==2.0.1",            # CPU-only wheel (<250 MB) – stable & sufficient
-  "torchvision==0.15.2",     # matching torch 2.0.x
+  "numpy>=1.26,<2",
+  "torch==2.2.2",            # first stable release with official PyPI wheels for Py-3.11
+  "torchvision==0.17.2",     # companion release for torch 2.2.x
 
   # ---------- PyG + compiled ops ----------
-  "torch_sparse==0.6.17",    # install from PyPI (pre-built wheels)
-  "torch_scatter==2.1.2",    # install from PyPI (pre-built wheels)
-  "torch_geometric==2.4.0",  # pure-python, relies on wheels above
+  "torch_sparse==0.6.19",    # pre-built wheels for torch 2.2 & Py-3.11
+  "torch_scatter==2.1.2",    # compatible with torch ≥2.0
+  "torch_geometric==2.5.3",  # latest stable (pure-python) – supports torch ≥2.0
 
   # ---------- research helpers ----------
-  "torchdiffeq", "ogb", "networkx", "scikit-learn",
-  "seaborn", "matplotlib", "pyyaml", "tqdm"
+  "torchdiffeq",
+  "ogb",
+  "networkx",
+  "scikit-learn",
+  "seaborn",
+  "matplotlib",
+  "pyyaml",
+  "tqdm"
 ]
+
+[tool.uv]
+# Ensure that, if a wheel is not found and a build is attempted, all build
+# isolation environments include torch so that C++/CUDA extensions can locate
+# the correct headers.  This offers a graceful degradation path while still
+# preferring wheels.
+
+[tool.uv.extra-build-dependencies]
+torch-sparse = ["torch"]
