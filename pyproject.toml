@@ -1,33 +1,26 @@
 [build-system]
 requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
 
 [project]
 name = "grade_gnn_research"
 version = "0.1.0"
-description = "Research codebase for GRADE-GNN oversmoothing experiments"
+description = "Refactored experimental benchmark for GRADE-GNN vs baseline GCN"
 readme = "README.md"
 requires-python = ">=3.9"
+license = {text = "MIT"}
 authors = [
-  { name = "Researcher", email = "research@gnn.ai" }
+    {name = "Anonymous Researcher"}
 ]
 
-dependencies = [
-  # Use the stable CPU-only Wheel published to PyPI (no "+cpu" suffix required).
-  "torch==2.0.1",
-  # torch-geometric is compiled against specific PyTorch versions – keep it broad but
-  # still recent enough for the required APIs.
-  "torch-geometric>=2.4.0",
-  "matplotlib>=3.7",
-  "pyyaml>=6.0",
-  "networkx>=3.2",
-  # Pin NumPy to <2.0 because PyTorch <2.1 and many scientific wheels are not yet
-  # built against the new NumPy C-API, which previously caused runtime failures.
-  "numpy<2.0",
-  # Pre-install curvature library. Though not used in baseline runs, it is
-  # required for GRADE-GNN experiments.
-  "GraphRicciCurvature==0.5.3.2",
-]
+[project.dependencies]
+# Core frameworks
+torch = "*"
+torch-geometric = "*"
+# OGB datasets
+ogb = "*"
+# Plotting & utilities
+matplotlib = "*"
+pyyaml = "*"
 
 [tool.setuptools.packages.find]
 where = ["src"]

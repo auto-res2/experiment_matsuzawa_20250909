@@ -1,21 +1,59 @@
-exp_id: demo_v1
-description: "Baseline GCN on Cora dataset"
+hardware:
+  gpus: 1  # overwritten by WORLD_SIZE env var in distributed runs
+  device: "cuda"  # auto-changed to "cpu" if no GPU available
 
 datasets:
-  - name: Cora
-    url: "https://example.com/datasets/cora"
+  Cora:
+    url: "https://huggingface.co/datasets/gcaillaut/cora"
+    loader: "Planetoid"
+  Citeseer:
+    url: "https://huggingface.co/datasets/gcaillaut/citeseer"
+    loader: "Planetoid"
+  Pubmed:
+    url: "https://huggingface.co/datasets/gcaillaut/pubmed"
+    loader: "Planetoid"
+  CoauthorCS:
+    url: "https://github.com/kimiyoung/planetoid/raw/master/data"
+    loader: "Coauthor"
+  Texas:
+    url: "https://huggingface.co/datasets/kzorluoglu/texas"
+    loader: "WebKB"
+  Wisconsin:
+    url: "https://huggingface.co/datasets/kzorluoglu/wisconsin"
+    loader: "WebKB"
+  Chameleon:
+    url: "https://huggingface.co/datasets/kzorluoglu/chameleon"
+    loader: "WikipediaNetwork"
+  ogbn-arxiv:
+    url: "https://huggingface.co/datasets/SauravMaheshkar/pareto-ogbn-arxiv"
+    loader: "OGBArxiv"
+  ogbn-products:
+    url: "https://ogb.stanford.edu/docs/nodeprop/"
+    loader: "OGBProducts"
 
 models:
-  - name: gcn_baseline
-    type: GCN
+  GCN2:
     layers: 2
-    hidden: 16
+    hidden: 256
+  GCN32:
+    layers: 32
+    hidden: 256
+  GCN64:
+    layers: 64
+    hidden: 256
 
-epochs: 50
-lr: 0.01
-weight_decay: 5e-4
-dropout: 0.5
-lambda_geo: 1.0  # not used for vanilla GCN but kept for completeness
-lambda_grad: 0.0
-tau: 0.5
-patience: 10
+grade_hparams:
+  lambda_geo: 0.01
+  lambda_grad: 0.01
+  tau_init: 0.5
+
+optim:
+  lr: 0.01
+  weight_decay: 0.0005
+
+training:
+  epochs: 300
+  patience: 50
+  split: [0.6, 0.2, 0.2]
+
+output_dir: "./results"

@@ -1,43 +1,72 @@
+"""src/evaluate.py
+Evaluation, metrics and plotting utilities.
+"""
+from __future__ import annotations
+
 import json
-from typing import Dict
+from pathlib import Path
+from typing import List
 
-import matplotlib.pyplot as plt
 import torch
-import torch.nn.functional as F
+import matplotlib
 
-from .preprocess import FIG_DIR
+matplotlib.use("Agg")  # headless
+import matplotlib.pyplot as plt
 
-# ---------------------------------------------------------------------------
-#  Evaluation utilities ------------------------------------------------------
-# ---------------------------------------------------------------------------
+try:
+    import torch_geometric
+except ImportError:
+    print("[FATAL] PyTorch-Geometric not available – aborting (STRICT NO-FALLBACK)")
+    import sys
+    sys.exit(1)
 
-def test(model, data, split_idx: Dict[str, torch.Tensor]):
-    """Return dict of accuracies and the raw logits."""
+from torch_geometric.data import Data
+
+__all__ = ["evaluate", "save_curve_pdf", "dump_json"]
+
+
+def evaluate(model: torch.nn.Module, data: Data, split: str, device):
     model.eval()
     with torch.no_grad():
-        logits = model(data.x, data.edge_index)
-    preds = logits.argmax(dim=1)
-    accs = {}
-    for k, idx in split_idx.items():
-        accs[k] = (preds[idx] == data.y[idx]).float().mean().item()
-    return accs, logits
+        data = data.to(device)
+        out, _ = model(data.x, data.edge_index)
+        pred = out.argmax(dim=-1, keepdim=True)
+        if split == "val":
+            mask = data.val_mask
+        elif split == "test":
+            mask = data.test_mask
+        else:
+            mask = data.train_mask
+        correct = (pred[mask] == data.y[mask]).sum().item()
+        acc = correct / mask.sum().item()
+        return acc
 
 
-# ---------------------------------------------------------------------------
-#  Plot helpers --------------------------------------------------------------
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------
+# Plot helper
+# ------------------------------------------------------------------
 
-def plot_training_loss(loss_history, tag: str):
-    xs = list(range(1, len(loss_history) + 1))
-    plt.figure()
-    plt.plot(xs, loss_history, label="train_loss")
-    for x, y in zip(xs, loss_history):
-        if x % (max(len(xs) // 10, 1)) == 0:
-            plt.annotate(f"{y:.2f}", (x, y))
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
+def save_curve_pdf(xs: List[int], ys: List[float], title: str, ylabel: str, fname: str):
+    plt.figure(figsize=(6, 4))
+    plt.plot(xs, ys, marker="o", label=title)
+    for x, y in zip(xs, ys):
+        plt.text(x, y, f"{y:.3f}")
+    plt.xlabel("epoch")
+    plt.ylabel(ylabel)
+    plt.title(title)
     plt.legend()
-    fname = FIG_DIR / f"training_loss_{tag}.pdf"
+    plt.grid(True)
+    plt.tight_layout()
+    Path(fname).parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(fname, bbox_inches="tight")
     plt.close()
-    return fname
+
+
+# ------------------------------------------------------------------
+# JSON result helper
+# ------------------------------------------------------------------
+
+def dump_json(obj, path: str | Path):
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(obj, f, indent=2)

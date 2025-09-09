@@ -1,94 +1,71 @@
-"""Data loading, preprocessing, reproducibility helpers."""
+"""src/preprocess.py
+Data loading and reproducibility helpers.
+"""
 from __future__ import annotations
 
-import pathlib
+import os
 import random
-from typing import Dict
+from pathlib import Path
+from typing import Any
 
-import networkx as nx
+import numpy as np
 import torch
-from torch_geometric.data import Data
-from torch_geometric.datasets import (
-    Planetoid,
-    Coauthor,
-    WebKB,
-    WikipediaNetwork,
-)
-from torch_geometric.transforms import NormalizeFeatures
-from torch_geometric.utils import to_undirected
 
-# ---------------------------------------------------------------------------
-#  Directory structure -------------------------------------------------------
-# ---------------------------------------------------------------------------
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+try:
+    from torch_geometric.datasets import (
+        Planetoid,
+        Coauthor,
+        WebKB,
+        WikipediaNetwork,
+    )
+    from ogb.nodeproppred import PygNodePropPredDataset
+except Exception as e:
+    print("[FATAL] Required dataset packages missing – aborting (STRICT NO-FALLBACK)")
+    import sys
 
-# Mandatory paths enforced by the evaluation harness ------------------------
-# NOTE: Updated to *iteration8* as mandated by the latest specification ------
-_RESEARCH_ROOT = ROOT / ".research" / "iteration8"  # .research/iteration8
-FIG_DIR = _RESEARCH_ROOT / "images"                   # .research/iteration8/images
-RES_DIR = _RESEARCH_ROOT                              # .research/iteration8/
-DATA_DIR = ROOT / "data"
+    sys.exit(1)
 
-# Make sure all directories exist ------------------------------------------
-for _d in (FIG_DIR, RES_DIR, DATA_DIR):
-    _d.mkdir(parents=True, exist_ok=True)
+__all__ = ["load_dataset", "set_seed"]
 
-# ---------------------------------------------------------------------------
-#  Reproducibility -----------------------------------------------------------
-# ---------------------------------------------------------------------------
+DATA_DIR = Path("./data")
+DATA_DIR.mkdir(exist_ok=True, parents=True)
+
+
+# ============================================================
+# Global seed for reproducibility
+# ============================================================
 
 def set_seed(seed: int = 0):
     random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 
-# ---------------------------------------------------------------------------
-#  Dataset loader ------------------------------------------------------------
-# ---------------------------------------------------------------------------
+# ============================================================
+# Dataset loader (full-batch only for this demo)
+# ============================================================
 
 def load_dataset(name: str):
-    """Return an InMemoryDataset from torch_geometric."""
-    if name in ("Cora", "Citeseer", "Pubmed"):
-        return Planetoid(root=DATA_DIR / name, name=name, transform=NormalizeFeatures())
-    if name == "CoauthorCS":
-        return Coauthor(root=DATA_DIR / name, name="CS", transform=NormalizeFeatures())
-    if name in ("Texas", "Wisconsin"):
-        return WebKB(root=DATA_DIR / name, name=name, transform=NormalizeFeatures())
-    if name == "Chameleon":
-        return WikipediaNetwork(root=DATA_DIR / name, name="chameleon", transform=NormalizeFeatures())
-    raise RuntimeError(f"Dataset {name} not supported – STRICT FILE CONSTRAINT VIOLATED")
+    name_l = name.lower()
+    root = DATA_DIR / name_l
+    if name_l in {"cora", "citeseer", "pubmed"}:
+        return Planetoid(root=str(root), name=name.capitalize())
+    if name_l == "coauthorcs":
+        return Coauthor(root=str(root), name="CS")
+    if name_l in {"texas", "wisconsin"}:
+        return WebKB(root=str(root), name=name.capitalize())
+    if name_l == "chameleon":
+        return WikipediaNetwork(root=str(root), name="chameleon")
+    if name_l == "ogbn-arxiv":
+        return PygNodePropPredDataset(name="ogbn-arxiv", root=str(root))
+    if name_l == "ogbn-products":
+        return PygNodePropPredDataset(name="ogbn-products", root=str(root))
 
+    print(f"[FATAL] Dataset {name} not recognised/implemented.")
+    import sys
 
-# ---------------------------------------------------------------------------
-#  Curvature computation -----------------------------------------------------
-# ---------------------------------------------------------------------------
-
-def graph_curvature(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
-    """Compute Ollivier–Ricci curvature per edge (CPU)."""
-    try:
-        import GraphRicciCurvature as grc
-    except ImportError:
-        # Lazy, one-time install if missing.
-        import subprocess, sys
-
-        subprocess.check_call(
-            [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "GraphRicciCurvature==0.5.3.2",
-                "--quiet",
-            ]
-        )
-        import GraphRicciCurvature as grc
-
-    g = nx.Graph()
-    g.add_nodes_from(range(num_nodes))
-    ei = edge_index.cpu().numpy()
-    g.add_edges_from(ei.T)
-    orc = grc.OllivierRicci(g, alpha=0.5, verbose="ERROR")
-    orc.compute_ricci_curvature()
-    curvature = [d.get("ricciCurvature", 0.0) for _, _, d in g.edges(data=True)]
-    return torch.tensor(curvature, dtype=torch.float)
+    sys.exit(1)
