@@ -1,28 +1,28 @@
 [project]
 name = "adasmooth_ode"
-version = "0.1.4"  # bumped after PyTorch & path compatibility fix
+version = "0.1.5"  # bumped after wheel URL removal & path update
 description = "Depth-scalable GNNs with node-adaptive smoothing times (AdaSmooth-ODE)"
 requires-python = ">=3.9"
 
 # ---------------------------------------------------------------------------
 # Dependency pinning strategy (wheel-only – *no local builds*)
 # ---------------------------------------------------------------------------
-# We downgrade to PyTorch 2.0.1 (CPU wheel ~230 MB) to avoid extraction
-# failures experienced with the larger 2.1.0 wheel.  Corresponding PyG
-# wheels compiled against *pt20* are used.  NumPy remains < 2 to stay ABI-
-# compatible with the compiled PyG extensions.
+# Direct URL wheels were returning *403 Forbidden*.  We therefore switch back
+# to standard PyPI resolution which hosts pre-built wheels for the required
+# packages.  All versions remain unchanged to preserve full compatibility
+# with PyTorch 2.0.1.
 # ---------------------------------------------------------------------------
 
 dependencies = [
   # ---------- core ML stack ----------
-  "numpy>=1.26,<2",                # explicit pin to avoid ABI mismatch
-  "torch==2.0.1",                 # CPU wheel – smaller & stable
-  "torchvision==0.15.2",          # matching torch 2.0.x
+  "numpy>=1.26,<2",          # explicit pin to avoid ABI mismatch
+  "torch==2.0.1",            # CPU-only wheel (<250 MB) – stable & sufficient
+  "torchvision==0.15.2",     # matching torch 2.0.x
 
-  # ---------- PyG + compiled ops (wheel links – no recompilation) ----------
-  "torch_sparse @ https://data.pyg.org/whl/torch-2.0.1%2Bcpu/torch_sparse-0.6.17%2Bpt20cpu-cp311-cp311-linux_x86_64.whl",
-  "torch_scatter @ https://data.pyg.org/whl/torch-2.0.1%2Bcpu/torch_scatter-2.1.2%2Bpt20cpu-cp311-cp311-linux_x86_64.whl",
-  "torch_geometric==2.4.0",      # pure-python, relies on wheels above
+  # ---------- PyG + compiled ops ----------
+  "torch_sparse==0.6.17",    # install from PyPI (pre-built wheels)
+  "torch_scatter==2.1.2",    # install from PyPI (pre-built wheels)
+  "torch_geometric==2.4.0",  # pure-python, relies on wheels above
 
   # ---------- research helpers ----------
   "torchdiffeq", "ogb", "networkx", "scikit-learn",
