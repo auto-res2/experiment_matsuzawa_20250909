@@ -1,0 +1,4 @@
+=== uv sync start Tue Sep  9 11:12:30 AM UTC 2025 ===
+=== uv install end Tue Sep  9 11:12:36 AM UTC 2025 ===
+=== experiment start Tue Sep  9 11:12:36 AM UTC 2025 ===
+[WARN] torch-sparse not found – certain PyG ops may be slower.
