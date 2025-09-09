@@ -21,9 +21,9 @@ from ogb.nodeproppred import PygNodePropPredDataset
 #                           DIRECTORY CONSTANTS
 # ---------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = BASE_DIR / ".research" / "iteration1"
+RESEARCH_DIR = BASE_DIR / ".research" / "iteration2"  # <- updated as per specification
 IMAGE_DIR = RESEARCH_DIR / "images"
-RESULT_DIR = RESEARCH_DIR  # JSON files live directly in iteration1/
+RESULT_DIR = RESEARCH_DIR  # JSON files live directly in iteration2/
 DATA_DIR = BASE_DIR / "data"
 
 for _p in [IMAGE_DIR, RESULT_DIR, DATA_DIR]:

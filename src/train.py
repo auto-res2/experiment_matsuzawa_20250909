@@ -13,6 +13,8 @@ from torch.optim import Adam
 from torch_geometric.nn import APPNP, GCNConv, GCN2Conv
 from torch_geometric.data import Data
 
+import torch_sparse  # <- required for Laplacian matmul
+
 try:
     from torch_geometric.nn import DGNConv  # optional, newer PyG installs
 except ImportError:
