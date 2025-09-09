@@ -136,8 +136,27 @@ class OrthogonalClassifier(nn.Module):
         self.subspaces: Dict[str, nn.Parameter] = nn.ParameterDict()
 
     # ------------------------------------------------------------------
-    def add_task(self, task_id: int, n_classes: int):
-        weight = nn.Parameter(torch.randn(n_classes, self.feat_dim))
+    def add_task(self, task_id: int, n_classes: int, device: torch.device | None = None):
+        """Initialise a new task-specific classifier matrix.
+
+        Parameters
+        ----------
+        task_id: int
+            Identifier of the task (must be unique).
+        n_classes: int
+            Number of classes for the task.
+        device: torch.device | None
+            Device on which the newly created parameters should reside. If
+            ``None`` we try to infer it from existing parameters, defaulting to
+            CPU if the classifier is still empty.
+        """
+        if device is None:
+            try:
+                # Infer device from existing parameters if any
+                device = next(self.parameters()).device  # type: ignore[stop-iteration]
+            except StopIteration:
+                device = torch.device("cpu")
+        weight = nn.Parameter(torch.randn(n_classes, self.feat_dim, device=device))
         nn.init.orthogonal_(weight)
         self.subspaces[str(task_id)] = weight
 

@@ -1,7 +1,7 @@
 # src/evaluate.py
 """Runs the *Ultra-low-footprint* experiment and handles statistics/plots.
 
-All I/O artefacts are saved under `.research/iteration5/` so that multiple
+All I/O artefacts are saved under `.research/iteration6/` so that multiple
 independent experiment runs are kept separate from the source code.
 """
 from __future__ import annotations
@@ -10,6 +10,7 @@ import json
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, TypeVar
+import warnings
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -35,13 +36,7 @@ try:
     if not hasattr(_pc_common, "DwsConvBlock") or not hasattr(_pc_mobilenet, "DwsConvBlock"):
 
         class DwsConvBlock(_nn.Sequential):  # type: ignore[misc]
-            """Depth-wise separable convolution block (minimal stub).
-
-            This implementation is **not** performance-critical for the current
-            project – it merely needs to exist so that Avalanche can import its
-            MobileNetV1 definition without crashing. The block follows the
-            original structure but omits exotic options for brevity.
-            """
+            """Depth-wise separable convolution block (minimal stub)."""
 
             def __init__(
                 self,
@@ -53,7 +48,6 @@ try:
                 **_: Any,
             ) -> None:
                 if padding is None:
-                    # Same padding heuristic used in the original implementation
                     padding = kernel_size // 2 if isinstance(kernel_size, int) else kernel_size[0] // 2
                 layers = [
                     # Depth-wise convolution
@@ -78,17 +72,115 @@ try:
         # Register the stub in both expected namespaces and in `sys.modules`
         _pc_common.DwsConvBlock = DwsConvBlock  # type: ignore[attr-defined]
         _pc_mobilenet.DwsConvBlock = DwsConvBlock  # type: ignore[attr-defined]
-        # Some modules do `from pytorchcv.models.common import DwsConvBlock` – make sure import machinery sees it
         if "pytorchcv.models.common" in sys.modules:
             sys.modules["pytorchcv.models.common"].DwsConvBlock = DwsConvBlock  # type: ignore[attr-defined]
 except ModuleNotFoundError:
-    # If `pytorchcv` is missing for some reason, we fail fast – it is declared
-    # as a transitive dependency of Avalanche, so absence indicates a bigger
-    # problem we should not silently ignore.
     raise
 
 from avalanche.benchmarks.classic import SplitCIFAR100  # noqa: E402  (after monkey-patch)
-from avalanche.training.strategies import Replay  # noqa: E402
+
+# ---------------------------------------------------------------------------
+#  Attempt import of Avalanche Replay strategy; fall back to a minimal stub
+#  if the official implementation is unavailable (e.g. incompatible version).
+# ---------------------------------------------------------------------------
+try:
+    from avalanche.training.strategies import Replay as _AvalancheReplay  # noqa: E402
+
+    class _WrappedReplay(_AvalancheReplay):
+        """Simply expose Avalanche's implementation under the expected name."""
+
+        pass
+
+    ReplayStrategy = _WrappedReplay
+except ModuleNotFoundError:  # pragma: no cover – fallback path
+
+    warnings.warn(
+        "Avalanche Replay strategy could not be imported. "
+        "Falling back to a naive internal implementation – results may differ.",
+        RuntimeWarning,
+    )
+
+    import torch.nn as _nn  # noqa: E402
+    import torch.utils.data as _data  # noqa: E402
+
+    class ReplayStrategy:  # Minimal stub matching the required interface
+        """Naive rehearsal strategy with FIFO memory (internal fallback)."""
+
+        def __init__(
+            self,
+            model: _nn.Module,
+            optimizer: torch.optim.Optimizer,
+            criterion: _nn.Module,
+            mem_size: int,
+            train_mb_size: int,
+            train_epochs: int,
+            eval_mb_size: int,
+            device: torch.device,
+        ) -> None:
+            self.model = model
+            self.optimizer = optimizer
+            self.criterion = criterion
+            self.mem_size = mem_size
+            self.train_mb_size = train_mb_size
+            self.train_epochs = train_epochs
+            self.eval_mb_size = eval_mb_size
+            self.device = device
+
+            self.mem_inputs: List[torch.Tensor] = []
+            self.mem_targets: List[int] = []
+
+        # --------------------------------------------------------------
+        def _update_memory(self, inputs: torch.Tensor, targets: torch.Tensor):
+            for x, y in zip(inputs.cpu(), targets.cpu()):
+                if len(self.mem_inputs) < self.mem_size:
+                    self.mem_inputs.append(x)
+                    self.mem_targets.append(int(y))
+                else:
+                    self.mem_inputs.pop(0)
+                    self.mem_targets.pop(0)
+                    self.mem_inputs.append(x)
+                    self.mem_targets.append(int(y))
+
+        # --------------------------------------------------------------
+        def train(self, experience):
+            dataset = experience.dataset  # type: ignore[attr-defined]
+            loader = _data.DataLoader(dataset, batch_size=self.train_mb_size, shuffle=True, num_workers=2)
+            self.model.train()
+            for _ in range(self.train_epochs):
+                for batch in loader:
+                    inputs, targets = batch[0].to(self.device), batch[1].to(self.device)
+                    # Sample memory batch (if any)
+                    if self.mem_size > 0 and len(self.mem_inputs) > 0:
+                        mem_idx = torch.randint(0, len(self.mem_inputs), (min(len(self.mem_inputs), self.train_mb_size),))
+                        mem_x = torch.stack([self.mem_inputs[i] for i in mem_idx]).to(self.device)
+                        mem_y = torch.tensor([self.mem_targets[i] for i in mem_idx], device=self.device)
+                        inputs = torch.cat([inputs, mem_x], dim=0)
+                        targets = torch.cat([targets, mem_y], dim=0)
+                    self.optimizer.zero_grad()
+                    outputs = self.model(inputs)
+                    loss = self.criterion(outputs, targets)
+                    loss.backward()
+                    self.optimizer.step()
+                    # Update memory with current batch (after optimisation)
+                    self._update_memory(inputs.detach(), targets.detach())
+
+        # --------------------------------------------------------------
+        @torch.no_grad()
+        def eval(self, experience):
+            dataset = experience.dataset  # type: ignore[attr-defined]
+            loader = _data.DataLoader(dataset, batch_size=self.eval_mb_size, shuffle=False, num_workers=2)
+            self.model.eval()
+            correct = 0
+            total = 0
+            for batch in loader:
+                inputs, targets = batch[0].to(self.device), batch[1].to(self.device)
+                outputs = self.model(inputs)
+                preds = outputs.argmax(dim=1)
+                correct += (preds == targets).sum().item()
+                total += targets.size(0)
+            acc = correct / max(total, 1)
+            return {"Top1_Acc_Stream/eval_phase/test_stream": acc * 100.0}
+
 from torch import nn  # noqa: E402
 
 from .preprocess import get_cifar100_benchmark  # noqa: E402
@@ -100,7 +192,7 @@ matplotlib.use("Agg")  # headless rendering only
 #  GLOBAL PATHS  (resolved from project root)  ------------------------------
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration5"
+RESEARCH_DIR = ROOT / ".research" / "iteration6"
 IMAGES_DIR = RESEARCH_DIR / "images"
 for p in (RESEARCH_DIR, IMAGES_DIR):
     p.mkdir(parents=True, exist_ok=True)
@@ -155,7 +247,7 @@ class BaseExperiment:
     def __init__(self, name: str):
         self.name = name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Save JSON results directly under iteration5/
+        # Save JSON results directly under iteration6/
         self.results_path = RESEARCH_DIR / f"{self.name}_results.json"
         self.figures: List[str] = []
         self.metric_log: Dict[str, Any] = {}
@@ -208,11 +300,11 @@ class UltraLowFootprintExperiment(BaseExperiment):
                 )
 
                 # Replay serves as placeholder for H-VQ strategy.
-                strategy = Replay(
+                strategy = ReplayStrategy(
                     model=model,
                     optimizer=optimiser,
                     criterion=nn.CrossEntropyLoss(),
-                    mem_size=budget // 1024,  # Avalanche expects pattern count
+                    mem_size=budget // 1024,  # pattern count for replay
                     train_mb_size=common_cfg["batch_size"],
                     train_epochs=1,
                     eval_mb_size=common_cfg["batch_size"],
@@ -222,7 +314,7 @@ class UltraLowFootprintExperiment(BaseExperiment):
                 for exp_id, experience in enumerate(benchmark.train_stream):
                     # Register task in classifier (5-way for SplitCIFAR100)
                     if str(exp_id) not in classifier.subspaces:
-                        classifier.add_task(exp_id, 5)
+                        classifier.add_task(exp_id, 5, device=self.device)
                     model.current_task = exp_id
                     strategy.train(experience)
 
@@ -234,8 +326,8 @@ class UltraLowFootprintExperiment(BaseExperiment):
                     accs.append(m["Top1_Acc_Stream/eval_phase/test_stream"])
                 avg_acc = sum(accs) / len(accs)
 
-                faa_matrix[b_idx, s_idx] = avg_acc * 100.0
-                apk_matrix[b_idx, s_idx] = (avg_acc * 100.0) / (budget / 1024)
+                faa_matrix[b_idx, s_idx] = avg_acc
+                apk_matrix[b_idx, s_idx] = avg_acc / (budget / 1024)
 
         # ---------------- Aggregate + Plot ------------------------------
         mean_faa = faa_matrix.mean(dim=1).tolist()
