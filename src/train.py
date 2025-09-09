@@ -34,10 +34,13 @@ __all__ = [
 
 def _feature_dim_of(model: nn.Module) -> int:
     """Attempt to obtain the dimensionality of the penultimate layer."""
+    # timm models expose ``num_features`` (preferred)
     if hasattr(model, "num_features"):
         return int(model.num_features)  # timm convention
-    # Fallback – works for torchvision-style models
-    return int(model.get_classifier().in_features)
+    # torchvision-style models expose a classifier with ``in_features``
+    if hasattr(model, "get_classifier"):
+        return int(model.get_classifier().in_features)
+    raise AttributeError("Unable to infer feature dim – please extend _feature_dim_of().")
 
 
 class Projector(nn.Module):
@@ -67,6 +70,35 @@ def build_backbone(model_name: str, num_classes: int) -> Tuple[nn.Module, int]:
 # -----------------------------------------------------------------------------
 
 
+def _pre_logits_vector(model: nn.Module, imgs: torch.Tensor) -> torch.Tensor:
+    """Return a 2-D tensor (B, F) containing "pre-logits" suitable for the projector.
+
+    This utility is needed because `timm`'s API differs across versions and between
+    model families (ResNet, ViT, …).  We therefore try a few strategies:
+
+    1. If the model implements ``forward_head`` we use it with ``pre_logits=True``.
+    2. Fallback to ``forward_features`` and apply global average pooling when a
+       4-D tensor is returned (B, C, H, W).
+    3. Ultimate fallback: use the attribute ``pre_logits`` if it exists.
+    """
+
+    if hasattr(model, "forward_head"):
+        feats = model.forward_features(imgs)
+        return model.forward_head(feats, pre_logits=True)
+
+    feats = model.forward_features(imgs) if hasattr(model, "forward_features") else None
+    if feats is not None:
+        # Handle spatial feature map → global average pool if necessary
+        if feats.dim() == 4:  # (B, C, H, W)
+            feats = feats.mean(dim=(2, 3))  # → (B, C)
+        return feats
+
+    if hasattr(model, "pre_logits"):
+        return model.pre_logits  # type: ignore[return-value]
+
+    raise RuntimeError("Cannot obtain pre-logits vector from the supplied model.")
+
+
 def train_one_epoch(
     model: nn.Module,
     projector: nn.Module,
@@ -91,13 +123,11 @@ def train_one_epoch(
         optimiser.zero_grad(set_to_none=True)
         with autocast(dtype=torch.bfloat16):
             preds = model(imgs)
-            # access to pre-logits depends on timm version; safest is attribute
-            pre_logits = (
-                model.forward_features(imgs) if hasattr(model, "forward_features") else model.pre_logits
-            )
+            pre_logits = _pre_logits_vector(model, imgs)
             z = projector(pre_logits)
+            # Cross-entropy loss
             ce = ce_loss_fn(preds, labels)
-            # DCD consistency loss – disabled if lambda_cons == 0
+            # DCD consistency loss – disabled if lambda_cons == 0 (placeholder 0.0)
             cons = torch.tensor(0.0, device=device)
             loss = ce + cfg.lambda_cons * cons
 
@@ -180,7 +210,7 @@ def run_experiment(cfg: NamespaceLike) -> Dict[str, Any]:
     # ------------------------------------------------------------------
     # Persist results   -------------------------------------------------
     # ------------------------------------------------------------------
-    base_dir = pathlib.Path(".research/iteration9")
+    base_dir = pathlib.Path(".research/iteration10")
     base_dir.mkdir(parents=True, exist_ok=True)
 
     json_path = base_dir / f"{cfg.name}_results.json"
@@ -191,13 +221,13 @@ def run_experiment(cfg: NamespaceLike) -> Dict[str, Any]:
         "epochs": int(cfg.epochs),
         "timestamp": datetime.utcnow().isoformat(),
     }
-    with open(json_path, "w") as f:
+    with open(json_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
 
     # ------------------------------------------------------------------
     # Figures   ---------------------------------------------------------
     # ------------------------------------------------------------------
-    images_dir = pathlib.Path(".research/iteration9/images")
+    images_dir = base_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
 
     line_plot(val_hist, "Validation accuracy", "Acc", images_dir / f"accuracy_{cfg.name}.pdf")
@@ -215,6 +245,6 @@ def run_experiment(cfg: NamespaceLike) -> Dict[str, Any]:
     )
     print("Results JSON:")
     print(json.dumps(results, indent=2))
-    print("Figures generated in .research/iteration9/images\n")
+    print("Figures generated in .research/iteration10/images\n")
 
     return results
