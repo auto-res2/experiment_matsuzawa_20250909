@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import io
 import random
+import math
 from pathlib import Path
 from typing import Any, Dict, Tuple, Optional
 
@@ -175,6 +176,12 @@ class DistractImageNetDataset(Dataset):
             )
             tex_np = plt.imread(str(tex_path))  #  H×W×C, in [0,1]
 
+            # Ensure the texture is at least 70×70 by tiling
+            h, w, _ = tex_np.shape
+            rep_y = math.ceil(70 / h)
+            rep_x = math.ceil(70 / w)
+            tex_large = np.tile(tex_np, (rep_y, rep_x, 1))[:70, :70, :3]
+
             # Random 10% window (≈70×70 on 224×224 crop)
             x0 = self.rng.randint(0, 224 - 70)
             y0 = self.rng.randint(0, 224 - 70)
@@ -182,7 +189,7 @@ class DistractImageNetDataset(Dataset):
             # Convert PIL image to numpy array in [0,1] range
             img_np = np.asarray(img_rgb, dtype=np.float32) / 255.0
 
-            img_np[y0 : y0 + 70, x0 : x0 + 70, :3] = tex_np[y0 : y0 + 70, x0 : x0 + 70, :3]
+            img_np[y0 : y0 + 70, x0 : x0 + 70, :3] = tex_large
             mask[y0 : y0 + 70, x0 : x0 + 70] = 1
 
             from PIL import Image  #  late import

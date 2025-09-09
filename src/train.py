@@ -58,11 +58,13 @@ class ERMTrainer:
     # Training loop
     # ------------------------------------------------------------------
     def fit(self, train_loader: DataLoader, val_loader: DataLoader) -> float:
+        # Prepare the dataloaders once – this moves tensors to the right device
+        train_loader, val_loader = self.accelerator.prepare(train_loader, val_loader)
+
         best_acc: float = 0.0
         for ep in range(self.epochs):
             self.model.train()
             for xb, yb, *_ in train_loader:
-                xb, yb = self.accelerator.prepare(xb, yb)
                 with self.accelerator.accumulate(self.model):
                     logits = self.model(xb)
                     loss = F.cross_entropy(logits, yb)
@@ -83,7 +85,9 @@ class ERMTrainer:
         self.model.eval()
         accs: List[torch.Tensor] = []
         for xb, yb, *_ in loader:
-            xb, yb = self.accelerator.prepare(xb, yb)
             logits = self.model(xb)
             accs.append((logits.argmax(1) == yb).float())
-        return torch.cat(accs).mean().item()
+        # Gather across processes
+        acc_tensor = torch.cat(accs)
+        acc_tensor = self.accelerator.gather(acc_tensor)
+        return acc_tensor.mean().item()

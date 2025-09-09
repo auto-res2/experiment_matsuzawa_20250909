@@ -21,6 +21,7 @@ dependencies = [
     "captum",
     "pyyaml",
     "requests",
+    "numpy",
 ]
 
 [build-system]
