@@ -1,5 +1,5 @@
 """
-evaluate.py – metrics, statistics, and plotting helpers
+evaluate.py – metrics, statistics, and plotting helpers (iteration 8 paths)
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import torch
 
 # ---------------------------------------------------------------------------
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-IMG_DIR = ROOT / ".research" / "iteration7" / "images"
+IMG_DIR = ROOT / ".research" / "iteration8" / "images"
 IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
@@ -20,7 +20,7 @@ IMG_DIR.mkdir(parents=True, exist_ok=True)
 # ---------------------------------------------------------------------------
 
 class Evaluator:
-    def __init__(self, device: str = "cuda") -> None:
+    def __init__(self, device: str = "cuda" if torch.cuda.is_available() else "cpu") -> None:
         self.device = device
 
     @torch.no_grad()
@@ -36,7 +36,7 @@ class Evaluator:
         return {"accuracy": correct / total}
 
 # ---------------------------------------------------------------------------
-#  Very small plotting helper (used by main.py)
+#  Simple plotting helper (used by main.py)
 # ---------------------------------------------------------------------------
 
 def line_plot(x, y, title: str, xlabel: str, ylabel: str, filename: str):

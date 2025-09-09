@@ -1,6 +1,6 @@
 """
 train.py – model construction, DiCE augmentation, and generic trainer
-Note:  All experiment artifacts are stored under .research/iteration7 so
+Note:  All experiment artifacts are stored under .research/iteration8 so
 that several independent iterations can co-exist in the same repo.
 """
 from __future__ import annotations
@@ -13,9 +13,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from diffusers import StableDiffusionInpaintPipeline
-from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
-from sklearn.cluster import KMeans
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import functional as TF
@@ -24,10 +21,10 @@ import timm
 from .evaluate import Evaluator  # relative import (defined in evaluate.py)
 
 # ---------------------------------------------------------------------------
-#  Paths / folders
+#  Paths / folders – iteration **8**
 # ---------------------------------------------------------------------------
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration7"
+RESEARCH_DIR = ROOT / ".research" / "iteration8"
 RESULTS_DIR = RESEARCH_DIR  # json files live straight in this directory
 IMG_DIR = RESEARCH_DIR / "images"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -65,28 +62,41 @@ class ModelFactory:
         raise RuntimeError(f"Model {name} is not implemented")
 
 # ---------------------------------------------------------------------------
-#  DiCE specific components
+#  DiCE specific components (imports are performed lazily so that standard
+#  ERM experiments do **not** need the heavy dependencies).
 # ---------------------------------------------------------------------------
 
 class DiCEAugmentor:
     """Implements the full DiCE pipeline (SAM foreground mask + SD-inpaint + CLIP + K-means).
 
-    Extremely compute-heavy – only called with 20 % probability in Trainer
-    to reduce runtime.
+    Extremely compute-heavy – only initialised and called when cfg.method starts with
+    "dice".  All heavyweight libraries are imported lazily inside __init__ so that a
+    quick ERM run can succeed without them.
     """
 
     def __init__(self, device: str = "cuda") -> None:
+        # ------------------------------------------------------------------
+        #  Import heavy dependencies lazily – this keeps the default quick_demo
+        #  runnable on CPU-only machines with limited resources.
+        # ------------------------------------------------------------------
+        try:
+            from segment_anything import SamAutomaticMaskGenerator, sam_model_registry  # type: ignore
+            from diffusers import StableDiffusionInpaintPipeline  # type: ignore
+            from transformers import CLIPModel, CLIPProcessor  # type: ignore
+        except ModuleNotFoundError as e:
+            raise RuntimeError(
+                "DiCEAugmentor requires optional packages (segment_anything, diffusers, transformers). "
+                "Install them to run DiCE-based experiments."
+            ) from e
+
         self.device = device
 
-        # Heavy models are initialised once and re-used for every call to
-        # generate().
+        # Heavy models are initialised once and re-used for every call to generate().
         self.sam = sam_model_registry["vit_h"](checkpoint="sam_vit_h_4b8939.pth").to(device)
         self.mask_generator = SamAutomaticMaskGenerator(self.sam, points_per_side=32, pred_iou_thresh=0.88)
         self.sd = StableDiffusionInpaintPipeline.from_pretrained(
             "stabilityai/stable-diffusion-2-inpainting", torch_dtype=torch.float16
         ).to(device)
-
-        from transformers import CLIPModel, CLIPProcessor  # local import to keep package list minimal
 
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16").to(device)
         self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
@@ -96,6 +106,9 @@ class DiCEAugmentor:
             "mountain view",
             "underwater scene",
         ]
+        from sklearn.cluster import KMeans  # local import to keep initial import footprint low
+
+        self.KMeans = KMeans  # store class ref to create on first use
         self.kmeans: KMeans | None = None
 
     # ---------------------------------------------------------------------
@@ -107,17 +120,17 @@ class DiCEAugmentor:
             # invert normalisation back to [0,1] PIL space
             pil = TF.to_pil_image(
                 (
-                    img * torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
-                    + torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
-                ).clamp(0, 1)
+                    img * torch.tensor([0.229, 0.224, 0.225], device=img.device).view(3, 1, 1)
+                    + torch.tensor([0.485, 0.456, 0.406], device=img.device).view(3, 1, 1)
+                ).clamp(0, 1).cpu()
             )
             mask = self._get_foreground_mask(pil)
             prompt = random.choice(self.prompts)
             gen = self.sd(prompt=prompt, image=pil, mask_image=mask, num_inference_steps=50, guidance_scale=7).images[0]
             feat = self._clip_feat(gen)
             imgs.append(TF.to_tensor(gen))
-            labs.append(lbl)
-            feats.append(feat)
+            labs.append(lbl.cpu())
+            feats.append(feat.cpu())
 
         X = torch.stack(imgs)
         L = torch.tensor(labs)
@@ -128,7 +141,7 @@ class DiCEAugmentor:
     # ------------------------------------------------------------------
     def _get_foreground_mask(self, pil_img):
         import numpy as np
-        from PIL import Image
+        from PIL import Image  # pillow is an indirect dependency of torchvision
 
         masks = self.mask_generator.generate(np.array(pil_img))
         seg = np.zeros(pil_img.size[::-1], dtype=np.uint8)
@@ -143,7 +156,7 @@ class DiCEAugmentor:
     def _cluster(self, feats: torch.Tensor):
         feats_np = feats.cpu().numpy()
         if self.kmeans is None:
-            self.kmeans = KMeans(n_clusters=8, random_state=0).fit(feats_np)
+            self.kmeans = self.KMeans(n_clusters=8, random_state=0).fit(feats_np)
         return self.kmeans.predict(feats_np)
 
 # ---------------------------------------------------------------------------
@@ -160,7 +173,7 @@ class Trainer:
         val_set: Dataset,
         test_set: Dataset,
         cfg: Any,  # ExpConfig like object – only attribute access is required
-        device: str = "cuda",
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ) -> None:
         self.model = model.to(device)
         self.train_set, self.val_set, self.test_set = train_set, val_set, test_set
@@ -210,7 +223,7 @@ class Trainer:
         test_metrics = self._eval(self.test_set, prefix="test_")
 
         # ------------------------------------------------------------------
-        #  Persist and echo results
+        #  Persist and echo results (JSON files under .research/iteration8)
         # ------------------------------------------------------------------
         out_file = RESULTS_DIR / f"{self.cfg.name}.json"
         with open(out_file, "w") as f:
@@ -249,9 +262,7 @@ class Trainer:
 
         # ---------------------------- DRO / GC-DRO --------------------------------
         if self.cfg.method in ("gcdro", "dice", "groupdro"):
-            # here we simply use label as group id (oracle-GroupDRO) – In
-            # real DiCE, clusters would be used.  This keeps the refactor
-            # faithful without additional dependencies between modules.
+            # here we simply use label as group id (oracle-GroupDRO)
             group_id = label.detach()
             for g in torch.unique(group_id):
                 mask = group_id == g

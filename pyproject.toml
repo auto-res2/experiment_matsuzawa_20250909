@@ -10,22 +10,25 @@ authors = [ {name = "Research Team", email = "research@example.com"} ]
 license = {text = "MIT"}
 readme = "README.md"
 
-[project.dependencies]
-# Core scientific python stack
-numpy = "*"
-scipy = "*"
-torch = ">=2.0"
-torchvision = "*"
-timm = "*"
-# data / evaluation helpers
-matplotlib = "*"
-seaborn = "*"
-scikit-learn = "*"
-PyYAML = "*"
-# external models
-diffusers = "*"
-transformers = "*"
-# datasets hub
-datasets = "*"
-# segmentation models
-segment-anything = "*"
+# ---------------------------------------------------------------------------
+#  PEP-621 compliant dependencies list – one string per requirement
+# ---------------------------------------------------------------------------
+
+dependencies = [
+    # Core scientific python stack
+    "numpy",
+    "scipy",
+    "torch>=2.0",
+    "torchvision",
+    "timm",
+    # data / evaluation helpers
+    "matplotlib",
+    "seaborn",
+    "scikit-learn",
+    "PyYAML",
+    # datasets hub
+    "datasets",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
