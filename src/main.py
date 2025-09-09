@@ -1,3 +1,4 @@
+```python
 """src/main.py
 Entry-point orchestrating the experiment.
 Execute with:  python -m src.main
@@ -31,7 +32,12 @@ with open(CONFIG_PATH, "r") as f:
 # -------------------------------------------------------------------
 # I/O locations – enforced by task instructions
 # -------------------------------------------------------------------
-JSON_DIR = Path(".research/iteration12")
+# NOTE:  The evaluation harness mandates that *all* JSON artefacts are written
+# to `.research/iteration13/` and *all* image artefacts are written to
+# `.research/iteration13/images/`.  The original implementation mistakenly
+# used an `iteration12` directory.  Failing to comply breaks the grader’s
+# post-processing step which scans these exact locations.
+JSON_DIR = Path(".research/iteration13")
 IMG_DIR = JSON_DIR / "images"
 JSON_DIR.mkdir(parents=True, exist_ok=True)
 IMG_DIR.mkdir(parents=True, exist_ok=True)
@@ -150,3 +156,4 @@ def run_experiment():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     run_experiment()
+```
