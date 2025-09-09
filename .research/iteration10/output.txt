@@ -1,0 +1,20 @@
+=== uv sync start Tue Sep  9 04:24:42 AM UTC 2025 ===
+=== uv install end Tue Sep  9 04:25:48 AM UTC 2025 ===
+=== experiment start Tue Sep  9 04:25:48 AM UTC 2025 ===
+Epoch 1/2: train_acc=0.8980 val_acc=0.8190 ce=0.2442
+Epoch 2/2: train_acc=0.9754 val_acc=0.8332 ce=0.0698
+
+Experiment description:
+exp1_dcd_on: Training resnet18 for 2 epochs on waterbirds.
+DCD enabled = True.  K = 32, lambda_cons = 1.0
+Results JSON:
+{
+  "experiment": "exp1_dcd_on",
+  "val_accuracy": 0.8331943154335022,
+  "train_ce_last": 0.06984507187626036,
+  "epochs": 2,
+  "timestamp": "2025-09-09T04:26:27.753911"
+}
+Figures generated in .research/iteration10/images
+
+=== experiment end Tue Sep  9 04:26:32 AM UTC 2025 ===
