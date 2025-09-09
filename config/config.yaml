@@ -1,0 +1,28 @@
+# config/config.yaml – experiment specification
+seeds: [2, 8, 42, 2024, 4096]
+
+datasets:
+  - cora
+  - citeseer
+  - pubmed
+  - texas
+  - wisconsin
+
+baselines:
+  - {model: gcn, depth: 2}
+  - {model: gcn, depth: 16}
+  - {model: gcn, depth: 64}
+  - {model: gcnii, depth: 64}
+  - {model: appnp, depth: 10}
+
+adasmooth:
+  poly_order: 10
+
+train:
+  hidden_dim: 64
+  dropout: 0.5
+  lr: 0.01
+  weight_decay: 5e-4
+  epochs_small: 2000
+  epochs_large: 200
+  patience: 100

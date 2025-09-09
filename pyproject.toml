@@ -1,1 +1,20 @@
-# Please list the required python packages.
+[project]
+name = "adasmooth_ode"
+version = "0.1.0"
+description = "Depth-scalable GNNs with node-adaptive smoothing times (AdaSmooth-ODE)"
+requires-python = ">=3.9"
+
+[project.dependencies]
+torch = ">=2.1"
+torch_geometric = ">=2.4"
+torch_sparse = "*"
+torch_scatter = "*"
+torch_cluster = "*"
+torchdiffeq = "*"
+ogb = "*"
+networkx = "*"
+scikit-learn = "*"
+seaborn = "*"
+matplotlib = "*"
+pyyaml = "*"
+tqdm = "*"
