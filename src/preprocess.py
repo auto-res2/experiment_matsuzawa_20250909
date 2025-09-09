@@ -1,68 +1,56 @@
 """src/preprocess.py
-======================
-Data loading & splitting utilities.
+Dataset loading helpers and reproducibility utilities.
 """
 from __future__ import annotations
+
+import random
 from pathlib import Path
 from typing import Dict
 
+import numpy as np
 import torch
-from torch_geometric.datasets import (
-    Planetoid,
-    WikipediaNetwork,
-    WebKB,  # WebKB provides Texas/Wisconsin/Cornell etc.
-)
+import torch_geometric.transforms as T
+from torch_geometric.data import Data
 
-# The LRGB datasets (which include Peptides-func) live behind a dedicated wrapper
-try:
-    from torch_geometric.datasets import LRGBDataset  # PyG >= 2.3
-except ImportError:  # pragma: no cover – extremely old PyG versions
-    LRGBDataset = None  # type: ignore
+# Root directories -------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# ogb is optional (large). Import lazily.
+# -----------------------------------------------------------------------------
+# Seeding ----------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-def _try_import_ogb(name: str, root: str):
-    try:
-        from ogb.nodeproppred import PygNodePropPredDataset
-    except ImportError as e:
-        raise RuntimeError("`ogb` not installed – cannot download {name}") from e
-    return PygNodePropPredDataset(name=name, root=root)
+def set_seed(seed: int = 11):
+    """Seed python, numpy and torch (both CPU & CUDA)."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
 
-# --------------------------------------------------------------------------------------
-#  Dataset loader
-# --------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Dataset factory --------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-def load_dataset(name: str):
-    """Download (if needed) and return a torch-geometric dataset."""
-    root = Path("data") / name
-    root.mkdir(parents=True, exist_ok=True)
-    if name == "Cora":
-        return Planetoid(root=str(root), name="Cora")
-    if name == "Chameleon":
-        return WikipediaNetwork(root=str(root), name="chameleon", geom_gcn_preprocess=False)
-    if name == "PeptidesFunc":
-        if LRGBDataset is None:
-            raise RuntimeError("PeptidesFunc dataset requested but this PyG version does not ship LRGBDataset.")
-        return LRGBDataset(root=str(root), name="Peptides-func")
-    if name == "Texas":
-        return WebKB(root=str(root), name="Texas")
-    if name == "ogbn-arxiv":
-        return _try_import_ogb("ogbn-arxiv", str(root))
-    raise ValueError(f"Unsupported dataset {name}")
+def _load_cora() -> Data:  # type: ignore
+    from torch_geometric.datasets import Planetoid
 
-# --------------------------------------------------------------------------------------
-#  Create boolean masks for train/val/test (60/20/20 split)
-# --------------------------------------------------------------------------------------
+    ds = Planetoid(
+        root=str(DATA_DIR / "Planetoid"),
+        name="Cora",
+        transform=T.NormalizeFeatures(),
+    )
+    return ds[0]
 
-def generate_masks(n_nodes: int, device="cpu") -> Dict[str, torch.Tensor]:
-    idx = torch.randperm(n_nodes, device=device)
-    n = n_nodes
-    splits = {
-        "train": idx[: int(0.6 * n)],
-        "val": idx[int(0.6 * n) : int(0.8 * n)],
-        "test": idx[int(0.8 * n) :],
-    }
-    masks = {k: torch.zeros(n, dtype=torch.bool, device=device) for k in splits}
-    for k, v in splits.items():
-        masks[k][v] = True
-    return masks
+_DATASET_FACTORY: Dict[str, callable] = {
+    "cora": _load_cora,
+}
+
+
+def load_dataset(dataset_name: str) -> Data:  # type: ignore
+    if dataset_name not in _DATASET_FACTORY:
+        raise RuntimeError(
+            f"Unknown dataset id '{dataset_name}' – abort (NO FALLBACK)"
+        )
+    return _DATASET_FACTORY[dataset_name]()
