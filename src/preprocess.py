@@ -57,7 +57,7 @@ def get_dataset(name: str, root: str = "data"):
     if name_l in {"texas", "cornell", "chameleon", "squirrel"}:
         return tgds.WikipediaNetwork(root, name_l, geom_gcn_split="fixed")
     if name_l == "ogbn-arxiv":
-        return tgds.OGB_MAG(root)
+        return tgds.OGBNArxiv(root)
     if name_l == "peptides-functional":
         return tgds.LRGBDataset(root, name)
     # fall-back to HF

@@ -7,14 +7,15 @@ authors = [
 description = "Refactored project structure for Meta-MPNN experiments"
 requires-python = ">=3.9"
 
-[project.dependencies]
-torch = "*"
-torch-geometric = "*"
-torch-sparse = "*"
-huggingface_hub = "*"
-PyYAML = "*"
-matplotlib = "*"
-numpy = "*"
+dependencies = [
+  "torch",
+  "torch-geometric",
+  "torch-sparse",
+  "huggingface_hub",
+  "PyYAML",
+  "matplotlib",
+  "numpy",
+]
 
 [build-system]
 requires = ["setuptools", "wheel"]

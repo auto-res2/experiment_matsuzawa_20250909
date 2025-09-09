@@ -16,9 +16,6 @@ from torch.nn.functional import cross_entropy
 from torch_geometric.utils import to_dense_adj  # noqa: F401 – retained for future use
 from torch_geometric.loader import NeighborLoader  # noqa: F401 – retained for future use
 
-# NOTE: torch-sparse is required by torch-geometric – we validate availability at
-# runtime inside main.py (see NO-FALLBACK guard).
-
 ###############################################################################
 #                                    MODEL                                   #
 ###############################################################################
@@ -45,18 +42,11 @@ class MetaLayer(nn.Module):
 
     def __init__(self, in_dim: int, out_dim: int, cfg_controller):
         super().__init__()
-        self.ctrl_in_dim = 2 * in_dim + 2  # x , var(x) , deg , grad
+        # ctrl input = [x , var(x) , deg , grad_norm]  =>  in_dim + 3
+        self.ctrl_in_dim = in_dim + 3
         self.ctrl = Controller(self.ctrl_in_dim, cfg_controller)
         self.lin_self = nn.Linear(in_dim, out_dim)
         self.lin_neigh = nn.Linear(in_dim, out_dim)
-        self.register_forward_hook(self._shape_guard)
-
-    # ------------------------------------------------------------------
-    def _shape_guard(self, module, inp, out):  # noqa: D401 – deliberate signature
-        x = inp[0]
-        if x.shape[1] != self.ctrl_in_dim:
-            raise RuntimeError(
-                f"Controller input wrong size {x.shape[1]} ≠ {self.ctrl_in_dim}")
 
     # ------------------------------------------------------------------
     def forward(
@@ -183,7 +173,7 @@ def train_one(model: nn.Module, data, cfg_exp, device: str = "cuda") -> None:
     test_acc = evaluate_model(model, data, split="test")
 
     # -------------------------- visualisations ------------------------------
-    pdf_file = f".research/iteration18/images/{cfg_exp.name}.pdf"
+    pdf_file = f".research/iteration19/images/{cfg_exp.name}.pdf"
     pathlib.Path(pdf_file).parent.mkdir(parents=True, exist_ok=True)
     line_plot(
         list(range(len(history["train_loss"]))),
@@ -203,7 +193,7 @@ def train_one(model: nn.Module, data, cfg_exp, device: str = "cuda") -> None:
         "figure": pdf_file,
     }
 
-    out_json = f".research/iteration18/{cfg_exp.name}.json"
+    out_json = f".research/iteration19/{cfg_exp.name}.json"
     dump_json(result, out_json)
 
     print("\n===== EXPERIMENT:", cfg_exp.name, "=====")
