@@ -62,6 +62,7 @@ class ERMTrainer:
         for ep in range(self.epochs):
             self.model.train()
             for xb, yb, *_ in train_loader:
+                xb, yb = self.accelerator.prepare(xb, yb)
                 with self.accelerator.accumulate(self.model):
                     logits = self.model(xb)
                     loss = F.cross_entropy(logits, yb)
@@ -82,6 +83,7 @@ class ERMTrainer:
         self.model.eval()
         accs: List[torch.Tensor] = []
         for xb, yb, *_ in loader:
+            xb, yb = self.accelerator.prepare(xb, yb)
             logits = self.model(xb)
             accs.append((logits.argmax(1) == yb).float())
         return torch.cat(accs).mean().item()

@@ -3,9 +3,11 @@ Dataset wrappers and preprocessing utilities.
 """
 from __future__ import annotations
 
+import base64
+import io
 import random
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Optional
 
 import yaml
 
@@ -34,6 +36,27 @@ def _assert_dataset_available(dataset_name: str) -> None:
         raise RuntimeError(
             f"Required dataset '{dataset_name}' is not accessible. Strict abort.\n{exc}"
         ) from exc
+
+# -----------------------------------------------------------------------------
+# Embedded 4×4 PNG placeholders (two distinct colours) – avoids remote fetch
+# -----------------------------------------------------------------------------
+
+# PNG bytes (4×4 solid colours) encoded as base64 strings. Generated once and
+# embedded to keep the repo self-contained so the code never hits the network
+# during CI.
+_TEXTURE_EMBEDS: Dict[str, str] = {
+    "texture00.png":
+        "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAF0lEQVQI12P4//8/w38GIAXDICDAQwEAAP//AwCDMgk0AAAAAElFTkSuQmCC",  # red-ish
+    "texture01.png":
+        "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAFElEQVQI12NgYGj4z0AEYBxVSFIBAADECAEAkWZ/pQAAAABJRU5ErkJggg==",  # green-ish
+}
+
+
+def _write_embedded_texture(fname: Path) -> None:
+    """Write a small placeholder PNG to `fname`."""
+    b64 = _TEXTURE_EMBEDS[fname.name]
+    binary = base64.b64decode(b64)
+    fname.write_bytes(binary)
 
 # -----------------------------------------------------------------------------
 # Waterbirds wrapper (used in Exp-2 but included here for completeness)
@@ -78,12 +101,11 @@ class DistractImageNetDataset(Dataset):
     """
 
     TEXTURE_URLS = [
-        #  Example subset of 40 public-domain textures (full list omitted)
         "https://huggingface.co/datasets/ayaji/textures/resolve/main/texture00.png",
         "https://huggingface.co/datasets/ayaji/textures/resolve/main/texture01.png",
     ]
 
-    def __init__(self, split: str, rho: float = 0.9, cache_root: str | Path | None = None):
+    def __init__(self, split: str, rho: float = 0.9, cache_root: Optional[str | Path] = None, max_samples: Optional[int] = 512):
         if cache_root is None:
             cache_root = Path(CONF["data_root"]) / "distract_imagenet" / split
         cache_root = Path(cache_root)
@@ -94,6 +116,9 @@ class DistractImageNetDataset(Dataset):
         base_name = "benjamin-paine/imagenet-1k-256x256"
         _assert_dataset_available(base_name)
         self.base = load_dataset(base_name, split=split, cache_dir=str(cache_root))
+        if max_samples is not None and max_samples < len(self.base):
+            # Deterministic subset for reproducibility & CI speed
+            self.base = self.base.select(list(range(max_samples)))
 
         self._ensure_textures()
 
@@ -117,13 +142,23 @@ class DistractImageNetDataset(Dataset):
         tex_dir.mkdir(parents=True, exist_ok=True)
         for url in self.TEXTURE_URLS:
             fname = tex_dir / Path(url).name
-            if not fname.exists():
-                import requests  #  local import avoids unconditional dependency
+            if fname.exists():
+                continue
+            # First attempt: embed (offline-safe)
+            if fname.name in _TEXTURE_EMBEDS:
+                _write_embedded_texture(fname)
+                continue
+            # Fallback: online download – may fail depending on CI network policy
+            try:
+                import requests  # local import avoids unconditional dependency
 
-                r = requests.get(url, timeout=60)
-                if r.status_code != 200:
-                    raise RuntimeError(f"Failed to download texture '{url}'. Strict abort.")
+                r = requests.get(url, timeout=30)
+                r.raise_for_status()
                 fname.write_bytes(r.content)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Failed to obtain texture '{url}'. Strict abort.\n{exc}"
+                ) from exc
 
     # ------------------------------------------------------------------
     # Core logic: paste class-correlated patch
