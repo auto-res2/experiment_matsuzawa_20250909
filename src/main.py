@@ -65,13 +65,13 @@ def run_experiment_1() -> Dict[str, Any]:
         "baseline": {"method": "ERM", "val_top1": best_val_acc},
     }
 
-    out_root = Path(".research") / "iteration4"
+    out_root = Path(".research") / "iteration5"  # Updated path as per spec
     out_root.mkdir(parents=True, exist_ok=True)
     json_path = out_root / "exp1_results.json"
     json_path.write_text(json.dumps(res, indent=2))
 
     # ----------------------- figure --------------------------------------
-    fig_dir = Path(".research") / "iteration4" / "images"
+    fig_dir = Path(".research") / "iteration5" / "images"  # Updated path
     fig_dir.mkdir(parents=True, exist_ok=True)
     plot_line(
         xs=[1, 2, 3],
@@ -87,7 +87,7 @@ def run_experiment_1() -> Dict[str, Any]:
     print("\n================= EXPERIMENT 1 – NUMERICAL RESULTS ============")
     print(json.dumps(res, indent=2))
     print("\n================= FIGURE FILES ===============================")
-    print("accuracy_resnet50.pdf (saved under .research/iteration4/images)")
+    print("accuracy_resnet50.pdf (saved under .research/iteration5/images)")
 
     # Ensure JSON content is printed for verification (required by grading)
     print("\n================= JSON CONTENTS ==============================")
