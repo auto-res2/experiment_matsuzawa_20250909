@@ -3,7 +3,8 @@ name = "hvq-regen-cl"
 version = "0.1.0"
 description = "Refactored experimental code for H-VQ ReGen continual-learning project"
 readme = "README.md"
-requires-python = ">=3.8"
+# The project requires Python ≥3.10 due to pytorchcv >=0.0.73
+requires-python = ">=3.10"
 license = {text = "MIT"}
 
 dependencies = [

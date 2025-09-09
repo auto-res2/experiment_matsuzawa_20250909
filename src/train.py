@@ -12,12 +12,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # ---------------------------------------------------------------------------
-# Global paths that are shared across all modules – UPDATED TO ITERATION19
+# Global paths that are shared across all modules – UPDATED TO ITERATION20
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
-# All JSON artefacts must live under “.research/iteration19/”
-RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration19"
-# All figure artefacts must live under “.research/iteration19/images”
+# All JSON artefacts must live under “.research/iteration20/”
+RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration20"
+# All figure artefacts must live under “.research/iteration20/images”
 FIG_DIR = RESULTS_DIR / "images"
 # Keep the original data dir unchanged
 DATA_DIR = PROJECT_ROOT / "data"
@@ -212,13 +212,16 @@ if not hasattr(_torch_dataset_mod, "T_co"):
 try:
     from pytorchcv.models.common import DwsConvBlock  # noqa: F401
 except (ImportError, AttributeError):
+
     class _DummyDwsConvBlock(nn.Identity):
         """Minimal no-op replacement for deprecated DwsConvBlock."""
+
         def __init__(self, *args, **kwargs):  # pylint: disable=useless-super-delegation
             super().__init__()
 
     import importlib
     import sys as _sys
+
     # Ensure the common submodule exists
     try:
         _common_mod = importlib.import_module('pytorchcv.models.common')
