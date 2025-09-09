@@ -10,11 +10,20 @@ license = {text = "MIT"}
 authors = [{name = "Researcher", email = "research@example.com"}]
 
 dependencies = [
-  # Use vanilla PyTorch wheels; CPU wheels are selected automatically on platforms
+  # The CPU-only wheel is selected automatically when CUDA is unavailable.
   "torch==2.1.2",
   "torch_geometric==2.5.3",
   "torch-scatter==2.1.2",
+  "torch-sparse==0.6.18",
   "pyyaml",
   "matplotlib",
   "numpy"
 ]
+
+# -----------------------------------------------------------------------------
+#  Build-time dependency hints for packages that need *Torch* during compilation
+#  inside an isolated PEP-517 environment (required by `uv` / `pip`).
+# -----------------------------------------------------------------------------
+[tool.uv.extra-build-dependencies]
+"torch-scatter" = ["torch"]
+"torch-sparse"  = ["torch"]
