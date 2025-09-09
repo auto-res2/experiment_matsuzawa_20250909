@@ -10,9 +10,14 @@ import torch
 from torch_geometric.datasets import (
     Planetoid,
     WikipediaNetwork,
-    PeptidesFunctionalDataset,
     Texas,
 )
+
+# The LRGB datasets (which include Peptides-func) live behind a dedicated wrapper
+try:
+    from torch_geometric.datasets import LRGBDataset  # PyG >= 2.3
+except ImportError:  # pragma: no cover – extremely old PyG versions
+    LRGBDataset = None  # type: ignore
 
 # ogb is optional (large). Import lazily.
 
@@ -36,7 +41,9 @@ def load_dataset(name: str):
     if name == "Chameleon":
         return WikipediaNetwork(root=str(root), name="chameleon", geom_gcn_preprocess=False)
     if name == "PeptidesFunc":
-        return PeptidesFunctionalDataset(root=str(root))
+        if LRGBDataset is None:
+            raise RuntimeError("PeptidesFunc dataset requested but this PyG version does not ship LRGBDataset.")
+        return LRGBDataset(root=str(root), name="Peptides-func")
     if name == "Texas":
         return Texas(str(root))
     if name == "ogbn-arxiv":
