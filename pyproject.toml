@@ -1,1 +1,25 @@
-# Please list the required python packages.
+[project]
+name = "dice-robust-vision"
+version = "0.1.0"
+description = "Research codebase refactored into modular structure."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+  {name = "Researcher", email = "research@example.com"}
+]
+
+[project.dependencies]
+torch = "*"
+torchvision = "*"
+accelerate = "*"
+datasets = "*"
+timm = "*"
+pyyaml = "*"
+matplotlib = "*"
+diffusers = "*"
+transformers = "*"
+segment-anything = "*"
+
+[tool.setuptools]
+packages = ["."]

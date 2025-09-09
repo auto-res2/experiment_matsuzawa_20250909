@@ -1,0 +1,35 @@
+# config/config.yaml
+# Consolidated single configuration used by main.py.  Additional keys can be
+# appended by the user as required.
+
+experiment_name: "default_exp"
+description: "DiCE robust vision baseline experiment"
+
+# -----------------------------------------------------------------------------
+#  Data
+# -----------------------------------------------------------------------------
+method: "dice"         # {erm, dice}
+dataset: "waterbirds"  # {waterbirds, cifar10, imagenet}
+num_classes: 2
+
+# -----------------------------------------------------------------------------
+#  Training hyper-parameters
+# -----------------------------------------------------------------------------
+model: "resnet50"
+batch_size: 64
+num_workers: 8
+epochs: 5
+lr: 3e-4
+weight_decay: 0.05
+amp: true
+seed: 11
+output_dir: "checkpoints"
+
+# -----------------------------------------------------------------------------
+#  DiCE specific
+# -----------------------------------------------------------------------------
+dice_prompts:
+  - "random landscape"
+  - "urban street"
+  - "mountain view"
+  - "underwater scene"
