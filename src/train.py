@@ -133,7 +133,10 @@ class GCNNet(nn.Module):
 class Trainer:
     def __init__(self, cfg: Dict[str, Any]):
         self.cfg = cfg
-        self.device = torch.device(cfg["device"])
+        requested = cfg["device"].lower()
+        self.device = torch.device("cuda" if requested == "cuda" and torch.cuda.is_available() else "cpu")
+        if requested == "cuda" and not torch.cuda.is_available():
+            print("WARNING: CUDA requested but not available. Falling back to CPU.")
 
     # ------------------------------------------------------------------
     def _train_single_split(
@@ -190,7 +193,7 @@ class Trainer:
     # ------------------------------------------------------------------
     def run_exp1(self):
         exp_cfg = self.cfg["experiment1"]
-        research_dir = Path(".research/iteration1")
+        research_dir = Path(".research/iteration2")
         img_dir = research_dir / "images"
         research_dir.mkdir(parents=True, exist_ok=True)
         img_dir.mkdir(exist_ok=True)
@@ -248,11 +251,11 @@ class Trainer:
             plt.close()
 
         # ---------------- write json & stdout ----------------
-        out_file = research_dir / "exp1_depth_scaling.json"
+        out_file = Path(".research/iteration2/exp1_depth_scaling.json")
         with open(out_file, "w") as fh:
             json.dump(all_results, fh, indent=2)
         print("DEPTH-SCALING STRESS-TEST (Experiment 1)")
         print(json.dumps(all_results, indent=2))
-        print("Generated figures (stored in .research/iteration1/images):")
+        print("Generated figures (stored in .research/iteration2/images):")
         for dname in exp_cfg["datasets"]:
             print(f"accuracy_{dname.lower()}.pdf")

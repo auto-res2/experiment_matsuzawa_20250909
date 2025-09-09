@@ -9,9 +9,10 @@ requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [{name = "Researcher", email = "research@example.com"}]
 
-[project.dependencies]
-torch = "*"
-torch_geometric = "*"
-pyyaml = "*"
-matplotlib = "*"
-numpy = "*"
+dependencies = [
+  "torch",
+  "torch_geometric",
+  "pyyaml",
+  "matplotlib",
+  "numpy"
+]
