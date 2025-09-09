@@ -23,9 +23,9 @@ from torch_geometric.utils import to_undirected
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Mandatory paths enforced by the evaluation harness ------------------------
-_RESEARCH_ROOT = ROOT / ".research" / "iteration2"
-FIG_DIR = _RESEARCH_ROOT / "images"  # .research/iteration2/images
-RES_DIR = _RESEARCH_ROOT               # .research/iteration2/
+_RESEARCH_ROOT = ROOT / ".research" / "iteration3"
+FIG_DIR = _RESEARCH_ROOT / "images"  # .research/iteration3/images
+RES_DIR = _RESEARCH_ROOT               # .research/iteration3/
 DATA_DIR = ROOT / "data"
 
 # Make sure all directories exist ------------------------------------------

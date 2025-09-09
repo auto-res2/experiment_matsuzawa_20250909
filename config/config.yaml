@@ -1,1 +1,21 @@
-[KEEP_ORIGINAL_FILE
+exp_id: demo_v1
+description: "Baseline GCN on Cora dataset"
+
+datasets:
+  - name: Cora
+    url: "https://example.com/datasets/cora"
+
+models:
+  - name: gcn_baseline
+    type: GCN
+    layers: 2
+    hidden: 16
+
+epochs: 50
+lr: 0.01
+weight_decay: 5e-4
+dropout: 0.5
+lambda_geo: 1.0  # not used for vanilla GCN but kept for completeness
+lambda_grad: 0.0
+tau: 0.5
+patience: 10

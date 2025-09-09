@@ -191,7 +191,7 @@ def launch_experiment():
     for pdf in FIG_DIR.glob("*.pdf"):
         print(pdf.name)
 
-        # Also output JSON content for verification as mandated ---------
+    # Also output JSON content for verification as mandated ---------
     print("================ Saved JSON content ==================")
     print(out_file.read_text())
 
