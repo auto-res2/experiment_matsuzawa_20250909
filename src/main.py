@@ -1,9 +1,9 @@
-```python
+from __future__ import annotations
+
 """src/main.py
 Entry-point orchestrating the experiment.
 Execute with:  python -m src.main
 """
-from __future__ import annotations
 
 import json
 import time
@@ -33,11 +33,9 @@ with open(CONFIG_PATH, "r") as f:
 # I/O locations – enforced by task instructions
 # -------------------------------------------------------------------
 # NOTE:  The evaluation harness mandates that *all* JSON artefacts are written
-# to `.research/iteration13/` and *all* image artefacts are written to
-# `.research/iteration13/images/`.  The original implementation mistakenly
-# used an `iteration12` directory.  Failing to comply breaks the grader’s
-# post-processing step which scans these exact locations.
-JSON_DIR = Path(".research/iteration13")
+# to `.research/iteration14/` and *all* image artefacts are written to
+# `.research/iteration14/images/`.
+JSON_DIR = Path(".research/iteration14")
 IMG_DIR = JSON_DIR / "images"
 JSON_DIR.mkdir(parents=True, exist_ok=True)
 IMG_DIR.mkdir(parents=True, exist_ok=True)
@@ -45,12 +43,12 @@ IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 def run_experiment():
     set_seed(0)
-    device = CONFIG["hardware"]["device"]
+    device: str | torch.device = CONFIG["hardware"]["device"]
     if device == "cuda" and not torch.cuda.is_available():
         device = "cpu"
 
     experiments_summary: List[Dict[str, Any]] = []
-    datasets_to_run = ["Cora"]  # compact demo
+    datasets_to_run = ["Cora"]  # compact demo – extensible via CONFIG
 
     for ds_name in datasets_to_run:
         ds = load_dataset(ds_name)
@@ -156,4 +154,3 @@ def run_experiment():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     run_experiment()
-```

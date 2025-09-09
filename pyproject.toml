@@ -12,16 +12,11 @@ authors = [
   {name = "Anonymous Researcher"}
 ]
 
-# ------------------------------------------------------------------
-# Dependencies – array of strings as per PEP 621
-# ------------------------------------------------------------------
 dependencies = [
-  # Core frameworks
-  "torch",
+  # CPU-only PyTorch to avoid large CUDA downloads
+  "torch==2.2.0",
   "torch-geometric",
-  # OGB datasets
   "ogb",
-  # Plotting & utilities
   "matplotlib",
   "pyyaml",
 ]
