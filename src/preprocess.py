@@ -1,0 +1,71 @@
+"""Data loading, preprocessing, reproducibility helpers."""
+from __future__ import annotations
+
+import pathlib
+import random
+from typing import Dict
+
+import networkx as nx
+import torch
+from torch_geometric.data import Data
+from torch_geometric.datasets import (Planetoid, Coauthor, WebKB,
+                                       WikipediaNetwork)
+from torch_geometric.transforms import NormalizeFeatures
+from torch_geometric.utils import to_undirected
+
+# ---------------------------------------------------------------------------
+#  Directory structure -------------------------------------------------------
+# ---------------------------------------------------------------------------
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+DATA_DIR = ROOT / "data"; DATA_DIR.mkdir(exist_ok=True)
+FIG_DIR = ROOT / "figs"; FIG_DIR.mkdir(exist_ok=True)
+RES_DIR = ROOT / "results"; RES_DIR.mkdir(exist_ok=True)
+
+# ---------------------------------------------------------------------------
+#  Reproducibility -----------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+def set_seed(seed: int = 0):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+# ---------------------------------------------------------------------------
+#  Dataset loader ------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+def load_dataset(name: str):
+    """Return an InMemoryDataset from torch_geometric."""
+    if name in ("Cora", "Citeseer", "Pubmed"):
+        return Planetoid(root=DATA_DIR / name, name=name, transform=NormalizeFeatures())
+    if name == "CoauthorCS":
+        return Coauthor(root=DATA_DIR / name, name="CS", transform=NormalizeFeatures())
+    if name in ("Texas", "Wisconsin"):
+        return WebKB(root=DATA_DIR / name, name=name, transform=NormalizeFeatures())
+    if name == "Chameleon":
+        return WikipediaNetwork(root=DATA_DIR / name, name="chameleon", transform=NormalizeFeatures())
+    raise RuntimeError(f"Dataset {name} not supported – STRICT FILE CONSTRAINT VIOLATED")
+
+
+# ---------------------------------------------------------------------------
+#  Curvature computation -----------------------------------------------------
+# ---------------------------------------------------------------------------
+
+def graph_curvature(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
+    """Compute Ollivier–Ricci curvature per edge (CPU)."""
+    try:
+        import GraphRicciCurvature as grc
+    except ImportError:
+        # Lazy, one-time install if missing.
+        import subprocess, sys
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "GraphRicciCurvature", "--quiet"])
+        import GraphRicciCurvature as grc
+
+    g = nx.Graph()
+    g.add_nodes_from(range(num_nodes))
+    ei = edge_index.cpu().numpy()
+    g.add_edges_from(ei.T)
+    orc = grc.OllivierRicci(g, alpha=0.5, verbose="ERROR")
+    orc.compute_ricci_curvature()
+    curvature = [d.get("ricciCurvature", 0.0) for _, _, d in g.edges(data=True)]
+    return torch.tensor(curvature, dtype=torch.float)
