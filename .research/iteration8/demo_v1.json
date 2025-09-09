@@ -1,0 +1,10 @@
+{
+  "description": "Baseline GCN on Cora dataset",
+  "per_run": {
+    "Cora_gcn_baseline": {
+      "val_acc": 0.7120000123977661,
+      "test_acc": 0.7470000386238098,
+      "epochs": 27
+    }
+  }
+}
