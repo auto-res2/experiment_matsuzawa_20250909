@@ -1,65 +1,104 @@
-"""main.py
-Entry point that orchestrates a single experiment using the refactored
-module structure.  It follows the assignment requirements:
-  • read all hyper-parameters from config/config.yaml via PyYAML
-  • train + evaluate -> JSON result file in .research/iteration6/
-  • create figures inside .research/iteration6/images/
-  • print the JSON contents to stdout for verification
+"""
+main.py – orchestrates the full experimental suite via relative imports
+Run with:  python -m src.main
 """
 from __future__ import annotations
-import json, sys, traceback
-from pathlib import Path
+
+import collections, pathlib, types
+from types import SimpleNamespace
+from typing import Any, List
 
 import yaml
 
-# NOTE: use package-relative imports to avoid ModuleNotFound errors when the
-# entry point is executed with ``python -m src.main``.
-from .train import Engine
-from .evaluate import generate_figures
+from .preprocess import DatasetBuilder
+from .train import ModelFactory, Trainer, set_seed
+from .evaluate import line_plot
 
-# -----------------------------------------------------------------------------
-#  Configuration loading
-# -----------------------------------------------------------------------------
-CFG_PATH = Path('config/config.yaml')
-if not CFG_PATH.exists():
-    raise RuntimeError(f"Configuration file {CFG_PATH} missing – aborting.")
-with open(CFG_PATH) as fp:
-    CFG = yaml.safe_load(fp)
+# ---------------------------------------------------------------------------
+#  Config loading helpers
+# ---------------------------------------------------------------------------
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+CONFIG_PATH = ROOT / "config" / "config.yaml"
+CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-# -----------------------------------------------------------------------------
-#  Output directories (mandatory iteration6 path)
-# -----------------------------------------------------------------------------
-RESEARCH_DIR = Path('.research/iteration6')
-RESEARCH_DIR.mkdir(parents=True, exist_ok=True)
+# ---------------------------------------------------------------------------
+#  Dataclass-like structures implemented with SimpleNamespace so we avoid a
+#  circular import between train.py and main.py.
+# ---------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
+def _dict_to_ns(d: Any) -> Any:
+    if isinstance(d, dict):
+        return SimpleNamespace(**{k: _dict_to_ns(v) for k, v in d.items()})
+    if isinstance(d, list):
+        return [_dict_to_ns(x) for x in d]
+    return d
+
+# ---------------------------------------------------------------------------
+#  Default configuration (auto-written on first run so users have a template)
+# ---------------------------------------------------------------------------
+DEFAULT_YAML = {
+    "experiments": [
+        {
+            "name": "quick_demo",
+            "dataset": "cifar10",
+            "method": "erm",
+            "model": "resnet18",
+            "seed": 17,
+            "correlation": None,
+            "optimiser": {
+                "epochs": 2,
+                "batch_size": 64,
+                "lr": 0.0003,
+                "weight_decay": 0.05,
+                "eta_gc": None,
+                "fourier_lambda": None,
+            },
+            "extra": {},
+        }
+    ]
+}
+
+if not CONFIG_PATH.exists():
+    with open(CONFIG_PATH, "w") as f:
+        yaml.safe_dump(DEFAULT_YAML, f)
+    print(f"[INFO] Configuration file written to {CONFIG_PATH}. Edit it to run full experiments.")
+
+# ---------------------------------------------------------------------------
+#  Main entry-point
+# ---------------------------------------------------------------------------
 
 def main():
-    cfg = CFG
-    print('=' * 80)
-    print(f"Starting experiment: {cfg['experiment_name']}")
-    print('=' * 80)
-    try:
-        engine = Engine(cfg)
-        results = engine.run()  # train + eval
-        # ---- figures -----------------------------------------------------
-        generate_figures(results, cfg)
-        # ---- save JSON ---------------------------------------------------
-        json_path = RESEARCH_DIR / f"results-{cfg['experiment_name']}.json"
-        with open(json_path, 'w') as fp:
-            json.dump(results, fp, indent=2)
-        # ---- stdout verification ----------------------------------------
-        print('\n--- Configuration ---')
-        print(json.dumps(cfg, indent=2))
-        print('\n--- Results (json) ---')
-        print(json.dumps(results, indent=2))
-        print(f"\nResults saved to {json_path}")
-    except Exception as e:  # noqa: F841 (the variable is still used for printing)
-        print('\n!! Experiment failed – STRICT NO-FALLBACK triggered !!', file=sys.stderr)
-        traceback.print_exc()
-        sys.exit(1)
+    with open(CONFIG_PATH) as f:
+        raw_cfg = yaml.safe_load(f)
 
-# -----------------------------------------------------------------------------
+    cfg = _dict_to_ns(raw_cfg)
 
-if __name__ == '__main__':
+    aggregate_results = collections.defaultdict(list)
+    for exp in cfg.experiments:
+        set_seed(exp.seed)
+
+        train_ds, val_ds, test_ds = DatasetBuilder(exp.dataset, exp.correlation, exp.seed).get()
+        num_classes = len({y for _, y in train_ds}) if exp.dataset != "imagenet1k" else 1000
+        model = ModelFactory.get(exp.model, num_classes=num_classes)
+
+        trainer = Trainer(model, train_ds, val_ds, test_ds, exp)
+        res = trainer.run()
+        aggregate_results[exp.name].append(res)
+
+    # ------------------------------------------------------------------
+    #  Example figure: only plotted if quick_demo is swapped for full exp1
+    # ------------------------------------------------------------------
+    dice_points = []
+    for name, res_list in aggregate_results.items():
+        if "_dice_" in name:
+            rho = float(name.split("rho")[-1]) if "rho" in name else 0.0
+            dice_points.append((rho, res_list[0]["test_accuracy"]))
+
+    if dice_points:
+        xs, ys = zip(*sorted(dice_points))
+        line_plot(xs, ys, "DiCE worst-group accuracy vs correlation", "ρ", "accuracy", "worst_group_accuracy_dice.pdf")
+        print("Figure generated: worst_group_accuracy_dice.pdf")
+
+
+if __name__ == "__main__":
     main()

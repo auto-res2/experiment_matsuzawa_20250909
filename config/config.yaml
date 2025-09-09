@@ -1,34 +1,15 @@
-# config/config.yaml
-# Consolidated single configuration used by main.py.
-
-experiment_name: "default_exp"
-description: "ERM robust vision baseline experiment"
-
-# -----------------------------------------------------------------------------
-#  Data
-# -----------------------------------------------------------------------------
-method: "erm"           # {erm, dice}
-dataset: "waterbirds"  # {waterbirds, cifar10, imagenet}
-num_classes: 2
-
-# -----------------------------------------------------------------------------
-#  Training hyper-parameters
-# -----------------------------------------------------------------------------
-model: "resnet50"
-batch_size: 64
-num_workers: 8
-epochs: 5
-lr: 3e-4
-weight_decay: 0.05
-amp: true
-seed: 11
-output_dir: "checkpoints"
-
-# -----------------------------------------------------------------------------
-#  DiCE specific (ignored when method != "dice")
-# -----------------------------------------------------------------------------
-dice_prompts:
-  - "random landscape"
-  - "urban street"
-  - "mountain view"
-  - "underwater scene"
+experiments:
+  - name: quick_demo
+    dataset: cifar10
+    method: erm
+    model: resnet18
+    seed: 17
+    correlation: null
+    optimiser:
+      epochs: 2
+      batch_size: 64
+      lr: 0.0003
+      weight_decay: 0.05
+      eta_gc: null
+      fourier_lambda: null
+    extra: {}

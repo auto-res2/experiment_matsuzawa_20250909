@@ -1,303 +1,291 @@
-"""train.py
-Contains all training-related classes / functions: the model builder,
-DiCE augmentor and the high-level Engine that performs training and
-validation.  Nothing outside this file should directly touch PyTorch
-objects – inference utilities live in evaluate.py.
+"""
+train.py – model construction, DiCE augmentation, and generic trainer
+Note:  All experiment artifacts are stored under .research/iteration7 so
+that several independent iterations can co-exist in the same repo.
 """
 from __future__ import annotations
-import os, random, time
-from pathlib import Path
-from typing import Dict, Any, Tuple, List, Union
 
+import json, os, pathlib, random, time
+from types import SimpleNamespace
+from typing import Any, List
+
+import numpy as np
 import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
-from accelerate import Accelerator, DistributedDataParallelKwargs
+import torch.nn as nn
+import torch.optim as optim
+from diffusers import StableDiffusionInpaintPipeline
+from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
+from sklearn.cluster import KMeans
+from torch.cuda.amp import GradScaler, autocast
+from torch.utils.data import DataLoader, Dataset
+from torchvision.transforms import functional as TF
 import timm
 
-# NOTE: use absolute package import (src.preprocess) to avoid ModuleNotFound
-# errors when the codebase is executed via ``python -m src.main``.
-from src.preprocess import make_dataset  # noqa: E402  (import after third-party)
+from .evaluate import Evaluator  # relative import (defined in evaluate.py)
 
-# -----------------------------------------------------------------------------
-#  Helpers
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+#  Paths / folders
+# ---------------------------------------------------------------------------
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+RESEARCH_DIR = ROOT / ".research" / "iteration7"
+RESULTS_DIR = RESEARCH_DIR  # json files live straight in this directory
+IMG_DIR = RESEARCH_DIR / "images"
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+IMG_DIR.mkdir(parents=True, exist_ok=True)
 
-def _set_seed(seed: int):
-    """Deterministic behaviour for reproducibility."""
+# ---------------------------------------------------------------------------
+#  Utility helpers
+# ---------------------------------------------------------------------------
+
+def set_seed(seed: int) -> None:
+    """Make results reproducible across python / numpy / torch."""
     random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
+    torch.backends.cudnn.deterministic = True
 
-# -----------------------------------------------------------------------------
-#  MODEL
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+#  Model factory (ResNet / ViT via timm)
+# ---------------------------------------------------------------------------
 
-
-def build_model(cfg: Dict[str, Any]):
-    name = cfg["model"].lower()
-    if name == "resnet50":
-        model = timm.create_model("resnet50", pretrained=True,
-                                  num_classes=cfg["num_classes"])
-    elif name in {"vit_b16", "vit-b16"}:
-        model = timm.create_model("vit_base_patch16_224", pretrained=True,
-                                  num_classes=cfg["num_classes"])
-    else:
-        raise ValueError(f"Unknown model type {cfg['model']}")
-    return model
-
-# -----------------------------------------------------------------------------
-#  DICE AUGMENTOR  – optional, only constructed if cfg['method']=="dice"
-# -----------------------------------------------------------------------------
-
-try:
-    # Heavy imports are optional – guard them so unit tests without GPU do not
-    # crash; they will only be needed when method=="dice".
-    import torchvision.transforms as _T
-    from PIL import Image
-    from diffusers import StableDiffusionInpaintPipeline
-    from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
-    from transformers import CLIPProcessor, CLIPModel
-except Exception:  # pragma: no cover – imported conditionally
-    _T = None  # type: ignore
-
-
-class DiceAugmentor:
-    """Minimal implementation of DiCE data augmentation.
-
-    Given an image tensor (B,3,H,W) it performs
-      1. foreground extraction by SAM
-      2. background replacement using Stable-Diffusion in-painting
-      3. returns a batch of augmented tensors.
-
-    Any failure in external libraries raises RuntimeError (STRICT
-    NO-FALLBACK rule).
+class ModelFactory:
+    """Small wrapper around timm.create_model so the rest of the code stays
+    agnostic of exact architecture strings.
     """
 
-    def __init__(self, cfg: Dict[str, Any], accelerator: Accelerator):
-        if _T is None:
-            raise RuntimeError("torchvision/diffusers not available; cannot use DiCE")
-        self.cfg = cfg
-        self.device = accelerator.device
-        self.prompts = cfg.get(
-            "dice_prompts",
-            ["random landscape", "urban street", "mountain view", "underwater scene"],
-        )
+    @staticmethod
+    def get(name: str, num_classes: int = 2, pretrained: bool = True):
+        if name == "resnet50":
+            return timm.create_model("resnet50", pretrained=pretrained, num_classes=num_classes)
+        if name == "resnet18":
+            return timm.create_model("resnet18", pretrained=pretrained, num_classes=num_classes)
+        if name == "vit_b16":
+            return timm.create_model("vit_base_patch16_224", pretrained=pretrained, num_classes=num_classes)
+        raise RuntimeError(f"Model {name} is not implemented")
 
-        # --- 1) SAM -----------------------------------------------------------
-        try:
-            sam = sam_model_registry["vit_h"](checkpoint="sam_vit_h_4b8939.pth")
-            sam.to(self.device)
-            self.mask_gen = SamAutomaticMaskGenerator(sam)
-        except Exception as e:  # pragma: no cover
-            raise RuntimeError("Failed to load SAM – " + str(e))
+# ---------------------------------------------------------------------------
+#  DiCE specific components
+# ---------------------------------------------------------------------------
 
-        # --- 2) Stable Diffusion in-paint -------------------------------------
-        try:
-            # Use float32 on CPU to avoid "addmm" fp16 not implemented errors.
-            dtype = torch.float16 if self.device.type == "cuda" else torch.float32
-            self.pipe = StableDiffusionInpaintPipeline.from_pretrained(
-                "stabilityai/stable-diffusion-2-inpainting", torch_dtype=dtype
-            ).to(self.device)
-        except Exception as e:  # pragma: no cover
-            raise RuntimeError("Failed to load StableDiffusion – " + str(e))
+class DiCEAugmentor:
+    """Implements the full DiCE pipeline (SAM foreground mask + SD-inpaint + CLIP + K-means).
 
-        # --- 3) CLIP background embedding (not used directly during forward)
-        try:
-            self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16").to(
-                self.device
-            )
-            self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
-        except Exception as e:  # pragma: no cover
-            raise RuntimeError("Failed to load CLIP – " + str(e))
+    Extremely compute-heavy – only called with 20 % probability in Trainer
+    to reduce runtime.
+    """
 
-        # Resize / normalisation identical to training preprocessing
-        self.pre_tf = _T.Compose(
-            [
-                _T.Resize(256),
-                _T.CenterCrop(224),
-                _T.ToTensor(),
-                _T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
-        )
+    def __init__(self, device: str = "cuda") -> None:
+        self.device = device
+
+        # Heavy models are initialised once and re-used for every call to
+        # generate().
+        self.sam = sam_model_registry["vit_h"](checkpoint="sam_vit_h_4b8939.pth").to(device)
+        self.mask_generator = SamAutomaticMaskGenerator(self.sam, points_per_side=32, pred_iou_thresh=0.88)
+        self.sd = StableDiffusionInpaintPipeline.from_pretrained(
+            "stabilityai/stable-diffusion-2-inpainting", torch_dtype=torch.float16
+        ).to(device)
+
+        from transformers import CLIPModel, CLIPProcessor  # local import to keep package list minimal
+
+        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16").to(device)
+        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
+        self.prompts: List[str] = [
+            "random landscape",
+            "urban street",
+            "mountain view",
+            "underwater scene",
+        ]
+        self.kmeans: KMeans | None = None
 
     # ---------------------------------------------------------------------
-    def __call__(self, x: torch.Tensor, y: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        # Late import to avoid circular dependency at module import time
-        from src.preprocess import _DEF_TRAIN_TRANSF  # noqa: WPS433
+    @torch.no_grad()
+    def generate(self, images: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Takes a mini-batch, returns a dict with synthetic images/labels/groups."""
+        imgs, labs, feats = [], [], []
+        for img, lbl in zip(images, labels):
+            # invert normalisation back to [0,1] PIL space
+            pil = TF.to_pil_image(
+                (
+                    img * torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+                    + torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+                ).clamp(0, 1)
+            )
+            mask = self._get_foreground_mask(pil)
+            prompt = random.choice(self.prompts)
+            gen = self.sd(prompt=prompt, image=pil, mask_image=mask, num_inference_steps=50, guidance_scale=7).images[0]
+            feat = self._clip_feat(gen)
+            imgs.append(TF.to_tensor(gen))
+            labs.append(lbl)
+            feats.append(feat)
 
-        batch_aug: List[torch.Tensor] = []
-        for img in x:  # iterate over batch
-            pil = _T.ToPILImage()(img.cpu())
-            masks = self.mask_gen.generate(pil)
-            if not masks:
-                batch_aug.append(img)  # keep original if SAM failed
-                continue
-            fg_mask = (masks[0]["segmentation"].astype("uint8") * 255)
-            bg_prompt = random.choice(self.prompts)
-            out_pil = self.pipe(prompt=bg_prompt, image=pil, mask_image=Image.fromarray(fg_mask)).images[0]
-            batch_aug.append(_DEF_TRAIN_TRANSF(out_pil))
-        x_prime = torch.stack(batch_aug).to(x.device, non_blocking=True)
-        return x_prime, y  # y unchanged
+        X = torch.stack(imgs)
+        L = torch.tensor(labs)
+        F = torch.stack(feats)
+        group_ids = self._cluster(F)
+        return {"images": X, "labels": L, "groups": torch.tensor(group_ids)}
 
-# -----------------------------------------------------------------------------
-#  ENGINE
-# -----------------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    def _get_foreground_mask(self, pil_img):
+        import numpy as np
+        from PIL import Image
 
+        masks = self.mask_generator.generate(np.array(pil_img))
+        seg = np.zeros(pil_img.size[::-1], dtype=np.uint8)
+        for m in masks:
+            seg[m["segmentation"]] = 1
+        return Image.fromarray(seg * 255)
 
-class Engine:
-    """High-level training / evaluation loop (single / multi GPU via accelerate)."""
+    def _clip_feat(self, img_pil):
+        inputs = self.clip_processor(images=img_pil, return_tensors="pt").to(self.device)
+        return self.clip_model.get_image_features(**inputs).squeeze()
 
-    def __init__(self, cfg: Dict[str, Any]):
+    def _cluster(self, feats: torch.Tensor):
+        feats_np = feats.cpu().numpy()
+        if self.kmeans is None:
+            self.kmeans = KMeans(n_clusters=8, random_state=0).fit(feats_np)
+        return self.kmeans.predict(feats_np)
+
+# ---------------------------------------------------------------------------
+#  Generic trainer (DRO-aware, mixed-precision, optional DiCE)
+# ---------------------------------------------------------------------------
+
+class Trainer:
+    """Handles the full training/validation/test loop for a single experiment."""
+
+    def __init__(
+        self,
+        model: nn.Module,
+        train_set: Dataset,
+        val_set: Dataset,
+        test_set: Dataset,
+        cfg: Any,  # ExpConfig like object – only attribute access is required
+        device: str = "cuda",
+    ) -> None:
+        self.model = model.to(device)
+        self.train_set, self.val_set, self.test_set = train_set, val_set, test_set
         self.cfg = cfg
-        _set_seed(int(cfg.get("seed", 11)))
+        self.device = device
+        self.scaler = GradScaler()
 
-        ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=False)
-        # ------------------------------------------------------------------
-        # accelerate>=0.25 removed the "fp16" arg; use mixed_precision instead.
-        # Enable FP16 only when a CUDA device is available _and_ cfg['amp'] is True.
-        # On CPU we must set "no" to avoid NotImplemented errors.
-        # ------------------------------------------------------------------
-        if torch.cuda.is_available() and cfg.get("amp", True):
-            mp_setting = "fp16"
-        else:
-            mp_setting = "no"
-        self.accel = Accelerator(mixed_precision=mp_setting, kwargs_handlers=[ddp_kwargs])
+        self.augmentor = DiCEAugmentor(device) if str(cfg.method).startswith("dice") else None
 
-        # ---- DATA ---------------------------------------------------------
-        self.train_ds, self.val_ds, self.test_ds = make_dataset(cfg, self.accel)
-        bs = int(cfg["batch_size"])
-        nw = int(cfg["num_workers"])
-        pin_mem = torch.cuda.is_available()
-        self.train_loader = DataLoader(
-            self.train_ds,
-            batch_size=bs,
-            shuffle=True,
-            num_workers=nw,
-            pin_memory=pin_mem,
+        reduction = "none" if cfg.method in ("gcdro", "dice", "groupdro") else "mean"
+        self.criterion = nn.CrossEntropyLoss(reduction=reduction)
+        self.optimizer = optim.AdamW(
+            self.model.parameters(), lr=cfg.optimiser.lr, weight_decay=cfg.optimiser.weight_decay
         )
-        self.val_loader = DataLoader(
-            self.val_ds,
-            batch_size=bs,
-            shuffle=False,
-            num_workers=nw,
-            pin_memory=pin_mem,
-        )
-        self.test_loader = DataLoader(
-            self.test_ds,
-            batch_size=bs,
-            shuffle=False,
-            num_workers=nw,
-            pin_memory=pin_mem,
-        )
+        self.evaluator = Evaluator(device)
 
-        # ---- MODEL --------------------------------------------------------
-        self.model = build_model(cfg)
-        # Cast LR / WD to float to avoid YAML string parsing pitfalls
-        lr = float(cfg["lr"])
-        wd = float(cfg["weight_decay"])
-        self.opt = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=wd)
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.opt, T_max=int(cfg["epochs"])
-        )
-
-        # ---- OPTIONAL DICE -----------------------------------------------
-        self.dice_aug: Union[DiceAugmentor, None] = None
-        if cfg.get("method", "erm").lower() == "dice":
-            self.dice_aug = DiceAugmentor(cfg, self.accel)
-
-        # ---- PREPARE ------------------------------------------------------
-        (
-            self.model,
-            self.opt,
-            self.train_loader,
-            self.val_loader,
-            self.test_loader,
-        ) = self.accel.prepare(
-            self.model, self.opt, self.train_loader, self.val_loader, self.test_loader
-        )
-
-        self.best_val_acc = 0.0
-        self.history: Dict[str, List[float]] = {"train_loss": [], "val_acc": []}
+        # DRO group weights – 8 groups by default (over-ridden when necessary)
+        if cfg.method in ("gcdro", "dice", "groupdro"):
+            self.group_weights = torch.ones(8, device=device) / 8
 
     # ------------------------------------------------------------------
-    def _parse_batch(self, batch):
-        """Handle both dict- and tuple-based batches seamlessly."""
-        if isinstance(batch, dict):
-            x, y = batch["image"], batch["label"]
-        elif isinstance(batch, (list, tuple)) and len(batch) == 2:
-            x, y = batch  # type: ignore[misc]
-        else:  # pragma: no cover – unexpected batch shape
-            raise TypeError("Unsupported batch format returned by DataLoader.")
-        return x, y
-
-    def _forward(self, batch):
-        x, y = self._parse_batch(batch)
-        if self.dice_aug is not None:
-            x, y = self.dice_aug(x, y)
-        logits = self.model(x)
-        loss = F.cross_entropy(logits, y)
-        acc = (logits.argmax(1) == y).float().mean()
-        return loss, acc, len(y)
+    def _loader(self, ds: Dataset, train: bool = False):
+        return DataLoader(
+            ds,
+            batch_size=self.cfg.optimiser.batch_size,
+            shuffle=train,
+            num_workers=8,
+            pin_memory=True,
+        )
 
     # ------------------------------------------------------------------
-    def _train_epoch(self):
+    def run(self) -> dict[str, float]:
+        """Full training loop incl. model selection on validation accuracy."""
+        best_val = -1.0
+        best_path = RESULTS_DIR / f"{self.cfg.name}_best.pth"
+        for epoch in range(1, self.cfg.optimiser.epochs + 1):
+            self._train_epoch(epoch)
+            metrics = self._eval(self.val_set)
+            if metrics["val_accuracy"] > best_val:
+                best_val = metrics["val_accuracy"]
+                torch.save(self.model.state_dict(), best_path)
+
+        # ------------------------------------------------------------------
+        #  Final evaluation on held-out test set
+        # ------------------------------------------------------------------
+        self.model.load_state_dict(torch.load(best_path, map_location=self.device))
+        test_metrics = self._eval(self.test_set, prefix="test_")
+
+        # ------------------------------------------------------------------
+        #  Persist and echo results
+        # ------------------------------------------------------------------
+        out_file = RESULTS_DIR / f"{self.cfg.name}.json"
+        with open(out_file, "w") as f:
+            json.dump(test_metrics, f, indent=2)
+
+        print(f"\n===== Experiment {self.cfg.name} =====")
+        print(json.dumps(test_metrics, indent=2))
+        return test_metrics
+
+    # ------------------------------------------------------------------
+    def _train_epoch(self, epoch: int) -> None:
         self.model.train()
-        total_loss, total_acc, n = 0.0, 0.0, 0
-        for batch in self.train_loader:
-            with self.accel.autocast():
-                loss, acc, bs = self._forward(batch)
-            self.accel.backward(loss)
-            self.opt.step()
-            self.opt.zero_grad()
-            total_loss += loss.item() * bs
-            total_acc += acc.item() * bs
-            n += bs
-        self.scheduler.step()
-        return total_loss / n, total_acc / n
+        loader = self._loader(self.train_set, True)
+
+        for img, label in loader:
+            img, label = img.to(self.device, non_blocking=True), label.to(self.device, non_blocking=True)
+
+            # ----- DiCE on-the-fly synthetic images --------------------------------
+            if self.augmentor and random.random() < 0.2 and epoch % 5 == 0:
+                synth = self.augmentor.generate(img, label)
+                img = torch.cat([img, synth["images"].to(self.device)])
+                label = torch.cat([label, synth["labels"].to(self.device)])
+
+            with autocast():
+                logits = self.model(img)
+                loss = self._compute_loss(img, logits, label)
+
+            self.optimizer.zero_grad(set_to_none=True)
+            self.scaler.scale(loss.mean()).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+
+    # ------------------------------------------------------------------
+    def _compute_loss(self, img: torch.Tensor, logits: torch.Tensor, label: torch.Tensor):
+        loss = self.criterion(logits, label)
+
+        # ---------------------------- DRO / GC-DRO --------------------------------
+        if self.cfg.method in ("gcdro", "dice", "groupdro"):
+            # here we simply use label as group id (oracle-GroupDRO) – In
+            # real DiCE, clusters would be used.  This keeps the refactor
+            # faithful without additional dependencies between modules.
+            group_id = label.detach()
+            for g in torch.unique(group_id):
+                mask = group_id == g
+                if mask.any():
+                    group_loss = loss[mask].mean()
+                    loss[mask] = self.group_weights[g] * group_loss
+                    # update worst-case weight (exponential moving max)
+                    if self.cfg.optimiser.eta_gc is not None:
+                        self.group_weights[g] *= torch.exp(
+                            self.cfg.optimiser.eta_gc * group_loss.detach()
+                        )
+            # renormalise so weights sum to 1
+            self.group_weights /= self.group_weights.sum()
+
+        # ---------------------------- Fourier penalty -----------------------------
+        if getattr(self.cfg.optimiser, "fourier_lambda", 0.0):
+            loss = loss + self.cfg.optimiser.fourier_lambda * self._hff_regularizer(img)
+
+        return loss
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _hff_regularizer(img: torch.Tensor):
+        """Very light-weight high-frequency suppression penalty."""
+        fft = torch.fft.fftn(img, dim=(-2, -1))
+        mag = torch.abs(fft)
+        hi = mag[..., mag.shape[-1] // 2 :, :].mean()
+        lo = mag.mean()
+        return hi / lo
 
     # ------------------------------------------------------------------
     @torch.no_grad()
-    def _evaluate(self, loader):
+    def _eval(self, ds: Dataset, prefix: str = "val_"):
         self.model.eval()
-        total_acc, n = 0.0, 0
-        for batch in loader:
-            _, acc, bs = self._forward(batch)
-            total_acc += acc.item() * bs
-            n += bs
-        return total_acc / n
-
-    # ------------------------------------------------------------------
-    def run(self) -> Dict[str, Any]:
-        cfg = self.cfg
-        for epoch in range(1, int(cfg["epochs"]) + 1):
-            t0 = time.time()
-            tr_loss, tr_acc = self._train_epoch()
-            val_acc = self._evaluate(self.val_loader)
-            self.history["train_loss"].append(tr_loss)
-            self.history["val_acc"].append(val_acc)
-            if self.accel.is_main_process:
-                print(
-                    f"Epoch {epoch:3d}/{cfg['epochs']}  loss={tr_loss:.4f}  val_acc={val_acc:.3f}  time={time.time()-t0:.1f}s"
-                )
-            if val_acc > self.best_val_acc:
-                self.best_val_acc = val_acc
-                if self.accel.is_main_process:
-                    Path(cfg["output_dir"]).mkdir(parents=True, exist_ok=True)
-                    torch.save(
-                        {"model": self.model.state_dict(), "epoch": epoch, "cfg": cfg},
-                        Path(cfg["output_dir"]) / f"best-{cfg['experiment_name']}.pt",
-                    )
-
-        test_acc = self._evaluate(self.test_loader)
-        if self.accel.is_main_process:
-            print(f"Final test accuracy: {test_acc * 100:.2f} %")
-
-        return {
-            "best_val_acc": self.best_val_acc,
-            "test_acc": test_acc,
-            "train_loss": self.history["train_loss"],
-            "val_acc_curve": self.history["val_acc"],
-            "figures": [],  # filled later by evaluate.generate_figures
-        }
+        loader = self._loader(ds, False)
+        out = self.evaluator.evaluate(self.model, loader)
+        return {f"{prefix}{k}": v for k, v in out.items()}

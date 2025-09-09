@@ -1,49 +1,52 @@
-"""evaluate.py
-Evaluation utilities independent from the training loop: statistics,
-plots, confusion matrices …  Currently only plotting of training curves
-is required for the refactor.
+"""
+evaluate.py – metrics, statistics, and plotting helpers
 """
 from __future__ import annotations
-from typing import Dict, Any
-from pathlib import Path
+
+import json, pathlib
+from typing import Iterable
 
 import matplotlib.pyplot as plt
+import seaborn as sns
+import torch
 
-# -----------------------------------------------------------------------------
-# Directory where all images must be stored (mandatory iteration6 path)
-# -----------------------------------------------------------------------------
-IMG_DIR = Path('.research/iteration6/images')
+# ---------------------------------------------------------------------------
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+IMG_DIR = ROOT / ".research" / "iteration7" / "images"
 IMG_DIR.mkdir(parents=True, exist_ok=True)
 
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+#  Basic classification evaluator
+# ---------------------------------------------------------------------------
 
-def _save(fig, name: str) -> str:
-    path = IMG_DIR / f"{name}.pdf"
-    fig.savefig(path, bbox_inches="tight")
-    plt.close(fig)
-    return str(path)
+class Evaluator:
+    def __init__(self, device: str = "cuda") -> None:
+        self.device = device
 
-# -----------------------------------------------------------------------------
+    @torch.no_grad()
+    def evaluate(self, model: torch.nn.Module, loader: Iterable):
+        correct = 0
+        total = 0
+        for img, label in loader:
+            img = img.to(self.device, non_blocking=True)
+            label = label.to(self.device, non_blocking=True)
+            pred = model(img).argmax(1)
+            correct += (pred == label).sum().item()
+            total += label.size(0)
+        return {"accuracy": correct / total}
 
-def generate_figures(results: Dict[str, Any], cfg: Dict[str, Any]):
-    """Create and save the training-loss & validation-accuracy curves."""
-    figs: list[str] = []
+# ---------------------------------------------------------------------------
+#  Very small plotting helper (used by main.py)
+# ---------------------------------------------------------------------------
 
-    # -- training loss -----------------------------------------------------
-    fig, ax = plt.subplots()
-    ax.plot(results["train_loss"], label="train_loss")
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Cross-Entropy Loss")
-    ax.legend()
-    figs.append(_save(fig, f"train_loss_{cfg['experiment_name']}"))
-
-    # -- validation accuracy ----------------------------------------------
-    fig, ax = plt.subplots()
-    ax.plot(results["val_acc_curve"], label="val_acc")
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Accuracy")
-    ax.legend()
-    figs.append(_save(fig, f"val_acc_{cfg['experiment_name']}"))
-
-    results["figures"] = figs
-    return figs
+def line_plot(x, y, title: str, xlabel: str, ylabel: str, filename: str):
+    plt.figure()
+    sns.lineplot(x=x, y=y, marker="o")
+    for xi, yi in zip(x, y):
+        plt.text(xi, yi, f"{yi:.2f}")
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend([ylabel])
+    plt.savefig(IMG_DIR / filename, bbox_inches="tight", format="pdf")
+    plt.close()

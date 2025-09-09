@@ -1,29 +1,31 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
 [project]
-name = "dice-robust-vision"
+name = "dice-robustness"
 version = "0.1.0"
-description = "Research codebase refactored into modular structure."
-readme = "README.md"
-requires-python = ">=3.8"
+description = "Refactored DiCE robustness project"
+requires-python = ">=3.9"
+authors = [ {name = "Research Team", email = "research@example.com"} ]
 license = {text = "MIT"}
-authors = [
-  {name = "Researcher", email = "research@example.com"}
-]
+readme = "README.md"
 
-# -----------------------------------------------------------------------------
-# Dependencies must be defined as a list, not a table (PEP 621 compliant)
-# -----------------------------------------------------------------------------
-dependencies = [
-  "torch",
-  "torchvision",
-  "accelerate",
-  "datasets",
-  "timm",
-  "pyyaml",
-  "matplotlib",
-  "diffusers",
-  "transformers",
-  "segment-anything"
-]
-
-[tool.setuptools]
-packages = ["."]
+[project.dependencies]
+# Core scientific python stack
+numpy = "*"
+scipy = "*"
+torch = ">=2.0"
+torchvision = "*"
+timm = "*"
+# data / evaluation helpers
+matplotlib = "*"
+seaborn = "*"
+scikit-learn = "*"
+PyYAML = "*"
+# external models
+diffusers = "*"
+transformers = "*"
+# datasets hub
+datasets = "*"
+# segmentation models
+segment-anything = "*"
