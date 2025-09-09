@@ -8,19 +8,29 @@ authors = [
 ]
 license = { text = "Apache-2.0" }
 
-[project.dependencies]
-torch = "*"
-torchvision = "*"
-timm = "*"
-peft = "*"
-accelerate = "*"
-transformers = "*"  # peft/accelerate dep
-seaborn = "*"
-matplotlib = "*"
-datasets = "*"
-fvcore = "*"
-Pillow = "*"
-PyYAML = "*"
+# ---------------------------------------------------------------------------
+#                            PROJECT DEPENDENCIES
+# ---------------------------------------------------------------------------
+# According to PEP 621, the ``dependencies`` field must be a sequence. Using a
+# dedicated ``[project.dependencies]`` table – as in the previous version –
+# results in a TOML parsing error ("invalid type: map, expected a sequence").
+# The list below restores compliance with the spec while preserving the exact
+# set of runtime requirements.
+
+dependencies = [
+    "torch",
+    "torchvision",
+    "timm",
+    "peft",
+    "accelerate",
+    "transformers",  # peft/accelerate dep
+    "seaborn",
+    "matplotlib",
+    "datasets",
+    "fvcore",
+    "Pillow",
+    "PyYAML"
+]
 
 [build-system]
 requires = ["setuptools>=61.0"]

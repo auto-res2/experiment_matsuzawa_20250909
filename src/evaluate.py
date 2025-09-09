@@ -1,8 +1,8 @@
+from __future__ import annotations
+
 """src/evaluate.py
     Experiment orchestration, statistical analysis, and plotting utilities.
 """
-
-from __future__ import annotations
 
 import json
 from pathlib import Path
@@ -18,8 +18,27 @@ from .train import HiDeRLearner, ERRingLearner
 __all__ = ["run_experiment_1"]
 
 
+# ---------------------------------------------------------------------------
+#                       DIRECTORY & PATH CONSTANTS
+# ---------------------------------------------------------------------------
+
+# All artefacts must live under .research/iteration2/
+BASE_DIR = Path(".research/iteration2")
+IMG_DIR = BASE_DIR / "images"
+
+# Ensure required directories exist at import time so that downstream code
+# can safely assume their presence regardless of the execution order.
+ensure_dir(BASE_DIR)
+ensure_dir(IMG_DIR)
+
+
 def run_experiment_1(cfg: Dict):
-    """Standard Benchmark Suite – Split-CIFAR-100 (20 tasks)."""
+    """Standard Benchmark Suite – Split-CIFAR-100 (20 tasks).
+
+    All JSON results are written to .research/iteration2/ and all figures are
+    written to .research/iteration2/images/ in accordance with the mandatory
+    path constraints.
+    """
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     stream = build_stream("split_cifar100", cfg)
@@ -39,8 +58,7 @@ def run_experiment_1(cfg: Dict):
 
     # -------------------------------------------------------------
     # Save JSON results & accuracy plot
-    ensure_dir(cfg["OUT_DIR"])
-    json_path = Path(cfg["OUT_DIR"]) / "exp1_results.json"
+    json_path = BASE_DIR / "exp1_results.json"
     with open(json_path, "w") as f:
         json.dump(results, f, indent=2)
 
@@ -55,7 +73,7 @@ def run_experiment_1(cfg: Dict):
     plt.ylim(0, 100)
     plt.legend()
     plt.title("Continual Accuracy – Split-CIFAR-100")
-    fig_path = Path(cfg["OUT_DIR"]) / "accuracy_split_cifar100.pdf"
+    fig_path = IMG_DIR / "accuracy_split_cifar100.pdf"
     plt.savefig(fig_path, bbox_inches="tight")
 
     # Echo description & results for reproducibility
