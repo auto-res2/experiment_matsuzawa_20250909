@@ -1,40 +1,43 @@
 [project]
 name = "adasmooth_ode"
-version = "0.1.0"
+version = "0.1.1"  # bumped after wheel-based dependency hot-fix
 description = "Depth-scalable GNNs with node-adaptive smoothing times (AdaSmooth-ODE)"
 requires-python = ">=3.9"
 
 # ---------------------------------------------------------------------------
-# Dependency notes
+# Dependency pinning strategy (wheel-only – *no local builds*)
 # ---------------------------------------------------------------------------
-# 1. "torch" MUST be available *inside* the isolated build environments that
-#    uv/pip create for compiling the (optional) PyG C++ extensions such as
-#    torch-sparse and torch-scatter.  We therefore declare explicit
-#    `extra-build-dependencies` below.
-# 2. `torch-cluster` was removed because it is not used by the current code
-#    base and compiling it would unnecessarily increase build times while
-#    introducing a brittle dependency chain.
+# We observed repeated build failures for the `torch-scatter` and `torch-sparse`
+# C++ extensions when the resolver fell back to source distributions.  PyG
+# provides pre-compiled wheels that exactly match a given <torch, CUDA, python>
+# triple.  We therefore replace the generic requirement specifiers with direct
+# wheel links that are guaranteed to be compatible with:
+#   • Python   : 3.11 (cp311)
+#   • PyTorch  : 2.1.0+cu118
+#   • CUDA     : 11.8 (the default for the Tesla T4 runner)
+#
+# The wheels are hosted on https://data.pyg.org/whl  (official PyG mirror).
+# By pinning to these artefacts we completely sidestep the brittle compile
+# chain and dramatically reduce cold-start times.
 # ---------------------------------------------------------------------------
 
+# NOTE: the `+cu118` local version tag *must* match the torch wheel – do NOT
+#       change independently.
 dependencies = [
-  "torch>=2.1",
-  "torch_geometric>=2.4",
-  "torch_sparse",
-  "torch_scatter",
-  # "torch_cluster",  # <-- removed (unused, heavy to compile)
-  "torchdiffeq",
-  "ogb",
-  "networkx",
-  "scikit-learn",
-  "seaborn",
-  "matplotlib",
-  "pyyaml",
-  "tqdm"
+  # ---------- core ML stack ----------
+  "torch==2.1.0+cu118",                           # picked to match available PyG wheels
+  "torchvision==0.16.0+cu118",                   # useful utility; same CUDA toolchain
+  
+  # ---------- PyG + compiled ops (wheel links – no recompilation) ----------
+  "torch_sparse @ https://data.pyg.org/whl/torch-2.1.0%2Bcu118/torch_sparse-0.6.18%2Bpt21cu118-cp311-cp311-linux_x86_64.whl",
+  "torch_scatter @ https://data.pyg.org/whl/torch-2.1.0%2Bcu118/torch_scatter-2.1.2%2Bpt21cu118-cp311-cp311-linux_x86_64.whl",
+  "torch_geometric==2.4.0",                      # pure-python, relies on wheels above
+
+  # ---------- research helpers ----------
+  "torchdiffeq", "ogb", "networkx", "scikit-learn",
+  "seaborn", "matplotlib", "pyyaml", "tqdm"
 ]
 
-[tool.uv.extra-build-dependencies]
-# Ensure the main torch wheel is visible when building PyG C++ extensions
-# inside uv's isolated build environments.
-# (This mirrors the suggestion in the error diagnostics.)
-"torch_sparse" = ["torch"]
-"torch_scatter" = ["torch"]
+# No `extra-build-dependencies` are required any longer because every compiled
+# extension is satisfied via pre-built wheels.  Removing the stanza avoids the
+# spurious warning spam emitted by recent versions of `uv`.
