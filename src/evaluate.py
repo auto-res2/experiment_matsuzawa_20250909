@@ -1,52 +1,50 @@
 """
-evaluate.py – metrics, statistics, and plotting helpers (iteration 8 paths)
+evaluate.py – metrics & plotting utilities extracted from original utils/metrics.py
+and utils/plots.py.
 """
 from __future__ import annotations
 
-import json, pathlib
-from typing import Iterable
+import pathlib
+from typing import Sequence
 
-import matplotlib.pyplot as plt
-import seaborn as sns
+import matplotlib
+
+matplotlib.use("Agg")  # non-interactive backend for servers
+import matplotlib.pyplot as plt  # noqa: E402
 import torch
 
-# ---------------------------------------------------------------------------
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-IMG_DIR = ROOT / ".research" / "iteration8" / "images"
-IMG_DIR.mkdir(parents=True, exist_ok=True)
 
-# ---------------------------------------------------------------------------
-#  Basic classification evaluator
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Accuracy helper identical to original implementation
+# -----------------------------------------------------------------------------
 
-class Evaluator:
-    def __init__(self, device: str = "cuda" if torch.cuda.is_available() else "cpu") -> None:
-        self.device = device
+def accuracy(pred: torch.Tensor, target: torch.Tensor) -> float:
+    """Top-1 accuracy – identical to the experiment code."""
+    return (pred.argmax(1) == target).float().mean().item()
 
-    @torch.no_grad()
-    def evaluate(self, model: torch.nn.Module, loader: Iterable):
-        correct = 0
-        total = 0
-        for img, label in loader:
-            img = img.to(self.device, non_blocking=True)
-            label = label.to(self.device, non_blocking=True)
-            pred = model(img).argmax(1)
-            correct += (pred == label).sum().item()
-            total += label.size(0)
-        return {"accuracy": correct / total}
 
-# ---------------------------------------------------------------------------
-#  Simple plotting helper (used by main.py)
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Plot helper identical to utils/plots.line_plot
+# -----------------------------------------------------------------------------
 
-def line_plot(x, y, title: str, xlabel: str, ylabel: str, filename: str):
-    plt.figure()
-    sns.lineplot(x=x, y=y, marker="o")
-    for xi, yi in zip(x, y):
-        plt.text(xi, yi, f"{yi:.2f}")
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.legend([ylabel])
-    plt.savefig(IMG_DIR / filename, bbox_inches="tight", format="pdf")
-    plt.close()
+def line_plot(
+    xs: Sequence[float] | Sequence[int],
+    ys: Sequence[float],
+    *,
+    title: str,
+    xlabel: str,
+    ylabel: str,
+    pdf_path: str | pathlib.Path,
+) -> None:
+    pdf_path = pathlib.Path(pdf_path)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(xs, ys, marker="o", label=title)
+    for x, y in zip(xs, ys):
+        ax.annotate(f"{y:.2f}", (x, y), textcoords="offset points", xytext=(0, 5), ha="center")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.legend()
+    plt.tight_layout()
+    fig.savefig(pdf_path, bbox_inches="tight")
+    plt.close(fig)

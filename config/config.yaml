@@ -1,15 +1,19 @@
-experiments:
-  - name: quick_demo
-    dataset: cifar10
-    method: erm
-    model: resnet18
-    seed: 17
-    correlation: null
-    optimiser:
-      epochs: 2
-      batch_size: 64
-      lr: 0.0003
-      weight_decay: 0.05
-      eta_gc: null
-      fourier_lambda: null
-    extra: {}
+# config/config.yaml – minimal smoke-test configuration extracted from the
+# hard-coded ExperimentConfig instance in the original script.
+
+name: "exp1_waterbirds_smoke"
+dataset: "waterbirds"
+seeds: [11]
+rho_grid: [0.1]
+model: "resnet50"
+output_dir: ".research/iteration9"
+
+optim:
+  epochs: 3          # reduced for quick smoke test – original was 90
+  batch_size: 32
+  lr: 0.0003
+  weight_decay: 0.05
+  betas: [0.9, 0.999]
+
+dice:
+  gc_eta: 0.05

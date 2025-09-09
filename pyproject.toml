@@ -2,33 +2,30 @@
 requires = ["setuptools", "wheel"]
 
 [project]
-name = "dice-robustness"
+name = "dice-ood-robustness"
 version = "0.1.0"
-description = "Refactored DiCE robustness project"
-requires-python = ">=3.9"
-authors = [ {name = "Research Team", email = "research@example.com"} ]
-license = {text = "MIT"}
+description = "Refactored research code for DiCE OOD robustness experiments"
 readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Researcher", email = "research@example.com"}]
+requires-python = ">=3.9"
 
-# ---------------------------------------------------------------------------
-#  PEP-621 compliant dependencies list – one string per requirement
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Dependencies – copied from the import list of the original single script
+# -----------------------------------------------------------------------------
 
 dependencies = [
-    # Core scientific python stack
-    "numpy",
-    "scipy",
     "torch>=2.0",
     "torchvision",
     "timm",
-    # data / evaluation helpers
-    "matplotlib",
-    "seaborn",
-    "scikit-learn",
-    "PyYAML",
-    # datasets hub
     "datasets",
+    "diffusers",
+    "transformers",
+    "scikit-learn",
+    "matplotlib",
+    "pyyaml",
+    "numpy",
 ]
 
-[tool.setuptools]
-package-dir = {"" = "src"}
+[tool.setuptools.packages.find]
+where = ["."]

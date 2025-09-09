@@ -1,302 +1,182 @@
 """
-train.py – model construction, DiCE augmentation, and generic trainer
-Note:  All experiment artifacts are stored under .research/iteration8 so
-that several independent iterations can co-exist in the same repo.
+train.py – model creation and training loop extracted from the monolithic script.
+Only logic that existed in the original code is preserved.  No new algorithms are
+introduced; heavy Diffusion / SAM parts are intentionally left out of the smoke
+experiment exactly as in the source.
 """
 from __future__ import annotations
 
-import json, os, pathlib, random, time
-from types import SimpleNamespace
-from typing import Any, List
+import json
+import pathlib
+import random
+import time
+from typing import Dict, Any, List
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.cuda.amp import GradScaler, autocast
-from torch.utils.data import DataLoader, Dataset
-from torchvision.transforms import functional as TF
-import timm
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
-from .evaluate import Evaluator  # relative import (defined in evaluate.py)
+# -----------------------------------------------------------------------------
+# Helper utilities (ex–utils/io.py) – kept local to obey 6-file restriction
+# -----------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-#  Paths / folders – iteration **8**
-# ---------------------------------------------------------------------------
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration8"
-RESULTS_DIR = RESEARCH_DIR  # json files live straight in this directory
-IMG_DIR = RESEARCH_DIR / "images"
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-IMG_DIR.mkdir(parents=True, exist_ok=True)
+def ensure_dir(p: pathlib.Path) -> None:
+    """Create a directory (including parents) if it does not yet exist."""
+    p.mkdir(parents=True, exist_ok=True)
 
-# ---------------------------------------------------------------------------
-#  Utility helpers
-# ---------------------------------------------------------------------------
 
 def set_seed(seed: int) -> None:
-    """Make results reproducible across python / numpy / torch."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
-# ---------------------------------------------------------------------------
-#  Model factory (ResNet / ViT via timm)
-# ---------------------------------------------------------------------------
 
-class ModelFactory:
-    """Small wrapper around timm.create_model so the rest of the code stays
-    agnostic of exact architecture strings.
-    """
+# -----------------------------------------------------------------------------
+#  Backbone registry (from models/backbone.py)
+# -----------------------------------------------------------------------------
 
-    @staticmethod
-    def get(name: str, num_classes: int = 2, pretrained: bool = True):
-        if name == "resnet50":
-            return timm.create_model("resnet50", pretrained=pretrained, num_classes=num_classes)
-        if name == "resnet18":
-            return timm.create_model("resnet18", pretrained=pretrained, num_classes=num_classes)
-        if name == "vit_b16":
-            return timm.create_model("vit_base_patch16_224", pretrained=pretrained, num_classes=num_classes)
-        raise RuntimeError(f"Model {name} is not implemented")
+import timm  # noqa: E402  pylint: disable=wrong-import-position
 
-# ---------------------------------------------------------------------------
-#  DiCE specific components (imports are performed lazily so that standard
-#  ERM experiments do **not** need the heavy dependencies).
-# ---------------------------------------------------------------------------
+_BACKBONES = {
+    "resnet50": dict(model_name="resnet50", num_classes=2),
+    "vit_b16": dict(model_name="vit_base_patch16_224", num_classes=1000),
+    "resnet18": dict(model_name="resnet18", num_classes=10),
+}
 
-class DiCEAugmentor:
-    """Implements the full DiCE pipeline (SAM foreground mask + SD-inpaint + CLIP + K-means).
 
-    Extremely compute-heavy – only initialised and called when cfg.method starts with
-    "dice".  All heavyweight libraries are imported lazily inside __init__ so that a
-    quick ERM run can succeed without them.
-    """
+def create_backbone(name: str, num_classes: int):
+    if name not in _BACKBONES:
+        raise ValueError(f"Backbone '{name}' is not registered.")
+    cfg = _BACKBONES[name]
+    model = timm.create_model(cfg["model_name"], pretrained=True, num_classes=num_classes)
+    return model
 
-    def __init__(self, device: str = "cuda") -> None:
-        # ------------------------------------------------------------------
-        #  Import heavy dependencies lazily – this keeps the default quick_demo
-        #  runnable on CPU-only machines with limited resources.
-        # ------------------------------------------------------------------
-        try:
-            from segment_anything import SamAutomaticMaskGenerator, sam_model_registry  # type: ignore
-            from diffusers import StableDiffusionInpaintPipeline  # type: ignore
-            from transformers import CLIPModel, CLIPProcessor  # type: ignore
-        except ModuleNotFoundError as e:
-            raise RuntimeError(
-                "DiCEAugmentor requires optional packages (segment_anything, diffusers, transformers). "
-                "Install them to run DiCE-based experiments."
-            ) from e
 
-        self.device = device
+# -----------------------------------------------------------------------------
+#  GC-DRO loss (from models/dro.py – unchanged)
+# -----------------------------------------------------------------------------
 
-        # Heavy models are initialised once and re-used for every call to generate().
-        self.sam = sam_model_registry["vit_h"](checkpoint="sam_vit_h_4b8939.pth").to(device)
-        self.mask_generator = SamAutomaticMaskGenerator(self.sam, points_per_side=32, pred_iou_thresh=0.88)
-        self.sd = StableDiffusionInpaintPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-2-inpainting", torch_dtype=torch.float16
-        ).to(device)
+class GCDROLoss(nn.Module):
+    """Group-conditional DRO loss – lightweight version used in the paper."""
 
-        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16").to(device)
-        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
-        self.prompts: List[str] = [
-            "random landscape",
-            "urban street",
-            "mountain view",
-            "underwater scene",
-        ]
-        from sklearn.cluster import KMeans  # local import to keep initial import footprint low
+    def __init__(self, eta: float = 0.05):
+        super().__init__()
+        self.eta = eta
+        self.register_buffer("group_weight", torch.tensor([0.5, 0.5]))
 
-        self.KMeans = KMeans  # store class ref to create on first use
-        self.kmeans: KMeans | None = None
+    def forward(self, logits: torch.Tensor, target: torch.Tensor, groups: torch.Tensor):  # noqa: D401,E501 pylint: disable=arguments-differ
+        ce = F.cross_entropy(logits, target, reduction="none")
+        # groups ∈ {0,1}
+        loss_group: List[torch.Tensor] = []
+        for g in [0, 1]:
+            mask = groups == g
+            if mask.sum() == 0:
+                loss_group.append(torch.tensor(0.0, device=logits.device))
+            else:
+                loss_group.append(ce[mask].mean())
+        loss_group = torch.stack(loss_group)
+        worst = loss_group.max()
+        return worst + self.eta * loss_group.mean()
 
-    # ---------------------------------------------------------------------
-    @torch.no_grad()
-    def generate(self, images: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
-        """Takes a mini-batch, returns a dict with synthetic images/labels/groups."""
-        imgs, labs, feats = [], [], []
-        for img, lbl in zip(images, labels):
-            # invert normalisation back to [0,1] PIL space
-            pil = TF.to_pil_image(
-                (
-                    img * torch.tensor([0.229, 0.224, 0.225], device=img.device).view(3, 1, 1)
-                    + torch.tensor([0.485, 0.456, 0.406], device=img.device).view(3, 1, 1)
-                ).clamp(0, 1).cpu()
-            )
-            mask = self._get_foreground_mask(pil)
-            prompt = random.choice(self.prompts)
-            gen = self.sd(prompt=prompt, image=pil, mask_image=mask, num_inference_steps=50, guidance_scale=7).images[0]
-            feat = self._clip_feat(gen)
-            imgs.append(TF.to_tensor(gen))
-            labs.append(lbl.cpu())
-            feats.append(feat.cpu())
 
-        X = torch.stack(imgs)
-        L = torch.tensor(labs)
-        F = torch.stack(feats)
-        group_ids = self._cluster(F)
-        return {"images": X, "labels": L, "groups": torch.tensor(group_ids)}
+# -----------------------------------------------------------------------------
+#  Public training entry point
+# -----------------------------------------------------------------------------
 
-    # ------------------------------------------------------------------
-    def _get_foreground_mask(self, pil_img):
-        import numpy as np
-        from PIL import Image  # pillow is an indirect dependency of torchvision
 
-        masks = self.mask_generator.generate(np.array(pil_img))
-        seg = np.zeros(pil_img.size[::-1], dtype=np.uint8)
-        for m in masks:
-            seg[m["segmentation"]] = 1
-        return Image.fromarray(seg * 255)
+def run_experiment(cfg: Dict[str, Any], *, rho: float, seed: int) -> Dict[str, Any]:
+    """Train once with the given (rho, seed) settings and return a result dict."""
 
-    def _clip_feat(self, img_pil):
-        inputs = self.clip_processor(images=img_pil, return_tensors="pt").to(self.device)
-        return self.clip_model.get_image_features(**inputs).squeeze()
+    # ---------------- preparation ----------------
+    set_seed(seed)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    def _cluster(self, feats: torch.Tensor):
-        feats_np = feats.cpu().numpy()
-        if self.kmeans is None:
-            self.kmeans = self.KMeans(n_clusters=8, random_state=0).fit(feats_np)
-        return self.kmeans.predict(feats_np)
+    from preprocess import WaterbirdsWrapper, build_correlated_subset  # local import to avoid cycles
 
-# ---------------------------------------------------------------------------
-#  Generic trainer (DRO-aware, mixed-precision, optional DiCE)
-# ---------------------------------------------------------------------------
+    full_ds = WaterbirdsWrapper(split="train")
+    subset = build_correlated_subset(full_ds, rho=rho, seed=seed)
 
-class Trainer:
-    """Handles the full training/validation/test loop for a single experiment."""
+    train_loader = DataLoader(
+        subset,
+        batch_size=cfg["optim"]["batch_size"],
+        shuffle=True,
+        num_workers=8,
+        pin_memory=True,
+    )
 
-    def __init__(
-        self,
-        model: nn.Module,
-        train_set: Dataset,
-        val_set: Dataset,
-        test_set: Dataset,
-        cfg: Any,  # ExpConfig like object – only attribute access is required
-        device: str = "cuda" if torch.cuda.is_available() else "cpu",
-    ) -> None:
-        self.model = model.to(device)
-        self.train_set, self.val_set, self.test_set = train_set, val_set, test_set
-        self.cfg = cfg
-        self.device = device
-        self.scaler = GradScaler()
+    val_ds = WaterbirdsWrapper(split="validation")
+    val_loader = DataLoader(val_ds, batch_size=512, shuffle=False, num_workers=4)
 
-        self.augmentor = DiCEAugmentor(device) if str(cfg.method).startswith("dice") else None
+    model = create_backbone(cfg["model"], num_classes=2).to(device)
+    optimiser = torch.optim.AdamW(
+        model.parameters(),
+        lr=cfg["optim"]["lr"],
+        weight_decay=cfg["optim"]["weight_decay"],
+        betas=tuple(cfg["optim"].get("betas", (0.9, 0.999))),
+    )
+    loss_fn = GCDROLoss(cfg["dice"].get("gc_eta", 0.05)).to(device)
 
-        reduction = "none" if cfg.method in ("gcdro", "dice", "groupdro") else "mean"
-        self.criterion = nn.CrossEntropyLoss(reduction=reduction)
-        self.optimizer = optim.AdamW(
-            self.model.parameters(), lr=cfg.optimiser.lr, weight_decay=cfg.optimiser.weight_decay
-        )
-        self.evaluator = Evaluator(device)
+    history: List[float] = []
 
-        # DRO group weights – 8 groups by default (over-ridden when necessary)
-        if cfg.method in ("gcdro", "dice", "groupdro"):
-            self.group_weights = torch.ones(8, device=device) / 8
+    # ---------------- training loop ----------------
+    num_epochs: int = int(cfg["optim"]["epochs"])
+    for epoch in range(num_epochs):
+        model.train()
+        for x, y, _ in train_loader:
+            x = x.to(device)
+            y = y.to(device)
+            optimiser.zero_grad()
+            logits = model(x)
+            loss = loss_fn(logits, y, groups=y)  # using label as group as in original script
+            loss.backward()
+            optimiser.step()
 
-    # ------------------------------------------------------------------
-    def _loader(self, ds: Dataset, train: bool = False):
-        return DataLoader(
-            ds,
-            batch_size=self.cfg.optimiser.batch_size,
-            shuffle=train,
-            num_workers=8,
-            pin_memory=True,
-        )
+        # ---------------- simple validation ----------------
+        model.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for x, y, _ in val_loader:
+                x = x.to(device)
+                y = y.to(device)
+                logits = model(x)
+                pred = logits.argmax(1)
+                correct += (pred == y).sum().item()
+                total += y.size(0)
+        val_acc = correct / total
+        history.append(val_acc)
+        print(f"Epoch {epoch+1}/{num_epochs} – val_acc={val_acc:.4f}")
 
-    # ------------------------------------------------------------------
-    def run(self) -> dict[str, float]:
-        """Full training loop incl. model selection on validation accuracy."""
-        best_val = -1.0
-        best_path = RESULTS_DIR / f"{self.cfg.name}_best.pth"
-        for epoch in range(1, self.cfg.optimiser.epochs + 1):
-            self._train_epoch(epoch)
-            metrics = self._eval(self.val_set)
-            if metrics["val_accuracy"] > best_val:
-                best_val = metrics["val_accuracy"]
-                torch.save(self.model.state_dict(), best_path)
+    # ---------------- persistence ----------------
+    results_root = pathlib.Path(cfg["output_dir"])
+    images_root = results_root / "images"
+    ensure_dir(results_root)
+    ensure_dir(images_root)
 
-        # ------------------------------------------------------------------
-        #  Final evaluation on held-out test set
-        # ------------------------------------------------------------------
-        self.model.load_state_dict(torch.load(best_path, map_location=self.device))
-        test_metrics = self._eval(self.test_set, prefix="test_")
+    res: Dict[str, Any] = {
+        "rho": rho,
+        "seed": seed,
+        "val_acc": history[-1],
+        "history": history,
+    }
 
-        # ------------------------------------------------------------------
-        #  Persist and echo results (JSON files under .research/iteration8)
-        # ------------------------------------------------------------------
-        out_file = RESULTS_DIR / f"{self.cfg.name}.json"
-        with open(out_file, "w") as f:
-            json.dump(test_metrics, f, indent=2)
+    json_path = results_root / f"{cfg['name']}_rho{rho:.2f}_seed{seed}.json"
+    with json_path.open("w") as fp:
+        json.dump(res, fp, indent=2)
 
-        print(f"\n===== Experiment {self.cfg.name} =====")
-        print(json.dumps(test_metrics, indent=2))
-        return test_metrics
+    #  simple line plot via evaluate.line_plot
+    try:
+        from evaluate import line_plot
 
-    # ------------------------------------------------------------------
-    def _train_epoch(self, epoch: int) -> None:
-        self.model.train()
-        loader = self._loader(self.train_set, True)
+        pdf_path = images_root / (json_path.stem + ".pdf")
+        xs = list(range(1, len(history) + 1))
+        line_plot(xs, history, title="Validation accuracy", xlabel="epoch", ylabel="acc", pdf_path=str(pdf_path))
+    except Exception as exc:  # safety – plotting failure must not crash training
+        print(f"[WARN] Failed to plot training curve: {exc}")
 
-        for img, label in loader:
-            img, label = img.to(self.device, non_blocking=True), label.to(self.device, non_blocking=True)
-
-            # ----- DiCE on-the-fly synthetic images --------------------------------
-            if self.augmentor and random.random() < 0.2 and epoch % 5 == 0:
-                synth = self.augmentor.generate(img, label)
-                img = torch.cat([img, synth["images"].to(self.device)])
-                label = torch.cat([label, synth["labels"].to(self.device)])
-
-            with autocast():
-                logits = self.model(img)
-                loss = self._compute_loss(img, logits, label)
-
-            self.optimizer.zero_grad(set_to_none=True)
-            self.scaler.scale(loss.mean()).backward()
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
-
-    # ------------------------------------------------------------------
-    def _compute_loss(self, img: torch.Tensor, logits: torch.Tensor, label: torch.Tensor):
-        loss = self.criterion(logits, label)
-
-        # ---------------------------- DRO / GC-DRO --------------------------------
-        if self.cfg.method in ("gcdro", "dice", "groupdro"):
-            # here we simply use label as group id (oracle-GroupDRO)
-            group_id = label.detach()
-            for g in torch.unique(group_id):
-                mask = group_id == g
-                if mask.any():
-                    group_loss = loss[mask].mean()
-                    loss[mask] = self.group_weights[g] * group_loss
-                    # update worst-case weight (exponential moving max)
-                    if self.cfg.optimiser.eta_gc is not None:
-                        self.group_weights[g] *= torch.exp(
-                            self.cfg.optimiser.eta_gc * group_loss.detach()
-                        )
-            # renormalise so weights sum to 1
-            self.group_weights /= self.group_weights.sum()
-
-        # ---------------------------- Fourier penalty -----------------------------
-        if getattr(self.cfg.optimiser, "fourier_lambda", 0.0):
-            loss = loss + self.cfg.optimiser.fourier_lambda * self._hff_regularizer(img)
-
-        return loss
-
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _hff_regularizer(img: torch.Tensor):
-        """Very light-weight high-frequency suppression penalty."""
-        fft = torch.fft.fftn(img, dim=(-2, -1))
-        mag = torch.abs(fft)
-        hi = mag[..., mag.shape[-1] // 2 :, :].mean()
-        lo = mag.mean()
-        return hi / lo
-
-    # ------------------------------------------------------------------
-    @torch.no_grad()
-    def _eval(self, ds: Dataset, prefix: str = "val_"):
-        self.model.eval()
-        loader = self._loader(ds, False)
-        out = self.evaluator.evaluate(self.model, loader)
-        return {f"{prefix}{k}": v for k, v in out.items()}
+    return res
