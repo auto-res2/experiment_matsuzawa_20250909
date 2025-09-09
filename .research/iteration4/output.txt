@@ -1,0 +1,4 @@
+=== uv sync start Tue Sep  9 03:52:34 AM UTC 2025 ===
+=== uv install end Tue Sep  9 03:53:41 AM UTC 2025 ===
+=== experiment start Tue Sep  9 03:53:41 AM UTC 2025 ===
+[34mBuilding data stream for split_cifar100[0m
