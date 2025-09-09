@@ -176,8 +176,7 @@ class ResNet18SparseLoRA(nn.Module):
             else:
                 # ----- PRUNE -----
                 keep_r = ad.r + delta_rows  # delta_rows negative
-                if keep_r <= 0:
-                    continue
+                keep_r = max(1, keep_r)  # never drop below rank-1
                 idx = torch.topk(ad.B.abs().mean(0), k=keep_r, largest=True).indices
                 ad.A.data = ad.A.data[idx]
                 ad.B.data = ad.B.data[:, idx]
@@ -253,10 +252,17 @@ class VisionCLTrainer:
         self.device = torch.device(device) if isinstance(device, str) else device
         self.budget_bytes = int(budget_mb * 1024 ** 2)
 
+        # ---------------- model / aux modules ----------------
         self.model = ResNet18SparseLoRA(rank=4).to(self.device)
         self.vqvae = VQVAE8bit().to(self.device)
         self.alloc = RLAllocator().to(self.device)
 
+        # Ensure the *initial* footprint already satisfies the budget by
+        # pruning adapter rank if necessary.  This prevents later crashes when
+        # the buffer is still empty but the model itself is too large.
+        self._shrink_model_to_budget()
+
+        # ---------------- optimisers ----------------
         self.opt_sgd = optim.SGD(
             filter(lambda p: p.requires_grad, self.model.parameters()),
             lr=0.05, momentum=0.9, weight_decay=5e-4,
@@ -277,6 +283,19 @@ class VisionCLTrainer:
 
     def _footprint_ok(self) -> bool:
         return self.model.bytes_lora() + self._buffer_bytes() <= self.budget_bytes
+
+    def _shrink_model_to_budget(self):
+        """Reduce adapter rank until the (model-only) footprint fits budget."""
+        if self._footprint_ok():
+            return
+        # Uniformly prune one rank at a time across all adapters.
+        while (not self._footprint_ok()) and self.model.adapters[0].r > 1:
+            self.model.adapt_rank(-1)
+        if not self._footprint_ok():
+            raise RuntimeError(
+                "Memory budget is too small even for rank-1 adapters. "
+                f"Budget={self.budget_bytes} bytes, model={self.model.bytes_lora()} bytes."
+            )
 
     def _after_task(self, val_acc: float):
         # actor-critic chooses allocation delta
@@ -356,9 +375,17 @@ class VisionCLTrainer:
             code = self.vqvae.encode(img.unsqueeze(0).to(self.device)).squeeze(0).cpu()
             self.replay_buffer.append((code, c))
             class_cnt[c] = class_cnt.get(c, 0) + 1
-        # keep within budget
-        while not self._footprint_ok():
+        # keep within budget – guard against empty buffer pop
+        while (not self._footprint_ok()) and self.replay_buffer:
             self.replay_buffer.pop(0)
+
+        if not self._footprint_ok():
+            # At this point further shrinking the buffer is impossible; fall back
+            # to additional model pruning until the footprint fits or give up.
+            self._shrink_model_to_budget()
+            if not self._footprint_ok():
+                raise RuntimeError(
+                    "Memory budget cannot be satisfied after buffer pruning and model shrinking." ")
 
         # allocator step
         self._after_task(acc)
