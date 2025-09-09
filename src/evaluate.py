@@ -1,26 +1,38 @@
 # src/evaluate.py
 """Runs the *Ultra-low-footprint* experiment and handles statistics/plots.
 
-All I/O artefacts are saved under `.research/iteration3/` so that multiple
+All I/O artefacts are saved under `.research/iteration4/` so that multiple
 independent experiment runs are kept separate from the source code.
 """
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, TypeVar
 
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
 import yaml
-from avalanche.benchmarks.classic import SplitCIFAR100
-from avalanche.training.strategies import Replay
+
+# ---------------------------------------------------------------------------
+#  TEMPORARY MONKEY-PATCH ----------------------------------------------------
+# ---------------------------------------------------------------------------
+# Newer PyTorch versions (>=2.8) have removed the `T_co` symbol from
+# `torch.utils.data.dataset`, breaking older releases of Avalanche.  Since the
+# type alias is only used for static typing, re-introducing it at runtime is
+# perfectly safe and restores compatibility without downgrading PyTorch.
+import torch.utils.data.dataset as _torch_dataset  # noqa: E402  (import after torch)
+if not hasattr(_torch_dataset, "T_co"):
+    _torch_dataset.T_co = TypeVar("T_co", covariant=True)  # type: ignore[attr-defined]
+
+from avalanche.benchmarks.classic import SplitCIFAR100  # noqa: E402  (after monkey-patch)
+from avalanche.training.strategies import Replay  # noqa: E402
 from torch import nn
 
-from .preprocess import get_cifar100_benchmark
-from .train import PenultimateMapper, ResNet18Backbone, OrthogonalClassifier
+from .preprocess import get_cifar100_benchmark  # noqa: E402
+from .train import PenultimateMapper, ResNet18Backbone, OrthogonalClassifier  # noqa: E402
 
 matplotlib.use("Agg")  # headless rendering only
 
@@ -28,7 +40,7 @@ matplotlib.use("Agg")  # headless rendering only
 #  GLOBAL PATHS  (resolved from project root)  ------------------------------
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration3"
+RESEARCH_DIR = ROOT / ".research" / "iteration4"
 IMAGES_DIR = RESEARCH_DIR / "images"
 for p in (RESEARCH_DIR, IMAGES_DIR):
     p.mkdir(parents=True, exist_ok=True)
@@ -83,7 +95,7 @@ class BaseExperiment:
     def __init__(self, name: str):
         self.name = name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Save JSON results directly under iteration3/
+        # Save JSON results directly under iteration4/
         self.results_path = RESEARCH_DIR / f"{self.name}_results.json"
         self.figures: List[str] = []
         self.metric_log: Dict[str, Any] = {}

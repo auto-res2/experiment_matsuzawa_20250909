@@ -3,10 +3,21 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TypeVar
 
 import torch
-from torchvision import transforms, datasets
-from avalanche.benchmarks.classic import SplitCIFAR100
+
+# ---------------------------------------------------------------------------
+#  TEMPORARY MONKEY-PATCH ----------------------------------------------------
+# ---------------------------------------------------------------------------
+# See detailed explanation in `src/evaluate.py` – the same workaround is
+# required here because Avalanche is imported at module import-time.
+import torch.utils.data.dataset as _torch_dataset  # noqa: E402  (import after torch)
+if not hasattr(_torch_dataset, "T_co"):
+    _torch_dataset.T_co = TypeVar("T_co", covariant=True)  # type: ignore[attr-defined]
+
+from torchvision import transforms, datasets  # noqa: E402
+from avalanche.benchmarks.classic import SplitCIFAR100  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
