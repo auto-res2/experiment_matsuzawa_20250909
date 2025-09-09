@@ -1,0 +1,6 @@
+=== uv sync start Tue Sep  9 06:05:40 AM UTC 2025 ===
+=== uv install end Tue Sep  9 06:07:23 AM UTC 2025 ===
+=== experiment start Tue Sep  9 06:07:25 AM UTC 2025 ===
+[ERROR] Unable to download or access dataset 'c3d/DistractImageNetPP'.
+Reason: Dataset 'c3d/DistractImageNetPP' doesn't exist on the Hub or cannot be accessed.
+Strict NO-FALLBACK engaged – terminating.
