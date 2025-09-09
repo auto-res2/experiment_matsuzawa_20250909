@@ -131,7 +131,7 @@ from utils import dump_json  # noqa: E402 – local util
 
 
 # ---------------------------- CONSTANT PATHS ------------------------------
-_ITER_DIR = pathlib.Path(".research/iteration23")
+_ITER_DIR = pathlib.Path(".research/iteration24")
 _IMG_DIR = _ITER_DIR / "images"
 
 
