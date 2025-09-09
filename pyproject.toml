@@ -1,1 +1,13 @@
-# Please list the required python packages.
+[build-system]
+requires = ["setuptools>=60", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sodef_cl"
+version = "0.1.0"
+description = "SODEF continual learning experiments"
+requires-python = ">=3.8"
+dependencies = [
+  "numpy>=1.21.0",
+  "pyyaml>=6.0"
+]
