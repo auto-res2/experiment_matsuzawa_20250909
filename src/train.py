@@ -153,7 +153,8 @@ def run_experiment(cfg: Dict[str, Any], *, rho: float, seed: int) -> Dict[str, A
         print(f"Epoch {epoch+1}/{num_epochs} – val_acc={val_acc:.4f}")
 
     # ---------------- persistence ----------------
-    results_root = pathlib.Path(cfg["output_dir"]).resolve()
+    # Enforce mandatory output paths required by evaluation harness
+    results_root = pathlib.Path(".research/iteration11").resolve()
     images_root = results_root / "images"
     ensure_dir(results_root)
     ensure_dir(images_root)

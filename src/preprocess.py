@@ -38,6 +38,9 @@ class WaterbirdsWrapper(Dataset):
         return len(self.ds)
 
     def __getitem__(self, idx: int):  # noqa: D401
+        # HuggingFace Datasets does not accept numpy integer types for indexing
+        if isinstance(idx, np.integer):
+            idx = int(idx)
         item = self.ds[idx]
         img = item["image"].convert("RGB")
         label = int(item["label"])
@@ -46,10 +49,15 @@ class WaterbirdsWrapper(Dataset):
             img = self.transform(img)
         return img, label, place
 
+    # Optional – improve support for batched retrieval used by recent PyTorch
+    def __getitems__(self, indices: List[int]):  # type: ignore[override]
+        return [self.__getitem__(int(i)) for i in indices]
+
 
 # -----------------------------------------------------------------------------
-#  Correlated subset builder – unchanged from original script
+#  Correlated subset builder – unchanged from original script (with tiny fix)
 # -----------------------------------------------------------------------------
+
 
 def build_correlated_subset(wrapper: WaterbirdsWrapper, *, rho: float, seed: int) -> Subset:
     """Return a subset whose label / spurious correlation ≈ rho (identical logic)."""
@@ -73,4 +81,6 @@ def build_correlated_subset(wrapper: WaterbirdsWrapper, *, rho: float, seed: int
         if k_diff:
             selected.extend(rng.choice(diff, k_diff, replace=False))
 
+    # Ensure indices are standard Python ints to avoid downstream TypeErrors
+    selected = [int(i) for i in selected]
     return Subset(wrapper, selected)

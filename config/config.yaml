@@ -6,7 +6,7 @@ dataset: "waterbirds"
 seeds: [11]
 rho_grid: [0.1]
 model: "resnet50"
-output_dir: ".research/iteration10"
+output_dir: ".research/iteration11"
 
 optim:
   epochs: 3          # reduced for quick smoke test – original was 90
