@@ -13,12 +13,16 @@ authors = [
 ]
 
 dependencies = [
-  "torch>=2.0",
+  # Pin PyTorch to 2.0.1 to avoid automatic heavy CUDA dependency pulls that
+  # can fail extraction in constrained environments while remaining compatible
+  # with torch-geometric CPU wheels.
+  "torch==2.0.1",
   "torch-geometric>=2.4.0",
   "matplotlib>=3.7",
   "pyyaml>=6.0",
   "networkx>=3.2",
-  # pin to the latest available version on PyPI to avoid dependency resolver failures
+  # Pre-install curvature library. Though not used in baseline runs, it is
+  # required for GRADE-GNN experiments.
   "GraphRicciCurvature==0.5.3.2",
 ]
 
