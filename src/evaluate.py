@@ -1,7 +1,7 @@
 # src/evaluate.py
 """Runs the *Ultra-low-footprint* experiment and handles statistics/plots.
 
-All I/O artefacts are saved under `.research/iteration8/` so that multiple
+All I/O artefacts are saved under `.research/iteration9/` so that multiple
 independent experiment runs are kept separate from the source code.
 """
 from __future__ import annotations
@@ -203,7 +203,7 @@ matplotlib.use("Agg")  # headless rendering only
 #  GLOBAL PATHS  (resolved from project root)  ------------------------------
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration8"
+RESEARCH_DIR = ROOT / ".research" / "iteration9"
 IMAGES_DIR = RESEARCH_DIR / "images"
 for p in (RESEARCH_DIR, IMAGES_DIR):
     p.mkdir(parents=True, exist_ok=True)
@@ -258,7 +258,7 @@ class BaseExperiment:
     def __init__(self, name: str):
         self.name = name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Save JSON results directly under iteration8/
+        # Save JSON results directly under iteration9/
         self.results_path = RESEARCH_DIR / f"{self.name}_results.json"
         self.figures: List[str] = []
         self.metric_log: Dict[str, Any] = {}
@@ -331,8 +331,8 @@ class UltraLowFootprintExperiment(BaseExperiment):
 
                 # Evaluate on all test experiences
                 accs = []
-                for test_exp in benchmark.test_stream:
-                    model.current_task = test_exp.current_experience
+                for test_idx, test_exp in enumerate(benchmark.test_stream):
+                    model.current_task = test_idx  # Align with training task id
                     m = strategy.eval(test_exp)
                     accs.append(m["Top1_Acc_Stream/eval_phase/test_stream"])
                 avg_acc = sum(accs) / len(accs)

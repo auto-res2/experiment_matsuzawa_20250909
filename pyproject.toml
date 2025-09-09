@@ -16,7 +16,11 @@ requires-python = ">=3.10"
 dependencies = [
   "torch",
   "torchvision",
-  "avalanche-lib",
+  # Pin Avalanche to a version that does not enforce a recent `qpsolvers` release
+  "avalanche-lib==0.3.1",
+  # Pin `qpsolvers` below v1.7 to avoid the hard dependency on the `proxsuite`
+  # native extension, which currently lacks Python 3.11 wheels.
+  "qpsolvers<1.7",
   "matplotlib",
   "seaborn",
   "pyyaml",
