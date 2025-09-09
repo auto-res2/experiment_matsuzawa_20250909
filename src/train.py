@@ -160,9 +160,14 @@ def train_one_epoch(
         cf_imgs = torch.stack(cf_imgs).to(device, non_blocking=True)
 
         with autocast(dtype=getattr(torch, dcd_cfg.get("amp_dtype", "bfloat16"))):
+            # Forward pass for original images
             logits = model(imgs)
+            feats = model.forward_features(imgs)
+            # Forward pass for counterfactual images
             logits_cf = model(cf_imgs)
-            z, z_cf = projector(logits), projector(logits_cf)
+            feats_cf = model.forward_features(cf_imgs)
+
+            z, z_cf = projector(feats), projector(feats_cf)
             loss = ce(logits, labels) + cons(z, z_cf) + conloss(z, labels)
 
         optimizer.zero_grad(set_to_none=True)

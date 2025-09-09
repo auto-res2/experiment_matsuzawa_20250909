@@ -11,13 +11,18 @@ readme = "README.md"
 authors = [{ name = "ML Researcher" }]
 license = { text = "MIT" }
 
-[project.dependencies]
-torch = "*"
-torchvision = "*"
-timm = "*"
-datasets = "*"
-torchmetrics = "*"
-pyyaml = "*"
-matplotlib = "*"
-diffusers = "*"
-pillow = "*"
+# -----------------------------------------------------------------------------
+# Dependencies
+# -----------------------------------------------------------------------------
+
+dependencies = [
+    "torch",
+    "torchvision",
+    "timm",
+    "datasets",
+    "torchmetrics",
+    "pyyaml",
+    "matplotlib",
+    "diffusers",
+    "pillow",
+]

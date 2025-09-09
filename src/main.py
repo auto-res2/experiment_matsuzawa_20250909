@@ -76,7 +76,17 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
             # Model & optimiser
             # ------------------------------------------------------------------
             backbone = build_backbone(model_name, num_classes=num_classes).to(device)
-            projector = Projector(backbone.num_features).to(device)
+
+            # Determine feature dimension safely
+            if hasattr(backbone, "num_features"):
+                feat_dim = backbone.num_features
+            else:
+                with torch.no_grad():
+                    dummy = torch.zeros(1, 3, 224, 224).to(device)
+                    feats = backbone.forward_features(dummy)
+                    feat_dim = feats.shape[-1] if feats.ndim == 2 else feats.shape[1]
+
+            projector = Projector(feat_dim).to(device)
 
             optimiser = AdamW(
                 itertools.chain(backbone.parameters(), projector.parameters()),
@@ -105,7 +115,7 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
                         backbone,
                         val_loader,
                         device,
-                        out_json=Path(".research/iteration1")
+                        out_json=Path(".research/iteration2")
                         / f"{exp_name}_{model_name}_seed{seed}_e{epoch+1}.json",
                     )
                     val_top1.append(metrics["top1"])
@@ -115,7 +125,7 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
     # ----------------------------------------------------------------------
     # Persist per-experiment summary
     # ----------------------------------------------------------------------
-    out_dir = Path(".research/iteration1")
+    out_dir = Path(".research/iteration2")
     out_dir.mkdir(parents=True, exist_ok=True)
     summary_path = out_dir / f"{exp_name}_summary.json"
     with open(summary_path, "w") as f:
