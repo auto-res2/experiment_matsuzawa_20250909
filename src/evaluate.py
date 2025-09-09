@@ -1,7 +1,7 @@
 """
 Contains evaluation utilities, plotting helpers and the three experiment
-entry-points.  Results are written to .research/iteration6/ and figures to
-.research/iteration6/images/ as required by the specification.
+entry-points.  Results are written to .research/iteration7/ and figures to
+.research/iteration7/images/ as required by the specification.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .preprocess import split_cifar100
 # --------------------------------------------------------------
 # 0.  Directories (auto-create)
 # --------------------------------------------------------------
-RESEARCH_DIR = Path(".research/iteration6")
+RESEARCH_DIR = Path(".research/iteration7")
 IMAGES_DIR = RESEARCH_DIR / "images"
 RESEARCH_DIR.mkdir(parents=True, exist_ok=True)
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
@@ -116,7 +116,8 @@ def run_experiment_2(config):  # noqa: ANN001, D401
     save_curve(list(range(1, 11)), curves, "Allocator Ablation", "Accuracy", "allocator_ablation")
 
     print("===== Experiment 2 – Allocator Ablation =====")
-    print(json.dumps(res, indent=2))
+    with open(jpath) as fp:
+        print(fp.read())
 
 
 # --------------------------------------------------------------

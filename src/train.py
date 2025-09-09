@@ -385,7 +385,7 @@ class VisionCLTrainer:
             self._shrink_model_to_budget()
             if not self._footprint_ok():
                 raise RuntimeError(
-                    "Memory budget cannot be satisfied after buffer pruning and model shrinking." ")
+                    "Memory budget cannot be satisfied after buffer pruning and model shrinking.")
 
         # allocator step
         self._after_task(acc)
