@@ -1,17 +1,34 @@
-global:
-  seed_list: [0]
+# config/config.yaml
+# Example configuration file used by src/main.py – feel free to copy & adapt.
+name: exp1_dcd_on
 
-experiments:
-  exp1_diff_waterbirds:
-    dataset: "grodino/waterbirds"
-    batch_size: 4
-    epochs: 1
-    models:
-      - "resnet18"
-    optimiser:
-      lr: 1e-4
-      weight_decay: 1e-4
-    dcd:
-      enabled: false  # Disable diffusion editing to keep runtime light for tests
-      guidance: 7.5
-      amp_dtype: "bfloat16"
+# -----------------------------------------------------------------------------
+# Dataset
+# -----------------------------------------------------------------------------
+dataset: waterbirds
+dataset_kwargs: {}
+
+# -----------------------------------------------------------------------------
+# Model & training hyper-parameters
+# -----------------------------------------------------------------------------
+model: resnet
+backbone: resnet18
+epochs: 2
+batch_size: 32
+lr: 0.0003
+weight_decay: 0.05
+
+# -----------------------------------------------------------------------------
+# DCD-specific knobs
+# -----------------------------------------------------------------------------
+lambda_cons: 1.0
+lambda_ctr: 0.0
+K: 32
+num_counterfactuals: 1
+dcd_enabled: true
+
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
+output_dir: .research/iteration8/# not used – kept for backwards compatibility
+seed: 17

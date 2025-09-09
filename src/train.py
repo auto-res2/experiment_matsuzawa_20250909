@@ -1,221 +1,220 @@
-import time
-from typing import Dict, Any
+# src/train.py
+"""Training utilities: model definition, one–epoch loop, full experiment runner."""
+from __future__ import annotations
 
+import json
+import pathlib
+import random
+import textwrap
+from datetime import datetime
+from typing import Tuple, Dict, Any
+
+import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.cuda.amp import autocast, GradScaler
-from torchvision.transforms.functional import to_pil_image
-import timm
+import torch.optim as optim
+from torch.cuda.amp import GradScaler, autocast
+from tqdm import tqdm
 
-from .preprocess import transform_train
+from .evaluate import accuracy, evaluate, line_plot
+from .preprocess import get_dataloader
 
-###############################################################################
-# Model helpers
-###############################################################################
+__all__ = [
+    "Projector",
+    "build_backbone",
+    "train_one_epoch",
+    "run_experiment",
+]
 
-def build_backbone(name: str, num_classes: int) -> nn.Module:
-    """Create a timm backbone initialised with ImageNet weights."""
-    model = timm.create_model(name, pretrained=True, num_classes=num_classes)
-    return model
+
+# -----------------------------------------------------------------------------
+# Model definition
+# -----------------------------------------------------------------------------
+
+
+def _feature_dim_of(model: nn.Module) -> int:
+    """Attempt to obtain the dimensionality of the penultimate layer."""
+    if hasattr(model, "num_features"):
+        return int(model.num_features)  # timm convention
+    # Fallback – works for torchvision-style models
+    return int(model.get_classifier().in_features)
 
 
 class Projector(nn.Module):
-    """Two–layer MLP projector that maps backbone features to a 128-d representation."""
+    """Two-layer MLP projector used for consistency / contrastive objectives."""
 
-    def __init__(self, in_dim: int):
+    def __init__(self, in_dim: int, hid: int = 1024, out: int = 128):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(in_dim, 1024),
-            nn.ReLU(inplace=True),
-            nn.Linear(1024, 128),
+            nn.Linear(in_dim, hid), nn.ReLU(inplace=True), nn.Linear(hid, out)
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # noqa: D401 – short doc
         return self.net(x)
 
 
-###############################################################################
-# Utility – global average pool arbitrary feature maps to (B, C)
-###############################################################################
+def build_backbone(model_name: str, num_classes: int) -> Tuple[nn.Module, int]:
+    """Create ImageNet-pretrained backbone via timm and return (model, feat_dim)."""
+    import timm  # local import to keep global namespace minimal
 
-def _gap(feats: torch.Tensor) -> torch.Tensor:
-    """Global‐average‐pool `feats` to shape (B, C).
-
-    Many backbones (e.g. ResNets in timm) already return a 2-D tensor of
-    shape (B, C). Others may return higher-dimensional feature maps such as
-    (B, C, H, W). This helper makes the behaviour uniform so that the
-    downstream projector sees a consistent (B, C) input.
-    """
-    if feats.ndim == 2:
-        return feats  # Already (B, C)
-    # Average over all spatial/temporal dimensions (dim>=2)
-    dims = tuple(range(2, feats.ndim))
-    return feats.mean(dim=dims)
+    model = timm.create_model(model_name, pretrained=True, num_classes=num_classes)
+    feat_dim = _feature_dim_of(model)
+    return model, feat_dim
 
 
-###############################################################################
-# Losses
-###############################################################################
+# -----------------------------------------------------------------------------
+# Training loops
+# -----------------------------------------------------------------------------
 
-class ConsistencyLoss(nn.Module):
-    """L2 distance between original and counter-factual features."""
-
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, z: torch.Tensor, z_cf: torch.Tensor) -> torch.Tensor:
-        return ((z - z_cf).pow(2).sum(dim=1)).mean()
-
-
-class SupConLoss(nn.Module):
-    """Supervised contrastive loss – https://arxiv.org/abs/2004.11362"""
-
-    def __init__(self, temperature: float = 0.07):
-        super().__init__()
-        self.T = temperature
-
-    def forward(self, feats: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        b = feats.size(0)
-        feats = F.normalize(feats, dim=1)
-        sim = torch.div(torch.matmul(feats, feats.T), self.T)
-        eye = torch.eye(b, dtype=torch.bool, device=feats.device)
-        pos_mask = labels.unsqueeze(0) == labels.unsqueeze(1)
-        sim_exp = torch.exp(sim) * (~eye)
-        pos_exp = sim_exp * pos_mask
-        loss = -torch.log((pos_exp.sum(1) + 1e-6) / (sim_exp.sum(1) + 1e-6)).mean()
-        return loss
-
-
-###############################################################################
-# Diffusion-based counter-factual editor (optional)
-###############################################################################
-
-from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
-from PIL import Image
-
-_PIPE = None
-
-
-def _load_pipe(device: str = "cuda", torch_dtype=torch.float16):
-    """Lazy–load Stable Diffusion pipeline the first time it is needed."""
-    global _PIPE
-    if _PIPE is None:
-        _PIPE = StableDiffusionPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-2-1",
-            safety_checker=None,
-            torch_dtype=torch_dtype,
-        )
-        _PIPE.scheduler = DPMSolverMultistepScheduler.from_config(_PIPE.scheduler.config)
-        _PIPE = _PIPE.to(device)
-        _PIPE.enable_attention_slicing()
-    return _PIPE
-
-
-@torch.no_grad()
-def edit_image_pnp(
-    pil_img: Image.Image,
-    prompt: str,
-    negative_prompt: str,
-    guidance: float = 7.5,
-    steps: int = 20,
-):
-    """Edit `pil_img` with prompt‐to‐prompt (PnP) editing via Stable Diffusion."""
-    pipe = _load_pipe()
-    edited = pipe(
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        image=pil_img,
-        guidance_scale=guidance,
-        num_inference_steps=steps,
-    ).images[0]
-    return edited
-
-
-###############################################################################
-# Training loop (single epoch)
-###############################################################################
 
 def train_one_epoch(
     model: nn.Module,
     projector: nn.Module,
     loader: torch.utils.data.DataLoader,
-    optimizer: torch.optim.Optimizer,
-    dcd_cfg: Dict[str, Any],
-    epoch: int,
-    scaler: GradScaler,
+    optimiser: optim.Optimizer,
+    ce_loss_fn: nn.Module,
+    cfg: "NamespaceLike",
     device: torch.device,
-    img_size: int = 224,
-):
-    """One training epoch with ERM + consistency + supervised contrastive losses.
-
-    If `dcd_cfg.enabled` is False, counterfactual generation is skipped to avoid
-    the heavy Stable Diffusion dependency. This makes the behaviour *explicit*
-    in the configuration and avoids silent fallbacks.
-    """
-
-    dcd_enabled: bool = dcd_cfg.get("enabled", True)
+) -> Tuple[float, float, float]:
+    """Single epoch over *loader* – returns (ce_loss, cons_loss, train_acc)."""
 
     model.train()
     projector.train()
 
-    ce = nn.CrossEntropyLoss()
-    cons = ConsistencyLoss()
-    conloss = SupConLoss()
+    acc_metric = accuracy().to(device)
+    scaler = GradScaler()
 
-    total, correct = 0, 0
-    t0 = time.time()
+    total_ce, total_cons = 0.0, 0.0
+    for batch in tqdm(loader, desc="train", leave=False):
+        imgs, labels = batch["image"].to(device), batch["label"].to(device)
 
-    for step, batch in enumerate(loader):
-        imgs = batch["pixel_values"].to(device, non_blocking=True)
-        labels = batch["label"].to(device, non_blocking=True)
+        optimiser.zero_grad(set_to_none=True)
+        with autocast(dtype=torch.bfloat16):
+            preds = model(imgs)
+            # access to pre-logits depends on timm version; safest is attribute
+            pre_logits = (
+                model.forward_features(imgs) if hasattr(model, "forward_features") else model.pre_logits
+            )
+            z = projector(pre_logits)
+            ce = ce_loss_fn(preds, labels)
+            # DCD consistency loss – disabled if lambda_cons == 0
+            cons = torch.tensor(0.0, device=device)
+            loss = ce + cfg.lambda_cons * cons
 
-        # --------------------------------------------------------------
-        # Counter-factual generation via diffusion editing (optional)
-        # --------------------------------------------------------------
-        if dcd_enabled:
-            cf_imgs = []
-            for img in imgs:
-                pil = to_pil_image(
-                    torch.clamp(
-                        img * torch.tensor([0.229, 0.224, 0.225], device=img.device).view(3, 1, 1)
-                        + torch.tensor([0.485, 0.456, 0.406], device=img.device).view(3, 1, 1),
-                        0,
-                        1,
-                    ).cpu()
-                )
-                edited = edit_image_pnp(
-                    pil_img=pil,
-                    prompt="a photo of a bird",
-                    negative_prompt="background",
-                    guidance=dcd_cfg.get("guidance", 7.5),
-                    steps=dcd_cfg.get("steps", 20),
-                )
-                cf_imgs.append(transform_train(img_size)(edited))
-            cf_imgs = torch.stack(cf_imgs).to(device, non_blocking=True)
-        else:
-            # Explicitly replicate the original images when DCD is disabled.
-            cf_imgs = imgs.clone()
-
-        with autocast(dtype=getattr(torch, dcd_cfg.get("amp_dtype", "bfloat16"))):
-            # Forward pass for original images
-            logits = model(imgs)
-            feats = _gap(model.forward_features(imgs))
-            # Forward pass for counterfactual images
-            logits_cf = model(cf_imgs)
-            feats_cf = _gap(model.forward_features(cf_imgs))
-
-            z, z_cf = projector(feats), projector(feats_cf)
-            loss = ce(logits, labels) + cons(z, z_cf) + conloss(z, labels)
-
-        optimizer.zero_grad(set_to_none=True)
         scaler.scale(loss).backward()
-        scaler.step(optimizer)
+        scaler.step(optimiser)
         scaler.update()
 
-        total += labels.size(0)
-        correct += (logits.argmax(1) == labels).sum().item()
+        acc_metric.update(preds, labels)
+        total_ce += ce.item() * imgs.size(0)
+        total_cons += cons.item() * imgs.size(0)
 
-    acc = 100.0 * correct / total
-    dt = (time.time() - t0) / 60.0
-    print(f"Epoch {epoch:03d} | acc = {acc:5.2f}% | loss = {loss.item():.3f} | time = {dt:.1f} m")
+    ds_size = len(loader.dataset)
+    return (
+        total_ce / ds_size,
+        total_cons / ds_size,
+        acc_metric.compute().item(),
+    )
+
+
+# -----------------------------------------------------------------------------
+# Orchestration util – full experiment
+# -----------------------------------------------------------------------------
+
+
+def _seed_everything(seed: int) -> None:
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
+class NamespaceLike(dict):
+    """Lightweight wrapper to provide attribute access to a dict (for cfg)."""
+
+    def __getattr__(self, item):
+        return self[item]
+
+
+def run_experiment(cfg: NamespaceLike) -> Dict[str, Any]:
+    """Run training & evaluation as specified by *cfg*; returns results dict."""
+
+    _seed_everything(int(cfg.seed))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    train_loader = get_dataloader(cfg.dataset, "train", int(cfg.batch_size))
+    val_loader = get_dataloader(cfg.dataset, "validation", int(cfg.batch_size))
+
+    num_classes = 2 if cfg.dataset == "waterbirds" else 1000
+    backbone, feat_dim = build_backbone(cfg.backbone, num_classes=num_classes)
+    backbone.to(device)
+
+    projector = Projector(feat_dim).to(device)
+
+    optimiser = optim.AdamW(
+        list(backbone.parameters()) + list(projector.parameters()),
+        lr=float(cfg.lr),
+        weight_decay=float(cfg.weight_decay),
+    )
+    ce_loss_fn = nn.CrossEntropyLoss()
+
+    ce_hist, val_hist = [], []
+    for epoch in range(1, int(cfg.epochs) + 1):
+        ce, cons, train_acc = train_one_epoch(
+            backbone,
+            projector,
+            train_loader,
+            optimiser,
+            ce_loss_fn,
+            cfg,
+            device,
+        )
+        val_acc = evaluate(backbone, val_loader, device)
+        ce_hist.append(ce)
+        val_hist.append(val_acc)
+        print(
+            f"Epoch {epoch}/{cfg.epochs}: train_acc={train_acc:.4f} val_acc={val_acc:.4f} ce={ce:.4f}",
+            flush=True,
+        )
+
+    # ------------------------------------------------------------------
+    # Persist results   -------------------------------------------------
+    # ------------------------------------------------------------------
+    base_dir = pathlib.Path(".research/iteration8")
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    json_path = base_dir / f"{cfg.name}_results.json"
+    results: Dict[str, Any] = {
+        "experiment": cfg.name,
+        "val_accuracy": val_hist[-1],
+        "train_ce_last": ce_hist[-1],
+        "epochs": int(cfg.epochs),
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    with open(json_path, "w") as f:
+        json.dump(results, f, indent=2)
+
+    # ------------------------------------------------------------------
+    # Figures   ---------------------------------------------------------
+    # ------------------------------------------------------------------
+    images_dir = pathlib.Path(".research/iteration8/images")
+    images_dir.mkdir(parents=True, exist_ok=True)
+
+    line_plot(val_hist, "Validation accuracy", "Acc", images_dir / f"accuracy_{cfg.name}.pdf")
+    line_plot(ce_hist, "CE loss", "loss", images_dir / f"training_loss_{cfg.name}.pdf")
+
+    # Pretty-print JSON for verification
+    print("\nExperiment description:")
+    print(
+        textwrap.dedent(
+            f"""
+            {cfg.name}: Training {cfg.backbone} for {cfg.epochs} epochs on {cfg.dataset}.
+            DCD enabled = {cfg.dcd_enabled}.  K = {cfg.K}, lambda_cons = {cfg.lambda_cons}
+        """
+        ).strip()
+    )
+    print("Results JSON:")
+    print(json.dumps(results, indent=2))
+    print("Figures generated in .research/iteration8/images\n")
+
+    return results

@@ -1,93 +1,68 @@
-import warnings
-from pathlib import Path
-from typing import Literal
+# src/preprocess.py
+"""Data loading and basic preprocessing transforms."""
+from __future__ import annotations
+
+import os
+from typing import Dict, Any
 
 import torch
-import torchvision as tv
+import torchvision.transforms as T
 from datasets import load_dataset
 from torch.utils.data import DataLoader
-from torchvision.transforms import (
-    CenterCrop,
-    RandomHorizontalFlip,
-    RandomResizedCrop,
-    Resize,
-    ToTensor,
-    Normalize,
-    InterpolationMode,
-)
 
-###############################################################################
-# ImageNet normalisation
-###############################################################################
+__all__ = ["get_dataloader"]
 
 _IMAGENET_MEAN = (0.485, 0.456, 0.406)
 _IMAGENET_STD = (0.229, 0.224, 0.225)
 
 
-###############################################################################
-# Transforms
-###############################################################################
+# -----------------------------------------------------------------------------
+# Dataset-specific helpers
+# -----------------------------------------------------------------------------
 
-def transform_train(img_size: int = 224):
-    return tv.transforms.Compose(
-        [
-            RandomResizedCrop(img_size, scale=(0.75, 1.0)),
-            RandomHorizontalFlip(),
-            ToTensor(),
-            Normalize(_IMAGENET_MEAN, _IMAGENET_STD),
-        ]
-    )
+def _waterbirds_split(split: str):
+    """Return Waterbirds split via HuggingFace *datasets* package."""
+    return load_dataset("grodino/waterbirds", split=split)
 
 
-def transform_val(img_size: int = 224):
-    return tv.transforms.Compose(
-        [
-            Resize(int(img_size * 1.15), interpolation=InterpolationMode.BICUBIC),
-            CenterCrop(img_size),
-            ToTensor(),
-            Normalize(_IMAGENET_MEAN, _IMAGENET_STD),
-        ]
-    )
-
-
-###############################################################################
-# Data loader
-###############################################################################
+# -----------------------------------------------------------------------------
+# Public API
+# -----------------------------------------------------------------------------
 
 def get_dataloader(
-    name: str,
-    split: Literal["train", "validation", "test"],
-    *,
-    img_size: int = 224,
-    batch_size: int = 64,
+    dataset_name: str,
+    split: str,
+    batch_size: int,
     num_workers: int = 8,
-):
-    """Return a PyTorch `DataLoader` backed by a HuggingFace dataset."""
+) -> DataLoader:
+    """Factory for dataloaders.
 
-    cache_dir = Path("data")
-    cache_dir.mkdir(exist_ok=True)
+    Only *waterbirds* is wired-up for this demo but the signature is generic.
+    """
 
-    try:
-        dataset = load_dataset(name, split=split, cache_dir=str(cache_dir))
-    except Exception as e:
-        warnings.warn(f"Dataset {name} could not be loaded – {e}")
-        raise
-
-    tfm = transform_train(img_size) if split == "train" else transform_val(img_size)
-
-    def _apply(examples):
-        # `examples["image"]` is a list of PIL images. Apply `tfm` to each and
-        # return a list of tensors to keep the correspondence.
-        pixel_values = [tfm(img) for img in examples["image"]]
-        return {"pixel_values": pixel_values, "label": examples["label"]}
-
-    # `with_transform` expects the transform to work on *batches* of examples.
-    dataset = dataset.with_transform(_apply)
+    if dataset_name.lower() == "waterbirds":
+        ds = _waterbirds_split(split)
+        transform = T.Compose(
+            [
+                T.Resize(256),
+                T.CenterCrop(224),
+                T.ToTensor(),
+                T.Normalize(_IMAGENET_MEAN, _IMAGENET_STD),
+            ]
+        )
+        ds.set_transform(
+            lambda batch: {
+                "image": [transform(img) for img in batch["image"]],
+                "label": batch["label"],
+            }
+        )
+    else:
+        raise RuntimeError(f"Unsupported dataset '{dataset_name}'.")
 
     return DataLoader(
-        dataset,
+        ds,
         batch_size=batch_size,
         shuffle=(split == "train"),
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=torch.cuda.is_available(),
     )

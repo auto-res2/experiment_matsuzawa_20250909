@@ -1,28 +1,29 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "dcd-counterfactual"
+name = "dcd-split-project"
 version = "0.1.0"
-requires-python = ">=3.10"
-description = "Diffusion-based Counterfactual Debiasing"
-readme = "README.md"
-authors = [{ name = "ML Researcher" }]
-license = { text = "MIT" }
-
-# -----------------------------------------------------------------------------
-# Dependencies
-# -----------------------------------------------------------------------------
-
-dependencies = [
-    "torch",
-    "torchvision",
-    "timm",
-    "datasets",
-    "torchmetrics",
-    "pyyaml",
-    "matplotlib",
-    "diffusers",
-    "pillow",
+description = "Refactored Diffusion-based Counterfactual Debiasing codebase"
+authors = [
+  {name = "ML Researcher", email = "researcher@example.com"}
 ]
+requires-python = ">=3.9"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.dependencies]
+# --- Core ML stack ---
+torch = "*"
+ torchvision = "*"
+ torchmetrics = "*"
+ timm = "*"
+ datasets = "*"
+
+# --- Plotting / utils ---
+matplotlib = "*"
+pyyaml = "*"
+
+# Optional but recommended. Not imported by default but part of original code.
+# diffusers = "*"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
