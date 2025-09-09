@@ -10,7 +10,7 @@ import torch
 from torch_geometric.datasets import (
     Planetoid,
     WikipediaNetwork,
-    Texas,
+    WebKB,  # WebKB provides Texas/Wisconsin/Cornell etc.
 )
 
 # The LRGB datasets (which include Peptides-func) live behind a dedicated wrapper
@@ -45,7 +45,7 @@ def load_dataset(name: str):
             raise RuntimeError("PeptidesFunc dataset requested but this PyG version does not ship LRGBDataset.")
         return LRGBDataset(root=str(root), name="Peptides-func")
     if name == "Texas":
-        return Texas(str(root))
+        return WebKB(root=str(root), name="Texas")
     if name == "ogbn-arxiv":
         return _try_import_ogb("ogbn-arxiv", str(root))
     raise ValueError(f"Unsupported dataset {name}")

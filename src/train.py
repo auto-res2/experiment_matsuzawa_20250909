@@ -243,7 +243,7 @@ class Trainer:
     ) -> Dict[str, Any]:
         optimiser = AdamW(model.parameters(), **self.cfg["optim"])
         loss_fn = nn.CrossEntropyLoss()
-        best_val, best_state, bad_counter = 0.0, None, 0
+        best_val, best_state, bad_counter = 0.0, {k: v.cpu() for k, v in model.state_dict().items()}, 0
         grad_history: List[float] = []
         for epoch in range(epochs):
             model.train()
@@ -287,8 +287,8 @@ class Trainer:
     # ------------------------------------------------------------------
     def run_exp1(self):
         exp_cfg = self.cfg["experiment1"]
-        # Mandatory research directory (iteration-7 as per instructions)
-        research_dir = Path(".research/iteration7")
+        # Mandatory research directory (iteration-8 as per instructions)
+        research_dir = Path(".research/iteration8")
         img_dir = research_dir / "images"
         research_dir.mkdir(parents=True, exist_ok=True)
         img_dir.mkdir(exist_ok=True)
@@ -351,6 +351,6 @@ class Trainer:
             json.dump(all_results, fh, indent=2)
         print("DEPTH-SCALING STRESS-TEST (Experiment 1)")
         print(json.dumps(all_results, indent=2))
-        print("Generated figures (stored in .research/iteration7/images):")
+        print("Generated figures (stored in .research/iteration8/images):")
         for dname in exp_cfg["datasets"]:
             print(f"accuracy_{dname.lower()}.pdf")
