@@ -1,0 +1,124 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+Resolved 86 packages in 459ms
+   Building dice-robustness @ file:///home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909
+Downloading setuptools (1.1MiB)
+Downloading nvidia-cusparse-cu12 (274.9MiB)
+Downloading triton (148.3MiB)
+Downloading hf-xet (3.0MiB)
+Downloading nvidia-cublas-cu12 (566.8MiB)
+Downloading torchvision (8.2MiB)
+Downloading timm (2.4MiB)
+Downloading nvidia-cusparselt-cu12 (273.9MiB)
+Downloading pyarrow (40.8MiB)
+Downloading nvidia-nccl-cu12 (307.4MiB)
+Downloading numpy (16.2MiB)
+Downloading nvidia-cufft-cu12 (184.2MiB)
+Downloading nvidia-nvjitlink-cu12 (37.4MiB)
+Downloading nvidia-cuda-cupti-cu12 (9.8MiB)
+Downloading nvidia-cudnn-cu12 (674.0MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (84.0MiB)
+Downloading nvidia-cusolver-cu12 (255.1MiB)
+Downloading nvidia-cufile-cu12 (1.1MiB)
+Downloading torch (846.9MiB)
+Downloading pandas (11.8MiB)
+Downloading nvidia-curand-cu12 (60.7MiB)
+ Downloading nvidia-cufile-cu12
+      Built dice-robustness @ file:///home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909
+ Downloading hf-xet
+ Downloading timm
+ Downloading setuptools
+ Downloading torchvision
+ Downloading nvidia-cuda-cupti-cu12
+ Downloading numpy
+ Downloading pandas
+ Downloading nvidia-nvjitlink-cu12
+ Downloading nvidia-curand-cu12
+ Downloading pyarrow
+ Downloading nvidia-cuda-nvrtc-cu12
+ Downloading triton
+ Downloading nvidia-cufft-cu12
+ Downloading nvidia-cusolver-cu12
+ Downloading nvidia-cusparse-cu12
+ Downloading nvidia-cusparselt-cu12
+ Downloading nvidia-nccl-cu12
+ Downloading nvidia-cublas-cu12
+ Downloading nvidia-cudnn-cu12
+ Downloading torch
+Prepared 34 packages in 1m 00s
+Installed 70 packages in 14.45s
+ + aiohappyeyeballs==2.6.1
+ + aiohttp==3.12.15
+ + aiosignal==1.4.0
+ + attrs==25.3.0
+ + certifi==2025.8.3
+ + charset-normalizer==3.4.3
+ + contourpy==1.3.3
+ + cycler==0.12.1
+ + datasets==4.0.0
+ + dice-robustness==0.1.0 (from file:///home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909)
+ + dill==0.3.8
+ + filelock==3.19.1
+ + fonttools==4.59.2
+ + frozenlist==1.7.0
+ + fsspec==2025.3.0
+ + hf-xet==1.1.9
+ + huggingface-hub==0.34.4
+ + idna==3.10
+ + jinja2==3.1.6
+ + joblib==1.5.2
+ + kiwisolver==1.4.9
+ + markupsafe==3.0.2
+ + matplotlib==3.10.6
+ + mpmath==1.3.0
+ + multidict==6.6.4
+ + multiprocess==0.70.16
+ + networkx==3.5
+ + numpy==2.3.2
+ + nvidia-cublas-cu12==12.8.4.1
+ + nvidia-cuda-cupti-cu12==12.8.90
+ + nvidia-cuda-nvrtc-cu12==12.8.93
+ + nvidia-cuda-runtime-cu12==12.8.90
+ + nvidia-cudnn-cu12==9.10.2.21
+ + nvidia-cufft-cu12==11.3.3.83
+ + nvidia-cufile-cu12==1.13.1.3
+ + nvidia-curand-cu12==10.3.9.90
+ + nvidia-cusolver-cu12==11.7.3.90
+ + nvidia-cusparse-cu12==12.5.8.93
+ + nvidia-cusparselt-cu12==0.7.1
+ + nvidia-nccl-cu12==2.27.3
+ + nvidia-nvjitlink-cu12==12.8.93
+ + nvidia-nvtx-cu12==12.8.90
+ + packaging==25.0
+ + pandas==2.3.2
+ + pillow==11.3.0
+ + propcache==0.3.2
+ + pyarrow==21.0.0
+ + pyparsing==3.2.3
+ + python-dateutil==2.9.0.post0
+ + pytz==2025.2
+ + pyyaml==6.0.2
+ + requests==2.32.5
+ + safetensors==0.6.2
+ + scikit-learn==1.7.2
+ + scipy==1.16.1
+ + seaborn==0.13.2
+ + setuptools==80.9.0
+ + six==1.17.0
+ + sympy==1.14.0
+ + threadpoolctl==3.6.0
+ + timm==1.0.19
+ + torch==2.8.0
+ + torchvision==0.23.0
+ + tqdm==4.67.1
+ + triton==3.4.0
+ + typing-extensions==4.15.0
+ + tzdata==2025.2
+ + urllib3==2.5.0
+ + xxhash==3.5.0
+ + yarl==1.20.1
+  0%|          | 0.00/170M [00:00<?, ?B/s]  0%|          | 32.8k/170M [00:00<13:55, 204kB/s]  0%|          | 65.5k/170M [00:00<13:55, 204kB/s]  0%|          | 98.3k/170M [00:00<13:57, 203kB/s]  0%|          | 229k/170M [00:00<06:25, 442kB/s]   0%|          | 459k/170M [00:00<03:35, 790kB/s]  1%|          | 918k/170M [00:00<01:54, 1.49MB/s]  1%|          | 1.84M/170M [00:01<00:58, 2.86MB/s]  2%|▏         | 3.70M/170M [00:01<00:29, 5.62MB/s]  4%|▍         | 6.82M/170M [00:01<00:16, 9.88MB/s]  6%|▌         | 9.93M/170M [00:01<00:12, 12.8MB/s]  8%|▊         | 13.0M/170M [00:01<00:10, 14.7MB/s]  9%|▉         | 16.2M/170M [00:01<00:09, 16.1MB/s] 11%|█▏        | 19.3M/170M [00:02<00:08, 17.1MB/s] 13%|█▎        | 21.9M/170M [00:02<00:07, 18.9MB/s] 14%|█▍        | 23.8M/170M [00:02<00:08, 17.8MB/s] 15%|█▌        | 25.7M/170M [00:02<00:08, 17.9MB/s] 16%|█▋        | 28.1M/170M [00:02<00:07, 19.5MB/s] 18%|█▊        | 30.1M/170M [00:02<00:07, 18.3MB/s] 19%|█▉        | 32.0M/170M [00:02<00:08, 17.3MB/s] 20%|██        | 34.8M/170M [00:02<00:07, 18.9MB/s] 22%|██▏       | 36.7M/170M [00:03<00:07, 18.3MB/s] 23%|██▎       | 38.6M/170M [00:03<00:07, 17.1MB/s] 24%|██▍       | 41.1M/170M [00:03<00:07, 16.6MB/s] 26%|██▌       | 44.1M/170M [00:03<00:07, 17.3MB/s] 28%|██▊       | 47.3M/170M [00:03<00:06, 17.8MB/s] 30%|██▉       | 50.4M/170M [00:03<00:06, 18.1MB/s] 31%|███▏      | 53.4M/170M [00:03<00:06, 18.4MB/s] 33%|███▎      | 56.4M/170M [00:04<00:06, 17.3MB/s] 35%|███▍      | 59.4M/170M [00:04<00:06, 17.5MB/s] 37%|███▋      | 62.3M/170M [00:04<00:06, 17.4MB/s] 38%|███▊      | 65.2M/170M [00:04<00:06, 17.4MB/s] 40%|███▉      | 68.1M/170M [00:04<00:05, 17.5MB/s] 42%|████▏     | 71.1M/170M [00:05<00:05, 17.5MB/s] 43%|████▎     | 74.0M/170M [00:05<00:05, 17.5MB/s] 45%|████▌     | 76.9M/170M [00:05<00:05, 17.5MB/s] 47%|████▋     | 79.8M/170M [00:05<00:05, 17.5MB/s] 49%|████▊     | 82.8M/170M [00:05<00:05, 17.5MB/s] 50%|█████     | 85.8M/170M [00:05<00:04, 17.6MB/s] 52%|█████▏    | 88.7M/170M [00:06<00:04, 17.5MB/s] 54%|█████▍    | 91.8M/170M [00:06<00:04, 17.8MB/s] 56%|█████▌    | 94.8M/170M [00:06<00:04, 18.0MB/s] 57%|█████▋    | 97.8M/170M [00:06<00:04, 18.0MB/s] 59%|█████▉    | 101M/170M [00:06<00:03, 18.1MB/s]  61%|██████    | 104M/170M [00:06<00:03, 18.3MB/s] 63%|██████▎   | 107M/170M [00:06<00:03, 18.5MB/s] 65%|██████▍   | 110M/170M [00:07<00:03, 18.7MB/s] 66%|██████▋   | 113M/170M [00:07<00:03, 19.0MB/s] 68%|██████▊   | 116M/170M [00:07<00:02, 19.0MB/s] 70%|███████   | 120M/170M [00:07<00:02, 19.1MB/s] 72%|███████▏  | 123M/170M [00:07<00:02, 19.1MB/s] 74%|███████▎  | 126M/170M [00:07<00:02, 18.2MB/s] 75%|███████▍  | 128M/170M [00:08<00:02, 14.7MB/s] 76%|███████▌  | 129M/170M [00:08<00:03, 13.4MB/s] 77%|███████▋  | 131M/170M [00:08<00:03, 12.6MB/s] 78%|███████▊  | 134M/170M [00:08<00:02, 14.5MB/s] 80%|████████  | 137M/170M [00:08<00:02, 15.9MB/s] 82%|████████▏ | 140M/170M [00:09<00:01, 16.9MB/s] 84%|████████▍ | 143M/170M [00:09<00:01, 17.6MB/s] 86%|████████▌ | 146M/170M [00:09<00:01, 18.1MB/s] 88%|████████▊ | 150M/170M [00:09<00:01, 18.4MB/s] 90%|████████▉ | 153M/170M [00:09<00:00, 18.8MB/s] 91%|█████████▏| 156M/170M [00:09<00:00, 19.0MB/s] 93%|█████████▎| 159M/170M [00:09<00:00, 19.1MB/s] 95%|█████████▍| 162M/170M [00:10<00:00, 20.3MB/s] 96%|█████████▌| 164M/170M [00:10<00:00, 19.6MB/s] 97%|█████████▋| 166M/170M [00:10<00:00, 17.4MB/s] 99%|█████████▉| 169M/170M [00:10<00:00, 19.3MB/s]100%|██████████| 170M/170M [00:10<00:00, 16.1MB/s]
+/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/train.py:182: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  self.scaler = GradScaler()
+/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/train.py:250: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with autocast():
