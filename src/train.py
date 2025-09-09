@@ -64,8 +64,11 @@ class MetaLayer(nn.Module):
         self.lin_nei = nn.Linear(in_dim, out_dim, bias=False)
 
         # Controller (two outputs: alpha & p)
+        # The controller receives the node embedding plus three scalar features
+        #   1) local variance, 2) gradient signal placeholder, 3) structural feat.
+        ctrl_in_feats = in_dim + 3  # adapt to actual concatenation below
         self.ctrl = nn.Sequential(
-            nn.Linear(2 * in_dim + 2, ctrl_cfg.hidden),
+            nn.Linear(ctrl_in_feats, ctrl_cfg.hidden),
             nn.ReLU(),
             nn.Linear(ctrl_cfg.hidden, 2),
         )
@@ -76,8 +79,8 @@ class MetaLayer(nn.Module):
     def _shape_guard(self, module, _inputs, _outputs):  # pylint: disable=unused-argument
         """Fail fast if the concatenated embedding has a wrong size."""
         x, *_ = _inputs  # type: ignore
-        expected = 2 * self.in_dim + 2
-        got = 2 * x.size(1) + 2
+        expected = self.in_dim + 3
+        got = x.size(1) + 3
         assert got == expected, (
             f"Controller input wrong size: got {got}, expected {expected}")
 
@@ -95,11 +98,11 @@ class MetaLayer(nn.Module):
 
         # Straight-through Gumbel-sigmoid for edge gate
         gumbel_noise = (-torch.empty_like(p_logit).exponential_()).log()
-        p = torch.sigmoid((p_logit + gumbel_noise) / self.ctrl_cfg.tau)
-        alpha = torch.sigmoid(alpha_logit)
+        p = torch.sigmoid((p_logit + gumbel_noise) / self.ctrl_cfg.tau)  # (N,1)
+        alpha = torch.sigmoid(alpha_logit)  # (N,1)
 
         # Message passing (mean aggregate)
-        msg = self.lin_nei(x)[edge_index[0]] * p
+        msg = self.lin_nei(x)[edge_index[0]] * p[edge_index[0]]  # (E, out_dim)
         agg = torch.zeros_like(self.lin_self(x))
         agg = agg.index_add(0, edge_index[1], msg)
         out = alpha * self.lin_self(x) + (1 - alpha) * agg
