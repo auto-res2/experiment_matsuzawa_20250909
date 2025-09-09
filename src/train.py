@@ -155,8 +155,10 @@ class VanillaGCN(nn.Module):
 # -----------------------------------------------------------------------------
 
 def build_model(cfg: ExperimentConfig, in_dim: int) -> nn.Module:
+    # Meta variant is independent of backbone choice for now
     if cfg.variant == "meta":
         return MetaMPNN(in_dim, cfg.hidden_dim, cfg.depth, cfg.num_classes, cfg.controller)
+    # Vanilla / baseline variants fall back on selected backbone
     if cfg.backbone == "gcn":
         return VanillaGCN(in_dim, cfg.hidden_dim, cfg.depth, cfg.num_classes)
     raise ValueError(
@@ -166,6 +168,7 @@ def build_model(cfg: ExperimentConfig, in_dim: int) -> nn.Module:
 #  Training loop ----------------------------------------------------------------
 # -----------------------------------------------------------------------------
 from .evaluate import plot_training_curves
+
 
 def train(
     model: nn.Module,
