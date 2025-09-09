@@ -17,7 +17,8 @@ dependencies = [
   "torch-sparse==0.6.18",
   "pyyaml",
   "matplotlib",
-  "numpy"
+  # PyTorch 2.1.x is currently incompatible with NumPy 2.x – pin to <2.
+  "numpy>=1.23,<2"
 ]
 
 # -----------------------------------------------------------------------------
