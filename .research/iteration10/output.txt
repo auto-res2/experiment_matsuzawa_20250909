@@ -1,0 +1,329 @@
+=== uv sync start Tue Sep  9 10:18:57 AM UTC 2025 ===
+=== uv install end Tue Sep  9 10:19:28 AM UTC 2025 ===
+=== experiment start Tue Sep  9 10:19:28 AM UTC 2025 ===
+===== Experiment 1 – CIFAR-100 scaling =====
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 0.25,
+  "seed": 2023,
+  "task_acc": [
+    0.0,
+    0.001,
+    0.003,
+    0.0,
+    0.001,
+    0.0,
+    0.0,
+    0.0,
+    0.005,
+    0.0
+  ],
+  "avg_acc": 0.001
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 0.25,
+  "seed": 2024,
+  "task_acc": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.001,
+    0.001,
+    0.0
+  ],
+  "avg_acc": 0.0002
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 0.25,
+  "seed": 2025,
+  "task_acc": [
+    0.001,
+    0.001,
+    0.002,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "avg_acc": 0.0004
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 0.5,
+  "seed": 2023,
+  "task_acc": [
+    0.0,
+    0.001,
+    0.003,
+    0.0,
+    0.001,
+    0.0,
+    0.0,
+    0.0,
+    0.005,
+    0.0
+  ],
+  "avg_acc": 0.001
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 0.5,
+  "seed": 2024,
+  "task_acc": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.001,
+    0.001,
+    0.0
+  ],
+  "avg_acc": 0.0002
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 0.5,
+  "seed": 2025,
+  "task_acc": [
+    0.001,
+    0.001,
+    0.002,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "avg_acc": 0.0004
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 1,
+  "seed": 2023,
+  "task_acc": [
+    0.0,
+    0.001,
+    0.003,
+    0.0,
+    0.001,
+    0.0,
+    0.0,
+    0.0,
+    0.005,
+    0.0
+  ],
+  "avg_acc": 0.001
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 1,
+  "seed": 2024,
+  "task_acc": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.001,
+    0.001,
+    0.0
+  ],
+  "avg_acc": 0.0002
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 1,
+  "seed": 2025,
+  "task_acc": [
+    0.001,
+    0.001,
+    0.002,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "avg_acc": 0.0004
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 2,
+  "seed": 2023,
+  "task_acc": [
+    0.0,
+    0.001,
+    0.003,
+    0.0,
+    0.001,
+    0.0,
+    0.0,
+    0.0,
+    0.005,
+    0.0
+  ],
+  "avg_acc": 0.001
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 2,
+  "seed": 2024,
+  "task_acc": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.001,
+    0.001,
+    0.0
+  ],
+  "avg_acc": 0.0002
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 2,
+  "seed": 2025,
+  "task_acc": [
+    0.001,
+    0.001,
+    0.002,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "avg_acc": 0.0004
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 4,
+  "seed": 2023,
+  "task_acc": [
+    0.0,
+    0.001,
+    0.003,
+    0.0,
+    0.001,
+    0.0,
+    0.0,
+    0.0,
+    0.005,
+    0.0
+  ],
+  "avg_acc": 0.001
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 4,
+  "seed": 2024,
+  "task_acc": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.001,
+    0.001,
+    0.0
+  ],
+  "avg_acc": 0.0002
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 4,
+  "seed": 2025,
+  "task_acc": [
+    0.001,
+    0.001,
+    0.002,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "avg_acc": 0.0004
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 8,
+  "seed": 2023,
+  "task_acc": [
+    0.0,
+    0.001,
+    0.003,
+    0.0,
+    0.001,
+    0.0,
+    0.0,
+    0.0,
+    0.005,
+    0.0
+  ],
+  "avg_acc": 0.001
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 8,
+  "seed": 2024,
+  "task_acc": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.001,
+    0.001,
+    0.0
+  ],
+  "avg_acc": 0.0002
+}
+{
+  "experiment": "Exp1-CIFAR100",
+  "budget_mb": 8,
+  "seed": 2025,
+  "task_acc": [
+    0.001,
+    0.001,
+    0.002,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "avg_acc": 0.0004
+}
+=== experiment end Tue Sep  9 05:00:41 PM UTC 2025 ===
