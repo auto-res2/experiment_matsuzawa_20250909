@@ -1,14 +1,13 @@
 # config/config.yaml
-# Consolidated single configuration used by main.py.  Additional keys can be
-# appended by the user as required.
+# Consolidated single configuration used by main.py.
 
 experiment_name: "default_exp"
-description: "DiCE robust vision baseline experiment"
+description: "ERM robust vision baseline experiment"
 
 # -----------------------------------------------------------------------------
 #  Data
 # -----------------------------------------------------------------------------
-method: "dice"         # {erm, dice}
+method: "erm"           # {erm, dice}
 dataset: "waterbirds"  # {waterbirds, cifar10, imagenet}
 num_classes: 2
 
@@ -26,7 +25,7 @@ seed: 11
 output_dir: "checkpoints"
 
 # -----------------------------------------------------------------------------
-#  DiCE specific
+#  DiCE specific (ignored when method != "dice")
 # -----------------------------------------------------------------------------
 dice_prompts:
   - "random landscape"

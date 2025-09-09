@@ -2,8 +2,8 @@
 Entry point that orchestrates a single experiment using the refactored
 module structure.  It follows the assignment requirements:
   • read all hyper-parameters from config/config.yaml via PyYAML
-  • train + evaluate -> JSON result file in .research/iteration5/
-  • create figures inside .research/iteration5/images/
+  • train + evaluate -> JSON result file in .research/iteration6/
+  • create figures inside .research/iteration6/images/
   • print the JSON contents to stdout for verification
 """
 from __future__ import annotations
@@ -27,9 +27,9 @@ with open(CFG_PATH) as fp:
     CFG = yaml.safe_load(fp)
 
 # -----------------------------------------------------------------------------
-#  Output directories (mandatory iteration5 path)
+#  Output directories (mandatory iteration6 path)
 # -----------------------------------------------------------------------------
-RESEARCH_DIR = Path('.research/iteration5')
+RESEARCH_DIR = Path('.research/iteration6')
 RESEARCH_DIR.mkdir(parents=True, exist_ok=True)
 
 # -----------------------------------------------------------------------------
