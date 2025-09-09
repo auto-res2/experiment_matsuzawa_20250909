@@ -1,1 +1,23 @@
-# Please list the required python packages.
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dcd-counterfactual"
+version = "0.1.0"
+requires-python = ">=3.10"
+description = "Diffusion-based Counterfactual Debiasing"
+readme = "README.md"
+authors = [{ name = "ML Researcher" }]
+license = { text = "MIT" }
+
+[project.dependencies]
+torch = "*"
+torchvision = "*"
+timm = "*"
+datasets = "*"
+torchmetrics = "*"
+pyyaml = "*"
+matplotlib = "*"
+diffusers = "*"
+pillow = "*"
