@@ -327,11 +327,8 @@ No file paper.aux.
 [Loading MPS to PDF converter (version 2006.09.02).]
 ) (/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
 (/usr/share/texlive/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg))
-
-Package pgfplots Warning: running in backwards compatibility mode (unsuitable t
-ick labels; missing features). Consider writing \pgfplotsset{compat=1.18} into 
-your preamble.
- on input line 40.
+Package pgfplots notification 'compat/show suggested version=true': document ha
+s been generated with the most recent feature set (\pgfplotsset{compat=1.18}).
 
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-ptm.cfg)
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-cmr.cfg)
@@ -340,246 +337,133 @@ your preamble.
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-msb.cfg)
 (/usr/share/texlive/texmf-dist/tex/latex/base/t1cmtt.fd)
-Underfull \hbox (badness 10000) in paragraph at lines 45--46
-
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd)
 
 Package natbib Warning: Citation `gulrajani-2020-search' on page 1 undefined on
- input line 51.
+ input line 53.
 
 
 Package natbib Warning: Citation `ding-2023-seeing' on page 1 undefined on inpu
-t line 51.
+t line 53.
 
 
 Package natbib Warning: Citation `zhou-2021-examining' on page 1 undefined on i
-nput line 51.
+nput line 53.
 
 
 Package natbib Warning: Citation `xu-2022-adversarially' on page 1 undefined on
- input line 51.
+ input line 53.
 
 [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-
 dist/fonts/enc/dvips/base/8r.enc}]
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ptm.fd)
 
 Package natbib Warning: Citation `fridovichkeil-2022-models' on page 2 undefine
-d on input line 58.
+d on input line 60.
 
 
 Package natbib Warning: Citation `zhou-2021-examining' on page 2 undefined on i
-nput line 68.
+nput line 70.
 
 
 Package natbib Warning: Citation `author-year-domain' on page 2 undefined on in
-put line 68.
+put line 70.
 
 
 Package natbib Warning: Citation `nguyen-2021-domain' on page 2 undefined on in
-put line 68.
+put line 70.
 
 
 Package natbib Warning: Citation `author-year-robust' on page 2 undefined on in
-put line 68.
+put line 70.
 
 
 Package natbib Warning: Citation `arjovsky-2019-invariant' on page 2 undefined 
-on input line 71.
+on input line 73.
 
 
 Package natbib Warning: Citation `ghosal-2023-contextual' on page 2 undefined o
-n input line 71.
+n input line 73.
 
 
 Package natbib Warning: Citation `kumar-2023-causal' on page 2 undefined on inp
-ut line 71.
+ut line 73.
 
 
 Package natbib Warning: Citation `morioka-2023-causal' on page 2 undefined on i
-nput line 71.
+nput line 73.
 
 
 Package natbib Warning: Citation `xu-2024-sparsity' on page 2 undefined on inpu
-t line 71.
+t line 73.
 
 
 Package natbib Warning: Citation `bahng-2019-learning' on page 2 undefined on i
-nput line 74.
+nput line 76.
 
 
 Package natbib Warning: Citation `fridovichkeil-2022-models' on page 2 undefine
-d on input line 77.
-
-
-Package natbib Warning: Citation `li-2023-oodrobustbench' on page 2 undefined o
-n input line 80.
-
-
-Package natbib Warning: Citation `zolfi-2022-yolood' on page 2 undefined on inp
-ut line 80.
-
-
-Package natbib Warning: Citation `azizmalayeri-2022-your' on page 2 undefined o
-n input line 80.
+d on input line 79.
 
 [2]
 
+Package natbib Warning: Citation `li-2023-oodrobustbench' on page 3 undefined o
+n input line 82.
+
+
+Package natbib Warning: Citation `zolfi-2022-yolood' on page 3 undefined on inp
+ut line 82.
+
+
+Package natbib Warning: Citation `azizmalayeri-2022-your' on page 3 undefined o
+n input line 82.
+
+
 Package natbib Warning: Citation `author-year-structuring' on page 3 undefined 
-on input line 83.
+on input line 85.
 
 
 Package natbib Warning: Citation `author-year-distri' on page 3 undefined on in
-put line 83.
+put line 85.
 
 
 Package natbib Warning: Citation `author-year-the' on page 3 undefined on input
- line 83.
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 93--94
+ line 85.
 
 
 Package natbib Warning: Citation `arjovsky-2019-invariant' on page 3 undefined 
-on input line 96.
+on input line 102.
 
 
 Package natbib Warning: Citation `gao-2016-distributionally' on page 3 undefine
-d on input line 96.
+d on input line 102.
 
 
 Package natbib Warning: Citation `fridovichkeil-2022-models' on page 3 undefine
-d on input line 96.
+d on input line 102.
 
-
-! Package amsmath Error: \hat allowed only in math mode.
-
-See the amsmath package documentation for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.100 ... 8$ assigns an environment label $\hat{g}
-                                                  $. 4) Robust objective: In...
-
-
-! LaTeX Error: Bad math environment delimiter.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.101 \[
-        
-! Missing \endgroup inserted.
-<inserted text> 
-                \endgroup 
-l.103 \]
-        
-
-! LaTeX Error: \begin{document} ended by \end{equation*}.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.103 \]
-        
-! Missing $ inserted.
-<inserted text> 
-                $
-l.103 \]
-        
-! Extra \endgroup.
-<recently read> \endgroup 
-                          
-l.103 \]
-        
-
-Overfull \hbox (451.73842pt too wide) in paragraph at lines 100--105
-\T1/ptm/m/n/10 (-20) scene''}$\OML/cmm/m/it/10 :Fiftysamplingstepswithguidances
-cale\OT1/cmr/m/n/10 7\OML/cmm/m/it/10 producefourvariantsperprompt\OT1/cmr/m/n/
-10 ; \OML/cmm/m/it/10 variantswhoseCLIPsimilaritytotheoriginalforegroundfallsbe
-low\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 25\OML/cmm/m/it/10 aredis
-carded:\OT1/cmr/m/n/10 3)\OML/cmm/m/it/10 Environmentclustering \OT1/cmr/m/n/10
- :
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-\OML/cmm/m/it/10 ForeveryrealandacceptedsyntheticimagewecomputeaCLIP \OMS/cmsy/
-m/n/10 ^^@ \OML/cmm/m/it/10 ViT=L \OMS/cmsy/m/n/10 ^^@
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-\OT1/cmr/m/n/10 14\OML/cmm/m/it/10 embeddingafterzeroingtheforegroundpixels\OT1
-/cmr/m/n/10 ; \OML/cmm/m/it/10 mini \OMS/cmsy/m/n/10 ^^@ \OML/cmm/m/it/10 batch
-K \OMS/cmsy/m/n/10 ^^@
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-\OML/cmm/m/it/10 meanswith$\T1/ptm/m/n/10 (+20) K = 8$\OML/cmm/m/it/10 assignsa
-nenvironmentlabel$$:\OT1/cmr/m/n/10 4)\OML/cmm/m/it/10 Robustobjective \OT1/cmr
-/m/n/10 :
-
-Underfull \hbox (badness 1783) in paragraph at lines 100--105
-\OML/cmm/m/it/10 Ineachoptimisationstepwesolve [] []^^R  [] [][] w[]g \OMS/cmsy
-/m/n/10 ^^A \OML/cmm/m/it/10 L[]g\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 ^^R\OT1/cmr/
-m/n/10 ) + \OML/cmm/m/it/10 ^^U R[]F\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 ^^R\OT1/c
-mr/m/n/10 )$$$ \T1/ptm/m/n/10 (+20) sub-ject
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-
-
-Underfull \vbox (badness 2460) has occurred while \output is active [3]
-Underfull \hbox (badness 10000) in paragraph at lines 140--141
-
-
-Underfull \vbox (badness 1688) has occurred while \output is active [4]
+[3]
+Underfull \vbox (badness 1178) has occurred while \output is active [4]
 
 Package natbib Warning: Citation `ghosal-2023-contextual' on page 5 undefined o
-n input line 150.
+n input line 156.
 
 
 Package natbib Warning: Citation `azizmalayeri-2022-your' on page 5 undefined o
-n input line 150.
+n input line 156.
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 160--161
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 170--171
-
-[5 <./images/exp1_waterbirds_smoke_rho0.10_seed11.pdf>]
-Underfull \hbox (badness 10000) in paragraph at lines 173--174
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 176--177
-
+Underfull \vbox (badness 10000) has occurred while \output is active [5]
 
 Package natbib Warning: Citation `author-year-structuring' on page 6 undefined 
-on input line 184.
+on input line 190.
 
+[6 <./images/exp1_waterbirds_smoke_rho0.10_seed11.pdf>]
 No file paper.bbl.
 
 Package natbib Warning: There were undefined citations.
 
-[6] (./paper.aux
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.62 ...$ (higher is better)}{figure.caption.2}{}}
-                                                  
-! Extra \endcsname.
-\@newl@bel ...dafter \ifx \csname #1@#2\endcsname 
-                                                  \reserved@a \else \@tempsw...
-l.62 ...$ (higher is better)}{figure.caption.2}{}}
-                                                  
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][5][]5}}
-                                                  
-! Extra \endcsname.
-\@newl@bel ...dafter \ifx \csname #1@#2\endcsname 
-                                                  \reserved@a \else \@tempsw...
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][5][]5}}
-                                                  
-)
+[7] (./paper.aux)
 kpathsea: Running mktexpk --mfmode / --bdpi 600 --mag 1+0/600 --dpi 600 ectt1000
 mktexpk: Running mf-nowin -progname=mf \mode:=ljfour; mag:=1+0/600; nonstopmode; input ectt1000
 This is METAFONT, Version 2.71828182 (TeX Live 2023/Debian) (preloaded base=mf)
@@ -637,32 +521,27 @@ Transcript written on ectt1000.log.
 mktexpk: /home/runner/.texlive2023/texmf-var/fonts/pk/ljfour/jknappen/ec/ectt1000.600pk: successfully generated.
 
 
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+
 Package rerunfilecheck Warning: File `paper.out' has changed.
 (rerunfilecheck)                Rerun to get outlines right
 (rerunfilecheck)                or use package `bookmark'.
 
-
-Underfull \hbox (badness 10000) in paragraph at lines 62--190
-[]\T1/ptm/m/n/10 (+20) _waterbirds_smoke_rho0.10_seed1115Validation ac-cu-racy 
-dur-ing a three-epoch
-
-Underfull \hbox (badness 4752) in paragraph at lines 62--190
-\T1/ptm/m/n/10 (+20) smoke test on Wa-ter-birds with $\OML/cmm/m/it/10 ^^Z \OT1
-/cmr/m/n/10 = 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 10$ \T1/ptm/m/n/10 (+20) (high
-er is bet-ter)figure.caption.2 _wa-ter-
  )
 (see the transcript file for additional information) </home/runner/.texlive2023
 /texmf-var/fonts/pk/ljfour/jknappen/ec/ectt1000.600pk></usr/share/texlive/texmf
 -dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/
 fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
-ublic/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
-msfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
-cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cms
-y7.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr
-/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/
-texmf-dist/fonts/type1/urw/times/utmr8a.pfb>
-Output written on paper.pdf (6 pages, 152378 bytes).
+type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
+ublic/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
+msfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy
+10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb>
+</usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/share/
+texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/texmf-d
+ist/fonts/type1/urw/times/utmr8a.pfb>
+Output written on paper.pdf (7 pages, 160872 bytes).
 Transcript written on paper.log.
 This is BibTeX, Version 0.99d (TeX Live 2023/Debian)
 The top-level auxiliary file: paper.aux
@@ -963,51 +842,7 @@ Document Style - pseudocode environments for use with the `algorithmicx' style
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/microtype.cfg))
 (/usr/share/texlive/texmf-dist/tex/latex/booktabs/booktabs.sty)
 (/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
-(./paper.aux
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.62 ...$ (higher is better)}{figure.caption.2}{}}
-                                                  
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.62 ...$ (higher is better)}{figure.caption.2}{}}
-                                                  
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][5][]5}}
-                                                  
-
-! LaTeX Error: Missing \begin{document}.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][5][]5}}
-                                                  
-! Extra \endcsname.
-\@ifundefined #1->\ifcsname #1\endcsname 
-                                         \@ifundefin@d@i \else \@ifundefin@d...
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][5][]5}}
-                                                  
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][5][]5}}
-                                                  
-
-LaTeX Warning: Label `fig:exp1\_waterbirds\_smoke\_rho0.10\_seed11@cref' multip
-ly defined.
-
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][5][]5}}
-                                                  
-)
+(./paper.aux)
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
 *geometry* verbose mode - [ preamble ] result:
@@ -1042,19 +877,6 @@ l.63 ..._seed11@cref}{{[figure][1][]1}{[1][5][]5}}
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-(/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd)
-! Undefined control sequence.
-\set@color ...\@pdfcolorstack push{\current@color 
-                                                  }\aftergroup \reset@color 
-l.40 \begin{document}
-                     
-! Undefined control sequence.
-\set@color ...\@pdfcolorstack push{\current@color 
-                                                  }\aftergroup \reset@color 
-l.40 \begin{document}
-                     
-[1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-
-dist/fonts/enc/dvips/base/8r.enc}]
 *geometry* verbose mode - [ newgeometry ] result:
 * driver: pdftex
 * paper: letterpaper
@@ -1091,11 +913,8 @@ dist/fonts/enc/dvips/base/8r.enc}]
 [Loading MPS to PDF converter (version 2006.09.02).]
 ) (/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
 (/usr/share/texlive/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg))
-
-Package pgfplots Warning: running in backwards compatibility mode (unsuitable t
-ick labels; missing features). Consider writing \pgfplotsset{compat=1.18} into 
-your preamble.
- on input line 40.
+Package pgfplots notification 'compat/show suggested version=true': document ha
+s been generated with the most recent feature set (\pgfplotsset{compat=1.18}).
 
 (./paper.out) (./paper.out)
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-ptm.cfg)
@@ -1105,253 +924,150 @@ your preamble.
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-msb.cfg)
 (/usr/share/texlive/texmf-dist/tex/latex/base/t1cmtt.fd)
-Underfull \hbox (badness 10000) in paragraph at lines 45--46
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd)
+
+Package natbib Warning: Citation `gulrajani-2020-search' on page 1 undefined on
+ input line 53.
 
 
-Package natbib Warning: Citation `gulrajani-2020-search' on page 2 undefined on
- input line 51.
+Package natbib Warning: Citation `ding-2023-seeing' on page 1 undefined on inpu
+t line 53.
 
 
-Package natbib Warning: Citation `ding-2023-seeing' on page 2 undefined on inpu
-t line 51.
+Package natbib Warning: Citation `zhou-2021-examining' on page 1 undefined on i
+nput line 53.
+
+
+Package natbib Warning: Citation `xu-2022-adversarially' on page 1 undefined on
+ input line 53.
+
+[1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-
+dist/fonts/enc/dvips/base/8r.enc}]
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ptm.fd)
+
+Package natbib Warning: Citation `fridovichkeil-2022-models' on page 2 undefine
+d on input line 60.
 
 
 Package natbib Warning: Citation `zhou-2021-examining' on page 2 undefined on i
-nput line 51.
+nput line 70.
 
 
-Package natbib Warning: Citation `xu-2022-adversarially' on page 2 undefined on
- input line 51.
-
-[2] (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ptm.fd)
-
-Package natbib Warning: Citation `fridovichkeil-2022-models' on page 3 undefine
-d on input line 58.
+Package natbib Warning: Citation `author-year-domain' on page 2 undefined on in
+put line 70.
 
 
-Package natbib Warning: Citation `zhou-2021-examining' on page 3 undefined on i
-nput line 68.
+Package natbib Warning: Citation `nguyen-2021-domain' on page 2 undefined on in
+put line 70.
 
 
-Package natbib Warning: Citation `author-year-domain' on page 3 undefined on in
-put line 68.
+Package natbib Warning: Citation `author-year-robust' on page 2 undefined on in
+put line 70.
 
 
-Package natbib Warning: Citation `nguyen-2021-domain' on page 3 undefined on in
-put line 68.
+Package natbib Warning: Citation `arjovsky-2019-invariant' on page 2 undefined 
+on input line 73.
 
 
-Package natbib Warning: Citation `author-year-robust' on page 3 undefined on in
-put line 68.
+Package natbib Warning: Citation `ghosal-2023-contextual' on page 2 undefined o
+n input line 73.
 
 
-Package natbib Warning: Citation `arjovsky-2019-invariant' on page 3 undefined 
-on input line 71.
+Package natbib Warning: Citation `kumar-2023-causal' on page 2 undefined on inp
+ut line 73.
 
 
-Package natbib Warning: Citation `ghosal-2023-contextual' on page 3 undefined o
-n input line 71.
+Package natbib Warning: Citation `morioka-2023-causal' on page 2 undefined on i
+nput line 73.
 
 
-Package natbib Warning: Citation `kumar-2023-causal' on page 3 undefined on inp
-ut line 71.
+Package natbib Warning: Citation `xu-2024-sparsity' on page 2 undefined on inpu
+t line 73.
 
 
-Package natbib Warning: Citation `morioka-2023-causal' on page 3 undefined on i
-nput line 71.
+Package natbib Warning: Citation `bahng-2019-learning' on page 2 undefined on i
+nput line 76.
 
 
-Package natbib Warning: Citation `xu-2024-sparsity' on page 3 undefined on inpu
-t line 71.
+Package natbib Warning: Citation `fridovichkeil-2022-models' on page 2 undefine
+d on input line 79.
 
-
-Package natbib Warning: Citation `bahng-2019-learning' on page 3 undefined on i
-nput line 74.
-
-
-Package natbib Warning: Citation `fridovichkeil-2022-models' on page 3 undefine
-d on input line 77.
-
+[2]
 
 Package natbib Warning: Citation `li-2023-oodrobustbench' on page 3 undefined o
-n input line 80.
+n input line 82.
 
 
 Package natbib Warning: Citation `zolfi-2022-yolood' on page 3 undefined on inp
-ut line 80.
+ut line 82.
 
 
 Package natbib Warning: Citation `azizmalayeri-2022-your' on page 3 undefined o
-n input line 80.
+n input line 82.
+
+
+Package natbib Warning: Citation `author-year-structuring' on page 3 undefined 
+on input line 85.
+
+
+Package natbib Warning: Citation `author-year-distri' on page 3 undefined on in
+put line 85.
+
+
+Package natbib Warning: Citation `author-year-the' on page 3 undefined on input
+ line 85.
+
+
+Package natbib Warning: Citation `arjovsky-2019-invariant' on page 3 undefined 
+on input line 102.
+
+
+Package natbib Warning: Citation `gao-2016-distributionally' on page 3 undefine
+d on input line 102.
+
+
+Package natbib Warning: Citation `fridovichkeil-2022-models' on page 3 undefine
+d on input line 102.
 
 [3]
+Underfull \vbox (badness 1178) has occurred while \output is active [4]
 
-Package natbib Warning: Citation `author-year-structuring' on page 4 undefined 
-on input line 83.
-
-
-Package natbib Warning: Citation `author-year-distri' on page 4 undefined on in
-put line 83.
+Package natbib Warning: Citation `ghosal-2023-contextual' on page 5 undefined o
+n input line 156.
 
 
-Package natbib Warning: Citation `author-year-the' on page 4 undefined on input
- line 83.
+Package natbib Warning: Citation `azizmalayeri-2022-your' on page 5 undefined o
+n input line 156.
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 93--94
+Underfull \vbox (badness 10000) has occurred while \output is active [5]
 
+Package natbib Warning: Citation `author-year-structuring' on page 6 undefined 
+on input line 190.
 
-Package natbib Warning: Citation `arjovsky-2019-invariant' on page 4 undefined 
-on input line 96.
-
-
-Package natbib Warning: Citation `gao-2016-distributionally' on page 4 undefine
-d on input line 96.
-
-
-Package natbib Warning: Citation `fridovichkeil-2022-models' on page 4 undefine
-d on input line 96.
-
-
-! Package amsmath Error: \hat allowed only in math mode.
-
-See the amsmath package documentation for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.100 ... 8$ assigns an environment label $\hat{g}
-                                                  $. 4) Robust objective: In...
-
-
-! LaTeX Error: Bad math environment delimiter.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.101 \[
-        
-! Missing \endgroup inserted.
-<inserted text> 
-                \endgroup 
-l.103 \]
-        
-
-! LaTeX Error: \begin{document} ended by \end{equation*}.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.103 \]
-        
-! Missing $ inserted.
-<inserted text> 
-                $
-l.103 \]
-        
-! Extra \endgroup.
-<recently read> \endgroup 
-                          
-l.103 \]
-        
-
-Overfull \hbox (451.73842pt too wide) in paragraph at lines 100--105
-\T1/ptm/m/n/10 (-20) scene''}$\OML/cmm/m/it/10 :Fiftysamplingstepswithguidances
-cale\OT1/cmr/m/n/10 7\OML/cmm/m/it/10 producefourvariantsperprompt\OT1/cmr/m/n/
-10 ; \OML/cmm/m/it/10 variantswhoseCLIPsimilaritytotheoriginalforegroundfallsbe
-low\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 25\OML/cmm/m/it/10 aredis
-carded:\OT1/cmr/m/n/10 3)\OML/cmm/m/it/10 Environmentclustering \OT1/cmr/m/n/10
- :
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-\OML/cmm/m/it/10 ForeveryrealandacceptedsyntheticimagewecomputeaCLIP \OMS/cmsy/
-m/n/10 ^^@ \OML/cmm/m/it/10 ViT=L \OMS/cmsy/m/n/10 ^^@
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-\OT1/cmr/m/n/10 14\OML/cmm/m/it/10 embeddingafterzeroingtheforegroundpixels\OT1
-/cmr/m/n/10 ; \OML/cmm/m/it/10 mini \OMS/cmsy/m/n/10 ^^@ \OML/cmm/m/it/10 batch
-K \OMS/cmsy/m/n/10 ^^@
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-\OML/cmm/m/it/10 meanswith$\T1/ptm/m/n/10 (+20) K = 8$\OML/cmm/m/it/10 assignsa
-nenvironmentlabel$$:\OT1/cmr/m/n/10 4)\OML/cmm/m/it/10 Robustobjective \OT1/cmr
-/m/n/10 :
-
-Underfull \hbox (badness 1783) in paragraph at lines 100--105
-\OML/cmm/m/it/10 Ineachoptimisationstepwesolve [] []^^R  [] [][] w[]g \OMS/cmsy
-/m/n/10 ^^A \OML/cmm/m/it/10 L[]g\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 ^^R\OT1/cmr/
-m/n/10 ) + \OML/cmm/m/it/10 ^^U R[]F\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 ^^R\OT1/c
-mr/m/n/10 )$$$ \T1/ptm/m/n/10 (+20) sub-ject
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-
-
-Underfull \vbox (badness 2460) has occurred while \output is active [4]
-Underfull \hbox (badness 10000) in paragraph at lines 140--141
-
-
-Underfull \vbox (badness 1688) has occurred while \output is active [5]
-
-Package natbib Warning: Citation `ghosal-2023-contextual' on page 6 undefined o
-n input line 150.
-
-
-Package natbib Warning: Citation `azizmalayeri-2022-your' on page 6 undefined o
-n input line 150.
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 160--161
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 170--171
-
-[6 <./images/exp1_waterbirds_smoke_rho0.10_seed11.pdf>]
-Underfull \hbox (badness 10000) in paragraph at lines 173--174
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 176--177
-
-
-Package natbib Warning: Citation `author-year-structuring' on page 7 undefined 
-on input line 184.
-
-(./paper.bbl [7])
+[6 <./images/exp1_waterbirds_smoke_rho0.10_seed11.pdf>] (./paper.bbl)
 
 Package natbib Warning: There were undefined citations.
 
-[8] (./paper.aux
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.62 ...$ (higher is better)}{figure.caption.2}{}}
-                                                  
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][6][]6}}
-                                                  
+[7] (./paper.aux
 
 Package natbib Warning: Citation(s) may have changed.
 (natbib)                Rerun to get citations correct.
 
-)
-
-LaTeX Warning: There were multiply-defined labels.
-
- )
+) )
 (see the transcript file for additional information) </home/runner/.texlive2023
 /texmf-var/fonts/pk/ljfour/jknappen/ec/ectt1000.600pk></usr/share/texlive/texmf
 -dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/
 fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
-ublic/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
-msfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
-cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cms
-y7.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr
-/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/
-texmf-dist/fonts/type1/urw/times/utmr8a.pfb>
-Output written on paper.pdf (8 pages, 160425 bytes).
+type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
+ublic/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
+msfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy
+10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb>
+</usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/share/
+texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/texmf-d
+ist/fonts/type1/urw/times/utmr8a.pfb>
+Output written on paper.pdf (7 pages, 167775 bytes).
 Transcript written on paper.log.
 This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex)
  restricted \write18 enabled.
@@ -1611,51 +1327,7 @@ Document Style - pseudocode environments for use with the `algorithmicx' style
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/microtype.cfg))
 (/usr/share/texlive/texmf-dist/tex/latex/booktabs/booktabs.sty)
 (/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
-(./paper.aux
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.62 ...$ (higher is better)}{figure.caption.2}{}}
-                                                  
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.62 ...$ (higher is better)}{figure.caption.2}{}}
-                                                  
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][6][]6}}
-                                                  
-
-! LaTeX Error: Missing \begin{document}.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][6][]6}}
-                                                  
-! Extra \endcsname.
-\@ifundefined #1->\ifcsname #1\endcsname 
-                                         \@ifundefin@d@i \else \@ifundefin@d...
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][6][]6}}
-                                                  
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][6][]6}}
-                                                  
-
-LaTeX Warning: Label `fig:exp1\_waterbirds\_smoke\_rho0.10\_seed11@cref' multip
-ly defined.
-
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][6][]6}}
-                                                  
-)
+(./paper.aux)
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
 *geometry* verbose mode - [ preamble ] result:
@@ -1690,19 +1362,6 @@ l.63 ..._seed11@cref}{{[figure][1][]1}{[1][6][]6}}
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-(/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd)
-! Undefined control sequence.
-\set@color ...\@pdfcolorstack push{\current@color 
-                                                  }\aftergroup \reset@color 
-l.40 \begin{document}
-                     
-! Undefined control sequence.
-\set@color ...\@pdfcolorstack push{\current@color 
-                                                  }\aftergroup \reset@color 
-l.40 \begin{document}
-                     
-[1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-
-dist/fonts/enc/dvips/base/8r.enc}]
 *geometry* verbose mode - [ newgeometry ] result:
 * driver: pdftex
 * paper: letterpaper
@@ -1739,11 +1398,8 @@ dist/fonts/enc/dvips/base/8r.enc}]
 [Loading MPS to PDF converter (version 2006.09.02).]
 ) (/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
 (/usr/share/texlive/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg))
-
-Package pgfplots Warning: running in backwards compatibility mode (unsuitable t
-ick labels; missing features). Consider writing \pgfplotsset{compat=1.18} into 
-your preamble.
- on input line 40.
+Package pgfplots notification 'compat/show suggested version=true': document ha
+s been generated with the most recent feature set (\pgfplotsset{compat=1.18}).
 
 (./paper.out) (./paper.out)
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-ptm.cfg)
@@ -1753,126 +1409,24 @@ your preamble.
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-msb.cfg)
 (/usr/share/texlive/texmf-dist/tex/latex/base/t1cmtt.fd)
-Underfull \hbox (badness 10000) in paragraph at lines 45--46
-
-[2] (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ptm.fd) [3]
-Underfull \hbox (badness 10000) in paragraph at lines 93--94
-
-
-! Package amsmath Error: \hat allowed only in math mode.
-
-See the amsmath package documentation for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.100 ... 8$ assigns an environment label $\hat{g}
-                                                  $. 4) Robust objective: In...
-
-
-! LaTeX Error: Bad math environment delimiter.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.101 \[
-        
-! Missing \endgroup inserted.
-<inserted text> 
-                \endgroup 
-l.103 \]
-        
-
-! LaTeX Error: \begin{document} ended by \end{equation*}.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.103 \]
-        
-! Missing $ inserted.
-<inserted text> 
-                $
-l.103 \]
-        
-! Extra \endgroup.
-<recently read> \endgroup 
-                          
-l.103 \]
-        
-
-Overfull \hbox (451.73842pt too wide) in paragraph at lines 100--105
-\T1/ptm/m/n/10 (-20) scene''}$\OML/cmm/m/it/10 :Fiftysamplingstepswithguidances
-cale\OT1/cmr/m/n/10 7\OML/cmm/m/it/10 producefourvariantsperprompt\OT1/cmr/m/n/
-10 ; \OML/cmm/m/it/10 variantswhoseCLIPsimilaritytotheoriginalforegroundfallsbe
-low\OT1/cmr/m/n/10 0\OML/cmm/m/it/10 :\OT1/cmr/m/n/10 25\OML/cmm/m/it/10 aredis
-carded:\OT1/cmr/m/n/10 3)\OML/cmm/m/it/10 Environmentclustering \OT1/cmr/m/n/10
- :
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-\OML/cmm/m/it/10 ForeveryrealandacceptedsyntheticimagewecomputeaCLIP \OMS/cmsy/
-m/n/10 ^^@ \OML/cmm/m/it/10 ViT=L \OMS/cmsy/m/n/10 ^^@
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-\OT1/cmr/m/n/10 14\OML/cmm/m/it/10 embeddingafterzeroingtheforegroundpixels\OT1
-/cmr/m/n/10 ; \OML/cmm/m/it/10 mini \OMS/cmsy/m/n/10 ^^@ \OML/cmm/m/it/10 batch
-K \OMS/cmsy/m/n/10 ^^@
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-\OML/cmm/m/it/10 meanswith$\T1/ptm/m/n/10 (+20) K = 8$\OML/cmm/m/it/10 assignsa
-nenvironmentlabel$$:\OT1/cmr/m/n/10 4)\OML/cmm/m/it/10 Robustobjective \OT1/cmr
-/m/n/10 :
-
-Underfull \hbox (badness 1783) in paragraph at lines 100--105
-\OML/cmm/m/it/10 Ineachoptimisationstepwesolve [] []^^R  [] [][] w[]g \OMS/cmsy
-/m/n/10 ^^A \OML/cmm/m/it/10 L[]g\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 ^^R\OT1/cmr/
-m/n/10 ) + \OML/cmm/m/it/10 ^^U R[]F\OT1/cmr/m/n/10 (\OML/cmm/m/it/10 ^^R\OT1/c
-mr/m/n/10 )$$$ \T1/ptm/m/n/10 (+20) sub-ject
-
-Underfull \hbox (badness 10000) in paragraph at lines 100--105
-
-[4]
-Underfull \hbox (badness 10000) in paragraph at lines 140--141
-
-[5]
-Underfull \hbox (badness 10000) in paragraph at lines 160--161
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 170--171
-
-[6 <./images/exp1_waterbirds_smoke_rho0.10_seed11.pdf>]
-Underfull \hbox (badness 10000) in paragraph at lines 173--174
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 176--177
-
-(./paper.bbl [7]) [8] (./paper.aux
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.62 ...$ (higher is better)}{figure.caption.2}{}}
-                                                  
-! Missing \endcsname inserted.
-<to be read again> 
-                   \protect 
-l.63 ..._seed11@cref}{{[figure][1][]1}{[1][6][]6}}
-                                                  
-)
-
-LaTeX Warning: There were multiply-defined labels.
-
- )
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd) [1{/var/lib/texmf/fon
+ts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-dist/fonts/enc/dvips/
+base/8r.enc}] (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ptm.fd)
+[2] [3] [4]
+Underfull \vbox (badness 10000) has occurred while \output is active [5]
+[6 <./images/exp1_waterbirds_smoke_rho0.10_seed11.pdf>] (./paper.bbl) [7]
+(./paper.aux) )
 (see the transcript file for additional information) </home/runner/.texlive2023
 /texmf-var/fonts/pk/ljfour/jknappen/ec/ectt1000.600pk></usr/share/texlive/texmf
 -dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/
 fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
-ublic/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
-msfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
-cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cms
-y7.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr
-/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/
-texmf-dist/fonts/type1/urw/times/utmr8a.pfb>
-Output written on paper.pdf (8 pages, 162433 bytes).
+type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
+ublic/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
+msfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy
+10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb>
+</usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/share/
+texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/texmf-d
+ist/fonts/type1/urw/times/utmr8a.pfb>
+Output written on paper.pdf (7 pages, 169592 bytes).
 Transcript written on paper.log.
