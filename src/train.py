@@ -80,9 +80,10 @@ class VectorQuantiser(nn.Module):
         z_q, indices = self.quantise(z.detach())
         if self.training:
             onehot = F.one_hot(indices, num_classes=self.codebook.size(0)).type_as(z)
-            self.ema_count.mul_(self.beta).add_(1 - self.beta, onehot.sum(0))
+            # PyTorch ≥2.0 requires explicit alpha kwarg when using add_
+            self.ema_count.mul_(self.beta).add_(onehot.sum(0), alpha=1 - self.beta)
             dw = onehot.t() @ z
-            self.ema_weight.mul_(self.beta).add_(1 - self.beta, dw)
+            self.ema_weight.mul_(self.beta).add_(dw, alpha=1 - self.beta)
             n = self.ema_count.sum()
             cluster_size = (
                 (self.ema_count + self.eps) / (n + self.codebook.size(0) * self.eps) * n
@@ -204,7 +205,9 @@ class HiDeRLearner(nn.Module):
     def _update_buffer(self, loader: DataLoader, task_id: int, device):
         for img, _y, _ in loader:
             with torch.no_grad():
-                z = self.encoder(self.backbone(img.to(device))).cpu()
+                # Keep latent codes on the same device as the codebooks to avoid
+                # device-mismatch errors during matrix multiplication.
+                z = self.encoder(self.backbone(img.to(device)))
             c, f = torch.split(z, z.shape[1] // 2, dim=1)
             _, c_idx = self.vq_coarse.quantise(c)
             _, f_idx = self.vq_fine.quantise(f)
