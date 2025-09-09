@@ -1,7 +1,7 @@
 # src/evaluate.py
 """Runs the *Ultra-low-footprint* experiment and handles statistics/plots.
 
-All I/O artefacts are saved under `.research/iteration9/` so that multiple
+All I/O artefacts are saved under `.research/iteration10/` so that multiple
 independent experiment runs are kept separate from the source code.
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ import yaml
 #  TEMPORARY MONKEY-PATCHES --------------------------------------------------
 # ---------------------------------------------------------------------------
 # 1. Restore the removed `T_co` symbol (see detailed explanation in prototype)
-import torch.utils.data.dataset as _torch_dataset  # noqa: E402  (import after torch)
+import torch.utils.data.dataset as _torch_dataset  # noqa: E402
 if not hasattr(_torch_dataset, "T_co"):
     _torch_dataset.T_co = TypeVar("T_co", covariant=True)  # type: ignore[attr-defined]
 
@@ -203,7 +203,7 @@ matplotlib.use("Agg")  # headless rendering only
 #  GLOBAL PATHS  (resolved from project root)  ------------------------------
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration9"
+RESEARCH_DIR = ROOT / ".research" / "iteration10"
 IMAGES_DIR = RESEARCH_DIR / "images"
 for p in (RESEARCH_DIR, IMAGES_DIR):
     p.mkdir(parents=True, exist_ok=True)
@@ -224,7 +224,6 @@ optim_cfg = CFG["optimiser"]
 hvq_cfg = CFG["hvq"]
 common_cfg = CFG["common"]
 exp1_cfg = CFG["exp1"]
-
 
 # ---------------------------------------------------------------------------
 #  TASK-AWARE MODEL WRAPPER  -------------------------------------------------
@@ -250,7 +249,6 @@ class TaskAwareModel(nn.Module):
         feats = self.mapper(self.backbone(x))
         return self.classifier(feats, self.current_task)
 
-
 # ---------------------------------------------------------------------------
 #  BASE CLASS --------------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -258,7 +256,7 @@ class BaseExperiment:
     def __init__(self, name: str):
         self.name = name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Save JSON results directly under iteration9/
+        # Save JSON results directly under iteration10/
         self.results_path = RESEARCH_DIR / f"{self.name}_results.json"
         self.figures: List[str] = []
         self.metric_log: Dict[str, Any] = {}
@@ -274,7 +272,6 @@ class BaseExperiment:
         for fig in self.figures:
             print(f"  • {fig}")
         print("===================================\n")
-
 
 # ---------------------------------------------------------------------------
 #  EXPERIMENT 1 – Ultra-low-footprint scaling curve
