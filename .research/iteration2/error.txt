@@ -1,0 +1,99 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+Resolved 92 packages in 316ms
+   Building hider @ file:///home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909
+Downloading transformers (11.1MiB)
+Downloading torch (846.9MiB)
+Downloading tokenizers (3.2MiB)
+ Downloading tokenizers
+      Built hider @ file:///home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909
+ Downloading transformers
+  × Failed to download `torch==2.8.0`
+  ├─▶ Failed to extract archive:
+  │   torch-2.8.0-cp311-cp311-manylinux_2_28_x86_64.whl
+  ├─▶ I/O operation failed during extraction
+  ╰─▶ failed to create file
+      `/home/toma/.cache/uv/.tmptxAhdn/torch/lib/libtorch_cuda_linalg.so`: No
+      such file or directory (os error 2)
+  help: `torch` (v2.8.0) was included because `hider` (v0.1.0) depends on
+        `torch`
+Downloading aiohttp (1.7MiB)
+Downloading pandas (11.8MiB)
+Downloading transformers (11.1MiB)
+Downloading nvidia-cusparse-cu12 (274.9MiB)
+Downloading tokenizers (3.2MiB)
+Downloading nvidia-cufile-cu12 (1.1MiB)
+Downloading setuptools (1.1MiB)
+Downloading sympy (6.0MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (84.0MiB)
+Downloading nvidia-cuda-cupti-cu12 (9.8MiB)
+Downloading matplotlib (8.3MiB)
+Downloading nvidia-cufft-cu12 (184.2MiB)
+Downloading numpy (16.2MiB)
+Downloading nvidia-cudnn-cu12 (674.0MiB)
+Downloading timm (2.4MiB)
+Downloading torchvision (8.2MiB)
+Downloading hf-xet (3.0MiB)
+Downloading nvidia-cublas-cu12 (566.8MiB)
+Downloading networkx (1.9MiB)
+Downloading nvidia-cusparselt-cu12 (273.9MiB)
+Downloading fonttools (4.7MiB)
+Downloading nvidia-nccl-cu12 (307.4MiB)
+Downloading pyarrow (40.8MiB)
+Downloading nvidia-nvjitlink-cu12 (37.4MiB)
+Downloading nvidia-cusolver-cu12 (255.1MiB)
+Downloading nvidia-curand-cu12 (60.7MiB)
+Downloading torch (846.9MiB)
+Downloading kiwisolver (1.4MiB)
+Downloading triton (148.3MiB)
+Downloading pillow (6.3MiB)
+ Downloading nvidia-cufile-cu12
+ Downloading kiwisolver
+ Downloading aiohttp
+ Downloading hf-xet
+ Downloading timm
+ Downloading tokenizers
+ Downloading setuptools
+ Downloading networkx
+ Downloading fonttools
+ Downloading pillow
+ Downloading torchvision
+ Downloading matplotlib
+ Downloading nvidia-cuda-cupti-cu12
+ Downloading sympy
+ Downloading transformers
+ Downloading numpy
+ Downloading nvidia-nvjitlink-cu12
+ Downloading pandas
+ Downloading nvidia-curand-cu12
+ Downloading nvidia-cuda-nvrtc-cu12
+ Downloading pyarrow
+ Downloading triton
+ Downloading nvidia-cufft-cu12
+ Downloading nvidia-cusolver-cu12
+ Downloading nvidia-cusparselt-cu12
+ Downloading nvidia-cusparse-cu12
+ Downloading nvidia-nccl-cu12
+ Downloading nvidia-cublas-cu12
+ Downloading nvidia-cudnn-cu12
+ Downloading torch
+Installed 78 packages in 5.02s
+Generating train split:   0%|          | 0/50000 [00:00<?, ? examples/s]Generating train split:  21%|██▏       | 10700/50000 [00:00<00:00, 105671.37 examples/s]Generating train split:  69%|██████▉   | 34500/50000 [00:00<00:00, 181899.06 examples/s]Generating train split: 100%|██████████| 50000/50000 [00:00<00:00, 117435.07 examples/s]
+Generating test split:   0%|          | 0/10000 [00:00<?, ? examples/s]Generating test split: 100%|██████████| 10000/10000 [00:00<00:00, 80037.25 examples/s]
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/main.py", line 25, in <module>
+    run_experiment_1(CONFIG)
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/evaluate.py", line 44, in run_experiment_1
+    stream = build_stream("split_cifar100", cfg)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/preprocess.py", line 63, in build_stream
+    all_classes = sorted(list(set(train_ds["label"])))
+                                  ~~~~~~~~^^^^^^^^^
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/datasets/arrow_dataset.py", line 2858, in __getitem__
+    return Column(self, key)
+           ^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-03/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/datasets/arrow_dataset.py", line 656, in __init__
+    raise ValueError(f"Column '{column_name}' doesn't exist.")
+ValueError: Column 'label' doesn't exist.
