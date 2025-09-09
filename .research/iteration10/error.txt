@@ -1,0 +1,84 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+  × Failed to build `torch-sparse==0.6.17`
+  ├─▶ The build backend returned an error
+  ╰─▶ Call to `setuptools.build_meta:__legacy__.build_wheel` failed (exit
+      status: 1)
+
+      [stderr]
+      Traceback (most recent call last):
+        File "<string>", line 14, in <module>
+        File
+      "/home/toma/.cache/uv/builds-v0/.tmp6sQPBi/lib/python3.11/site-packages/setuptools/build_meta.py",
+      line 331, in get_requires_for_build_wheel
+          return self._get_build_requires(config_settings, requirements=[])
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File
+      "/home/toma/.cache/uv/builds-v0/.tmp6sQPBi/lib/python3.11/site-packages/setuptools/build_meta.py",
+      line 301, in _get_build_requires
+          self.run_setup()
+        File
+      "/home/toma/.cache/uv/builds-v0/.tmp6sQPBi/lib/python3.11/site-packages/setuptools/build_meta.py",
+      line 512, in run_setup
+          super().run_setup(setup_script=setup_script)
+        File
+      "/home/toma/.cache/uv/builds-v0/.tmp6sQPBi/lib/python3.11/site-packages/setuptools/build_meta.py",
+      line 317, in run_setup
+          exec(code, locals())
+        File "<string>", line 8, in <module>
+      ModuleNotFoundError: No module named 'torch'
+
+      hint: This error likely indicates that `torch-sparse@0.6.17`
+      depends on `torch`, but doesn't declare it as a build dependency.
+      If `torch-sparse` is a first-party package, consider adding `torch`
+      to its `build-system.requires`. Otherwise, either add it to your
+      `pyproject.toml` under:
+
+      [tool.uv.extra-build-dependencies]
+      torch-sparse = ["torch"]
+
+      or `uv pip install torch` into the environment and re-run with
+      `--no-build-isolation`.
+  help: `torch-sparse` (v0.6.17) was included because `adasmooth-ode` (v0.1.5)
+        depends on `torch-sparse==0.6.17`
+  × Failed to build `torch-sparse==0.6.17`
+  ├─▶ The build backend returned an error
+  ╰─▶ Call to `setuptools.build_meta:__legacy__.build_wheel` failed (exit
+      status: 1)
+
+      [stderr]
+      Traceback (most recent call last):
+        File "<string>", line 14, in <module>
+        File
+      "/home/toma/.cache/uv/builds-v0/.tmpceIysb/lib/python3.11/site-packages/setuptools/build_meta.py",
+      line 331, in get_requires_for_build_wheel
+          return self._get_build_requires(config_settings, requirements=[])
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File
+      "/home/toma/.cache/uv/builds-v0/.tmpceIysb/lib/python3.11/site-packages/setuptools/build_meta.py",
+      line 301, in _get_build_requires
+          self.run_setup()
+        File
+      "/home/toma/.cache/uv/builds-v0/.tmpceIysb/lib/python3.11/site-packages/setuptools/build_meta.py",
+      line 512, in run_setup
+          super().run_setup(setup_script=setup_script)
+        File
+      "/home/toma/.cache/uv/builds-v0/.tmpceIysb/lib/python3.11/site-packages/setuptools/build_meta.py",
+      line 317, in run_setup
+          exec(code, locals())
+        File "<string>", line 8, in <module>
+      ModuleNotFoundError: No module named 'torch'
+
+      hint: This error likely indicates that `torch-sparse@0.6.17`
+      depends on `torch`, but doesn't declare it as a build dependency.
+      If `torch-sparse` is a first-party package, consider adding `torch`
+      to its `build-system.requires`. Otherwise, either add it to your
+      `pyproject.toml` under:
+
+      [tool.uv.extra-build-dependencies]
+      torch-sparse = ["torch"]
+
+      or `uv pip install torch` into the environment and re-run with
+      `--no-build-isolation`.
+  help: `torch-sparse` (v0.6.17) was included because `adasmooth-ode` (v0.1.5)
+        depends on `torch-sparse==0.6.17`
