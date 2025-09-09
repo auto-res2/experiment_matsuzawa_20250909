@@ -180,7 +180,7 @@ def run_experiment(cfg: NamespaceLike) -> Dict[str, Any]:
     # ------------------------------------------------------------------
     # Persist results   -------------------------------------------------
     # ------------------------------------------------------------------
-    base_dir = pathlib.Path(".research/iteration8")
+    base_dir = pathlib.Path(".research/iteration9")
     base_dir.mkdir(parents=True, exist_ok=True)
 
     json_path = base_dir / f"{cfg.name}_results.json"
@@ -197,7 +197,7 @@ def run_experiment(cfg: NamespaceLike) -> Dict[str, Any]:
     # ------------------------------------------------------------------
     # Figures   ---------------------------------------------------------
     # ------------------------------------------------------------------
-    images_dir = pathlib.Path(".research/iteration8/images")
+    images_dir = pathlib.Path(".research/iteration9/images")
     images_dir.mkdir(parents=True, exist_ok=True)
 
     line_plot(val_hist, "Validation accuracy", "Acc", images_dir / f"accuracy_{cfg.name}.pdf")
@@ -215,6 +215,6 @@ def run_experiment(cfg: NamespaceLike) -> Dict[str, Any]:
     )
     print("Results JSON:")
     print(json.dumps(results, indent=2))
-    print("Figures generated in .research/iteration8/images\n")
+    print("Figures generated in .research/iteration9/images\n")
 
     return results

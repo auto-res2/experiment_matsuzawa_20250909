@@ -9,20 +9,23 @@ requires-python = ">=3.9"
 readme = "README.md"
 license = {text = "MIT"}
 
-[project.dependencies]
-# --- Core ML stack ---
-torch = "*"
- torchvision = "*"
- torchmetrics = "*"
- timm = "*"
- datasets = "*"
+# ------------------------------------------------------------------------------
+# Dependencies – follow PEP 621 (array of strings)
+# ------------------------------------------------------------------------------
 
-# --- Plotting / utils ---
-matplotlib = "*"
-pyyaml = "*"
+dependencies = [
+  # --- Core ML stack ---
+  "torch",
+  "torchvision",
+  "torchmetrics",
+  "timm",
+  "datasets",
 
-# Optional but recommended. Not imported by default but part of original code.
-# diffusers = "*"
+  # --- Plotting / utils ---
+  "matplotlib",
+  "pyyaml"
+  # "diffusers"  # Optional but recommended – commented out to avoid heavy install.
+]
 
 [build-system]
 requires = ["setuptools", "wheel"]
