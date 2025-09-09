@@ -105,7 +105,8 @@ class NodeDepthController(nn.Module):
     def forward(self, h: torch.Tensor, grad_norm: torch.Tensor):  # grad_norm placeholder
         prob = torch.sigmoid(self.fc(h).squeeze())  # (N,)
         mask = (prob >= self.tau).float().unsqueeze(1)
-        return h * mask, mask.mean()
+        # Return float scalar to avoid device casting issues downstream
+        return h * mask, float(mask.mean().item())
 
 
 class GradeGCN(nn.Module):
@@ -126,12 +127,13 @@ class GradeGCN(nn.Module):
         super().__init__()
         self.edge_gate = EdgeGate(edge_index, kappa)
         self.backbone = GCNBackbone(in_dim, out_dim, hidden, layers)
-        self.depth_ctl = NodeDepthController(hidden, tau_init)
+        # Depth controller must match the feature dimension it receives (out_dim)
+        self.depth_ctl = NodeDepthController(out_dim, tau_init)
         self.lambda_geo = lambda_geo
         self.lambda_grad = lambda_grad  # retained for completeness
 
     # --------------------------------------------------------
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> Tuple[torch.Tensor, float]:
         edge_index, g = self.edge_gate()
         _ = softmax(g, edge_index[0])  # placeholder – not used in GCN op here
         x = self.backbone(x, edge_index)
@@ -149,15 +151,22 @@ class GradeGCN(nn.Module):
 
 from torch_geometric.data import Data  # after PyG availability check
 
-def _unpack_model_output(model_out: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]):
+def _unpack_model_output(model_out: Union[torch.Tensor, Tuple[torch.Tensor, Union[torch.Tensor, float]]]):
     """Utility that makes the training/eval code agnostic to whether the model
     returns a single tensor (logits) or a tuple (logits, aux_stat).
+    The auxiliary statistic is converted to a Python float when it is a scalar
+    tensor to ensure subsequent `float(aux)` calls are always safe regardless of
+    device placement (CPU/GPU).
     """
     if isinstance(model_out, tuple):
         out, aux = model_out
     else:
         out = model_out
         aux = torch.tensor(0.0, device=out.device)
+
+    # Convert 0-dim tensor -> float for safe downstream casting
+    if torch.is_tensor(aux) and aux.ndim == 0:
+        aux = aux.item()
     return out, aux
 
 

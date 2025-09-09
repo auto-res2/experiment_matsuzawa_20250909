@@ -31,7 +31,7 @@ with open(CONFIG_PATH, "r") as f:
 # -------------------------------------------------------------------
 # I/O locations – enforced by task instructions
 # -------------------------------------------------------------------
-JSON_DIR = Path(".research/iteration11")
+JSON_DIR = Path(".research/iteration12")
 IMG_DIR = JSON_DIR / "images"
 JSON_DIR.mkdir(parents=True, exist_ok=True)
 IMG_DIR.mkdir(parents=True, exist_ok=True)
