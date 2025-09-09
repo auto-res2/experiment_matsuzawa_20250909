@@ -1,0 +1,99 @@
+=== uv sync start Tue Sep  9 04:07:09 AM UTC 2025 ===
+=== uv install end Tue Sep  9 04:07:16 AM UTC 2025 ===
+=== experiment start Tue Sep  9 04:07:16 AM UTC 2025 ===
+[34mBuilding data stream for split_cifar100[0m
+[32m[Task 00] HiDeR acc=99.40[0m
+[32m[Task 00] ER-Ring acc=99.20[0m
+[32m[Task 01] HiDeR acc=99.80[0m
+[32m[Task 01] ER-Ring acc=99.80[0m
+[32m[Task 02] HiDeR acc=99.80[0m
+[32m[Task 02] ER-Ring acc=99.00[0m
+[32m[Task 03] HiDeR acc=99.20[0m
+[32m[Task 03] ER-Ring acc=99.00[0m
+[32m[Task 04] HiDeR acc=99.60[0m
+[32m[Task 04] ER-Ring acc=99.60[0m
+[32m[Task 05] HiDeR acc=98.60[0m
+[32m[Task 05] ER-Ring acc=98.20[0m
+[32m[Task 06] HiDeR acc=98.60[0m
+[32m[Task 06] ER-Ring acc=99.20[0m
+[32m[Task 07] HiDeR acc=99.60[0m
+[32m[Task 07] ER-Ring acc=100.00[0m
+[32m[Task 08] HiDeR acc=99.40[0m
+[32m[Task 08] ER-Ring acc=98.00[0m
+[32m[Task 09] HiDeR acc=98.60[0m
+[32m[Task 09] ER-Ring acc=99.60[0m
+[32m[Task 10] HiDeR acc=99.80[0m
+[32m[Task 10] ER-Ring acc=99.40[0m
+[32m[Task 11] HiDeR acc=99.20[0m
+[32m[Task 11] ER-Ring acc=99.00[0m
+[32m[Task 12] HiDeR acc=99.00[0m
+[32m[Task 12] ER-Ring acc=98.20[0m
+[32m[Task 13] HiDeR acc=99.00[0m
+[32m[Task 13] ER-Ring acc=98.60[0m
+[32m[Task 14] HiDeR acc=98.40[0m
+[32m[Task 14] ER-Ring acc=98.00[0m
+[32m[Task 15] HiDeR acc=99.60[0m
+[32m[Task 15] ER-Ring acc=99.80[0m
+[32m[Task 16] HiDeR acc=99.80[0m
+[32m[Task 16] ER-Ring acc=100.00[0m
+[32m[Task 17] HiDeR acc=99.80[0m
+[32m[Task 17] ER-Ring acc=99.00[0m
+[32m[Task 18] HiDeR acc=99.60[0m
+[32m[Task 18] ER-Ring acc=99.60[0m
+[32m[Task 19] HiDeR acc=100.00[0m
+[32m[Task 19] ER-Ring acc=100.00[0m
+
+Experiment 1 – Standard Benchmark Suite
+Datasets : Split-CIFAR-100 (20 tasks)
+Backbone : ViT-B/16 + LoRA-16 (frozen encoder)
+Learners : HiDeR (lat. replay) vs ER-Ring (raw replay)
+Budget   : 1 MB each | Epochs/task : 5 | Batch : 128 | AdamW lr 5e-4
+
+{
+  "HiDeR": [
+    99.4,
+    99.8,
+    99.8,
+    99.2,
+    99.6,
+    98.6,
+    98.6,
+    99.6,
+    99.4,
+    98.6,
+    99.8,
+    99.2,
+    99.0,
+    99.0,
+    98.4,
+    99.6,
+    99.8,
+    99.8,
+    99.6,
+    100.0
+  ],
+  "ER-Ring": [
+    99.2,
+    99.8,
+    99.0,
+    99.0,
+    99.6,
+    98.2,
+    99.2,
+    100.0,
+    98.0,
+    99.6,
+    99.4,
+    99.0,
+    98.2,
+    98.6,
+    98.0,
+    99.8,
+    100.0,
+    99.0,
+    99.6,
+    100.0
+  ]
+}
+Figures saved → .research/iteration6/images/accuracy_split_cifar100.pdf
+=== experiment end Tue Sep  9 04:57:49 AM UTC 2025 ===
