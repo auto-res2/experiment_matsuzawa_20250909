@@ -1,7 +1,7 @@
 # src/evaluate.py
 """Runs the *Ultra-low-footprint* experiment and handles statistics/plots.
 
-All I/O artefacts are saved under `.research/iteration10/` so that multiple
+All I/O artefacts are saved under `.research/iteration11/` so that multiple
 independent experiment runs are kept separate from the source code.
 """
 from __future__ import annotations
@@ -203,7 +203,7 @@ matplotlib.use("Agg")  # headless rendering only
 #  GLOBAL PATHS  (resolved from project root)  ------------------------------
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration10"
+RESEARCH_DIR = ROOT / ".research" / "iteration11"
 IMAGES_DIR = RESEARCH_DIR / "images"
 for p in (RESEARCH_DIR, IMAGES_DIR):
     p.mkdir(parents=True, exist_ok=True)
@@ -221,7 +221,7 @@ with open(CFG_PATH) as f:
 
 # Helpers for typing convenience
 optim_cfg = CFG["optimiser"]
-hvq_cfg = CFG["hvq"]
+hvq_cfg = CFG.get("hvq", {})
 common_cfg = CFG["common"]
 exp1_cfg = CFG["exp1"]
 
@@ -256,7 +256,7 @@ class BaseExperiment:
     def __init__(self, name: str):
         self.name = name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Save JSON results directly under iteration10/
+        # Save JSON results directly under iteration11/
         self.results_path = RESEARCH_DIR / f"{self.name}_results.json"
         self.figures: List[str] = []
         self.metric_log: Dict[str, Any] = {}
@@ -298,6 +298,9 @@ class UltraLowFootprintExperiment(BaseExperiment):
                 backbone = ResNet18Backbone().to(self.device)
                 mapper = PenultimateMapper().to(self.device)
                 classifier = OrthogonalClassifier().to(self.device)
+                # Pre-add all tasks so that optimiser sees every parameter
+                for task_id in range(20):
+                    classifier.add_task(task_id, 5, device=self.device)
                 model = TaskAwareModel(backbone, mapper, classifier).to(self.device)
 
                 optimiser = torch.optim.SGD(
@@ -312,7 +315,7 @@ class UltraLowFootprintExperiment(BaseExperiment):
                     model=model,
                     optimizer=optimiser,
                     criterion=nn.CrossEntropyLoss(),
-                    mem_size=budget // 1024,  # pattern count for replay
+                    mem_size=max(1, budget // 1024),  # pattern count for replay (≥1)
                     train_mb_size=common_cfg["batch_size"],
                     train_epochs=1,
                     eval_mb_size=common_cfg["batch_size"],
@@ -320,9 +323,6 @@ class UltraLowFootprintExperiment(BaseExperiment):
                 )
 
                 for exp_id, experience in enumerate(benchmark.train_stream):
-                    # Register task in classifier (5-way for SplitCIFAR100)
-                    if str(exp_id) not in classifier.subspaces:
-                        classifier.add_task(exp_id, 5, device=self.device)
                     model.current_task = exp_id
                     strategy.train(experience)
 
@@ -335,7 +335,7 @@ class UltraLowFootprintExperiment(BaseExperiment):
                 avg_acc = sum(accs) / len(accs)
 
                 faa_matrix[b_idx, s_idx] = avg_acc
-                apk_matrix[b_idx, s_idx] = avg_acc / (budget / 1024)
+                apk_matrix[b_idx, s_idx] = avg_acc / max(budget / 1024, 1)
 
         # ---------------- Aggregate + Plot ------------------------------
         mean_faa = faa_matrix.mean(dim=1).tolist()

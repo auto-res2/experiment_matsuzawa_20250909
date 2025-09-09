@@ -1,1 +1,16 @@
-[KEEP_ORIGINAL_FILE
+optimiser:
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 0.0005
+
+hvq: {}
+
+common:
+  # Use a single seed and large batch-size so the demo runs quickly
+  seeds: [0]
+  batch_size: 2048
+
+exp1:
+  name: ultra_low_footprint
+  # A single non-zero budget avoids division-by-zero and keeps runtime short
+  memory_grid: [1024]
