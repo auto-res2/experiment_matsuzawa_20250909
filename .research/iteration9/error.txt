@@ -1,0 +1,14 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+  × Failed to download `torch-scatter @
+  │ https://data.pyg.org/whl/torch-2.0.1%2Bcpu/torch_scatter-2.1.2%2Bpt20cpu-cp311-cp311-linux_x86_64.whl`
+  ├─▶ Failed to fetch:
+  │   `https://data.pyg.org/whl/torch-2.0.1%2Bcpu/torch_scatter-2.1.2%2Bpt20cpu-cp311-cp311-linux_x86_64.whl`
+  ╰─▶ HTTP status client error (403 Forbidden) for url
+      (https://data.pyg.org/whl/torch-2.0.1%2Bcpu/torch_scatter-2.1.2%2Bpt20cpu-cp311-cp311-linux_x86_64.whl)
+  × Failed to download `torch-scatter @
+  │ https://data.pyg.org/whl/torch-2.0.1%2Bcpu/torch_scatter-2.1.2%2Bpt20cpu-cp311-cp311-linux_x86_64.whl`
+  ├─▶ Failed to fetch:
+  │   `https://data.pyg.org/whl/torch-2.0.1%2Bcpu/torch_scatter-2.1.2%2Bpt20cpu-cp311-cp311-linux_x86_64.whl`
+  ╰─▶ HTTP status client error (403 Forbidden) for url
+      (https://data.pyg.org/whl/torch-2.0.1%2Bcpu/torch_scatter-2.1.2%2Bpt20cpu-cp311-cp311-linux_x86_64.whl)
