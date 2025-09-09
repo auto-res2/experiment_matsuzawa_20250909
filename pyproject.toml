@@ -2,7 +2,7 @@
 name = "meta_mpnn"
 version = "0.1.0"
 description = "Meta-MPNN experimental suite"
-requires-python = ">=3.8"
+requires-python = ">=3.9, <3.13"
 authors = [
   { name = "Researcher" }
 ]
