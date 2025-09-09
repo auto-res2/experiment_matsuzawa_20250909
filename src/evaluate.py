@@ -1,7 +1,7 @@
 # src/evaluate.py
 """Runs the *Ultra-low-footprint* experiment and handles statistics/plots.
 
-All I/O artefacts are saved under `.research/iteration7/` so that multiple
+All I/O artefacts are saved under `.research/iteration8/` so that multiple
 independent experiment runs are kept separate from the source code.
 """
 from __future__ import annotations
@@ -87,9 +87,20 @@ try:
     from avalanche.training.strategies import Replay as _AvalancheReplay  # noqa: E402
 
     class _WrappedReplay(_AvalancheReplay):
-        """Simply expose Avalanche's implementation under the expected name."""
+        """Compatibility wrapper exposing Avalanche's Replay under expected API."""
 
-        pass
+        def __init__(
+            self,
+            *args: Any,
+            mem_size: int | None = None,
+            memory_size: int | None = None,
+            **kwargs: Any,
+        ) -> None:
+            # Accept either `mem_size` (internal code) or `memory_size` (Avalanche)
+            if memory_size is None and mem_size is not None:
+                memory_size = mem_size
+            # Avalanche Replay accepts `memory_size` keyword
+            super().__init__(*args, memory_size=memory_size, **kwargs)
 
     ReplayStrategy = _WrappedReplay
 except ModuleNotFoundError:  # pragma: no cover – fallback path
@@ -192,7 +203,7 @@ matplotlib.use("Agg")  # headless rendering only
 #  GLOBAL PATHS  (resolved from project root)  ------------------------------
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration7"
+RESEARCH_DIR = ROOT / ".research" / "iteration8"
 IMAGES_DIR = RESEARCH_DIR / "images"
 for p in (RESEARCH_DIR, IMAGES_DIR):
     p.mkdir(parents=True, exist_ok=True)
@@ -247,7 +258,7 @@ class BaseExperiment:
     def __init__(self, name: str):
         self.name = name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Save JSON results directly under iteration7/
+        # Save JSON results directly under iteration8/
         self.results_path = RESEARCH_DIR / f"{self.name}_results.json"
         self.figures: List[str] = []
         self.metric_log: Dict[str, Any] = {}

@@ -5,11 +5,20 @@ description = "Continual learning experiments for H-VQ ReGen"
 authors = ["Research Team <research@example.com>"]
 requires-python = ">=3.10"
 
-[project.dependencies]
-torch = "*"
-torchvision = "*"
-avalanche-lib = "*"
-matplotlib = "*"
-seaborn = "*"
-pyyaml = "*"
-pytorchcv = "*"
+# ---------------------------------------------------------------------------
+#  Dependencies  ------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Per PEP 621, the `dependencies` key must be an array of strings (not a table).
+# Each requirement is kept intentionally broad ("*") to let the environment
+# resolver pick a compatible version that satisfies all transitive deps.
+# ---------------------------------------------------------------------------
+
+dependencies = [
+  "torch",
+  "torchvision",
+  "avalanche-lib",
+  "matplotlib",
+  "seaborn",
+  "pyyaml",
+  "pytorchcv",
+]
