@@ -36,6 +36,25 @@ class Projector(nn.Module):
 
 
 ###############################################################################
+# Utility – global average pool arbitrary feature maps to (B, C)
+###############################################################################
+
+def _gap(feats: torch.Tensor) -> torch.Tensor:
+    """Global‐average‐pool `feats` to shape (B, C).
+
+    Many backbones (e.g. ResNets in timm) already return a 2-D tensor of
+    shape (B, C). Others may return higher-dimensional feature maps such as
+    (B, C, H, W). This helper makes the behaviour uniform so that the
+    downstream projector sees a consistent (B, C) input.
+    """
+    if feats.ndim == 2:
+        return feats  # Already (B, C)
+    # Average over all spatial/temporal dimensions (dim>=2)
+    dims = tuple(range(2, feats.ndim))
+    return feats.mean(dim=dims)
+
+
+###############################################################################
 # Losses
 ###############################################################################
 
@@ -157,7 +176,14 @@ def train_one_epoch(
         if dcd_enabled:
             cf_imgs = []
             for img in imgs:
-                pil = to_pil_image(torch.clamp(img * torch.tensor([0.229, 0.224, 0.225], device=img.device).view(3,1,1) + torch.tensor([0.485,0.456,0.406], device=img.device).view(3,1,1), 0, 1).cpu())
+                pil = to_pil_image(
+                    torch.clamp(
+                        img * torch.tensor([0.229, 0.224, 0.225], device=img.device).view(3, 1, 1)
+                        + torch.tensor([0.485, 0.456, 0.406], device=img.device).view(3, 1, 1),
+                        0,
+                        1,
+                    ).cpu()
+                )
                 edited = edit_image_pnp(
                     pil_img=pil,
                     prompt="a photo of a bird",
@@ -174,10 +200,10 @@ def train_one_epoch(
         with autocast(dtype=getattr(torch, dcd_cfg.get("amp_dtype", "bfloat16"))):
             # Forward pass for original images
             logits = model(imgs)
-            feats = model.forward_features(imgs)
+            feats = _gap(model.forward_features(imgs))
             # Forward pass for counterfactual images
             logits_cf = model(cf_imgs)
-            feats_cf = model.forward_features(cf_imgs)
+            feats_cf = _gap(model.forward_features(cf_imgs))
 
             z, z_cf = projector(feats), projector(feats_cf)
             loss = ce(logits, labels) + cons(z, z_cf) + conloss(z, labels)
