@@ -13,16 +13,27 @@ from typing import List, Tuple, Dict, Any
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.cuda.amp import autocast, GradScaler
+
+# -----------------------------------------------------------------------------
+# AMP imports – support both new (torch.amp) and legacy (torch.cuda.amp) APIs
+# -----------------------------------------------------------------------------
+try:
+    # PyTorch ≥2.0 – preferred
+    from torch.amp import autocast, GradScaler  # type: ignore
+except (ImportError, AttributeError):
+    # Fallback for older versions; will raise deprecation warnings but is safe
+    from torch.cuda.amp import autocast, GradScaler  # type: ignore
 
 # --------------------------------------------------------------
 # 0.  Globals & deterministic seed utilities
 # --------------------------------------------------------------
 SEED_SEQ = [2023, 2024, 2025]
 
+
 def set_global_seed(seed: int):
     """Sets seeds for Python, NumPy and PyTorch – deterministic mode."""
     import random, numpy as np, torch  # pylint: disable=redefined-outer-name
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -204,7 +215,8 @@ class VisionCLTrainer:
             lr=0.05, momentum=0.9, weight_decay=5e-4,
         )
         self.opt_adam = optim.Adam(list(self.vqvae.parameters()) + list(self.alloc.parameters()), lr=1e-3)
-        self.scaler = GradScaler(init_scale=2.0)
+        # Use device-aware GradScaler (new API)
+        self.scaler = GradScaler(device_type=self.device.type, init_scale=2.0)
 
         # (code_tensor, label)
         self.replay_buffer: List[Tuple[torch.Tensor, int]] = []
@@ -266,7 +278,7 @@ class VisionCLTrainer:
                     img = torch.cat([img, buf_imgs], dim=0)
                     lbl = torch.cat([lbl, torch.tensor(buf_lbls, device=self.device)])
 
-                with autocast("cuda"):
+                with autocast(self.device.type):
                     out = self.model(img)
                     loss_cls = F.cross_entropy(out, lbl)
                 self.opt_sgd.zero_grad()
@@ -280,7 +292,7 @@ class VisionCLTrainer:
         with torch.no_grad():
             for img, lbl in test_loader:
                 img = img.to(self.device)
-                with autocast("cuda"):
+                with autocast(self.device.type):
                     logits = self.model(img)
                 preds.extend(logits.argmax(1).cpu().tolist())
                 gts.extend(lbl.tolist())
