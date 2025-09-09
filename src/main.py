@@ -112,6 +112,9 @@ CFG = ExpConf(
 
 def run_single(dataset_name: str, model_conf: ModelConf):
     dataset = load_dataset(dataset_name)[0]
+    # Pre-compute number of classes BEFORE any device transfer to avoid CUDA→int issues
+    num_classes = int(dataset.y.max().item()) + 1
+
     dataset.edge_index = to_undirected(dataset.edge_index)
     data = dataset.to(DEVICE)
 
@@ -147,7 +150,7 @@ def run_single(dataset_name: str, model_conf: ModelConf):
     elif model_conf.type.upper() == "GCN":
         model = VanillaGCN(
             in_dim=data.num_features,
-            out_dim=int(data.y.max()) + 1,
+            out_dim=num_classes,
             hidden=model_conf.hidden,
             layers=model_conf.layers,
             dropout=CFG.dropout,
