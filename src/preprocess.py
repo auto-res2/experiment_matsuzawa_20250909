@@ -1,5 +1,14 @@
-"""src/preprocess.py – utility helpers (I/O, datasets, Laplacian, randomness)"""
 from __future__ import annotations
+
+"""src/preprocess.py – utility helpers (I/O, datasets, Laplacian, randomness)
+This revision updates the research output directories in compliance with the
+project-wide specification:
+
+  • All image artifacts must be saved inside  ``.research/iteration3/images``
+  • All JSON artefacts must live directly in ``.research/iteration3``
+
+No other functional changes were introduced.
+"""
 
 import json
 import random
@@ -21,9 +30,13 @@ from ogb.nodeproppred import PygNodePropPredDataset
 #                           DIRECTORY CONSTANTS
 # ---------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = BASE_DIR / ".research" / "iteration2"  # <- updated as per specification
+
+# NOTE: mandatory path update (specification requirement) -------------------
+RESEARCH_DIR = BASE_DIR / ".research" / "iteration3"  # <- UPDATED to iteration3
 IMAGE_DIR = RESEARCH_DIR / "images"
-RESULT_DIR = RESEARCH_DIR  # JSON files live directly in iteration2/
+RESULT_DIR = RESEARCH_DIR  # JSON files live directly in iteration3/
+# ---------------------------------------------------------------------------
+
 DATA_DIR = BASE_DIR / "data"
 
 for _p in [IMAGE_DIR, RESULT_DIR, DATA_DIR]:
@@ -54,8 +67,12 @@ def save_json(obj: Dict, fp: Path):
 #                               LAPLACIAN
 # ---------------------------------------------------------------------------
 
-def get_normalised_laplacian(edge_index: torch.Tensor, edge_weight: torch.Tensor | None = None, num_nodes: int | None = None):
-    """Return symmetric normalised Laplacian L = I − D^{−1/2}AD^{−1/2}."""
+def get_normalised_laplacian(
+    edge_index: torch.Tensor,
+    edge_weight: torch.Tensor | None = None,
+    num_nodes: int | None = None,
+):
+    """Return symmetric normalised Laplacian  L = I − D^{−1/2} A D^{−1/2}."""
     if num_nodes is None:
         num_nodes = int(edge_index.max()) + 1
     if edge_weight is None:
@@ -100,4 +117,6 @@ def load_dataset(name: str):
         data.test_mask[split_idx["test"]] = True
         return data
 
-    raise RuntimeError(f"Dataset '{name}' is not supported – aborting as per NO-Fallback policy.")
+    raise RuntimeError(
+        f"Dataset '{name}' is not supported – aborting as per NO-Fallback policy."
+    )

@@ -3,12 +3,25 @@ name = "adasmooth_ode"
 version = "0.1.0"
 description = "Depth-scalable GNNs with node-adaptive smoothing times (AdaSmooth-ODE)"
 requires-python = ">=3.9"
+
+# ---------------------------------------------------------------------------
+# Dependency notes
+# ---------------------------------------------------------------------------
+# 1. "torch" MUST be available *inside* the isolated build environments that
+#    uv/pip create for compiling the (optional) PyG C++ extensions such as
+#    torch-sparse and torch-scatter.  We therefore declare explicit
+#    `extra-build-dependencies` below.
+# 2. `torch-cluster` was removed because it is not used by the current code
+#    base and compiling it would unnecessarily increase build times while
+#    introducing a brittle dependency chain.
+# ---------------------------------------------------------------------------
+
 dependencies = [
   "torch>=2.1",
   "torch_geometric>=2.4",
   "torch_sparse",
   "torch_scatter",
-  "torch_cluster",
+  # "torch_cluster",  # <-- removed (unused, heavy to compile)
   "torchdiffeq",
   "ogb",
   "networkx",
@@ -18,3 +31,10 @@ dependencies = [
   "pyyaml",
   "tqdm"
 ]
+
+[tool.uv.extra-build-dependencies]
+# Ensure the main torch wheel is visible when building PyG C++ extensions
+# inside uv's isolated build environments.
+# (This mirrors the suggestion in the error diagnostics.)
+"torch_sparse" = ["torch"]
+"torch_scatter" = ["torch"]
