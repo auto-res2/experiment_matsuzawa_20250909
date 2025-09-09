@@ -1,6 +1,6 @@
 global:
   seed: 2023
-  device: "cuda" if "${CUDA_AVAILABLE}" else "cpu"
+  device: "cuda"
   batch_size: 128
   num_workers: 8
   optimizer:

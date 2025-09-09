@@ -9,10 +9,12 @@ license = {text = "MIT"}
 dependencies = [
   "torch>=1.12",
   "torchvision>=0.13",
-  # Avalanche 0.4.x pulls in cvxpy 1.4+, which in turn hard-depends on proxsuite
-  # (no wheels for CPython 3.11). We therefore explicitly pin cvxpy to <1.4 and
-  # relax Avalanche's version constraints to avoid the transitive dependency
-  "avalanche-lib>=0.4",
+  # Avalanche 0.3.1 is the last version that does NOT have a hard dependency on
+  # cvxpy>=1.4 (and therefore avoids pulling in the `proxsuite` wheel that lacks
+  # Python 3.11 support). Using this older version is sufficient for the replay
+  # strategy employed in these experiments.
+  "avalanche-lib==0.3.1",
+  # Pin cvxpy below 1.4 to avoid `proxsuite` transitive dependency.
   "cvxpy<1.4",
   "matplotlib>=3.5",
   "PyYAML>=6.0"

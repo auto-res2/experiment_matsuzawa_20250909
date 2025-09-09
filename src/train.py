@@ -12,12 +12,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # ---------------------------------------------------------------------------
-# Global paths that are shared across all modules – UPDATED TO ITERATION16
+# Global paths that are shared across all modules – UPDATED TO ITERATION17
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
-# All JSON artefacts must live under “.research/iteration16/”
-RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration16"
-# All figure artefacts must live under “.research/iteration16/images”
+# All JSON artefacts must live under “.research/iteration17/”
+RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration17"
+# All figure artefacts must live under “.research/iteration17/images”
 FIG_DIR = RESULTS_DIR / "images"
 # Keep the original data dir unchanged
 DATA_DIR = PROJECT_ROOT / "data"
@@ -205,7 +205,7 @@ try:
     from avalanche.training import strategies as cl_strategies  # noqa: E402
     from avalanche.logging import InteractiveLogger  # noqa: E402
     from avalanche.training.plugins import EvaluationPlugin  # noqa: E402
-    from avalanche.evaluation.metrics import accuracy_metrics, loss_metrics  # noqa: F401,E402
+    from avalanche.evaluation.metrics import accuracy_metrics  # noqa: F401,E402
 except ImportError as _err:  # pragma: no cover
     raise RuntimeError(
         "'avalanche-lib' is required but not installed. Install via `pip install avalanche-lib`."
@@ -217,13 +217,22 @@ class DERPPStrategy:
 
     def __init__(self, model: nn.Module, buffer_size: int, cfg: Dict[str, Any]):
         self.model = model
-        optimizer = torch.optim.SGD(model.parameters(), **cfg["optimizer"])
+
+        # -------------------------------------------------------------------
+        # Optimiser instantiation with defensive handling of extra keys
+        # -------------------------------------------------------------------
+        opt_cfg = dict(cfg.get("optimizer", {}))
+        opt_name = opt_cfg.pop("name", "SGD").upper()
+        if opt_name != "SGD":
+            raise ValueError(f"Only SGD optimiser supported for DER++ baseline, got {opt_name}.")
+        optimizer = torch.optim.SGD(model.parameters(), **opt_cfg)
+
         self.strategy = cl_strategies.Replay(
             model,
             optimizer,
             criterion=nn.CrossEntropyLoss(),
             replay_size=buffer_size,
-            train_mb_size=cfg["batch_size"],
+            train_mb_size=cfg.get("batch_size", 128),
             evaluator=EvaluationPlugin(
                 accuracy_metrics(epoch=True, stream=True),
                 loggers=[InteractiveLogger()],
