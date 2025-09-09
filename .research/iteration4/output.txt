@@ -1,0 +1,32 @@
+=== uv sync start Tue Sep  9 05:12:39 AM UTC 2025 ===
+=== experiment start Tue Sep  9 05:12:48 AM UTC 2025 ===
+[RUN] Cora_gcn_baseline
+
+
+================ Experiment description ================
+Baseline GCN on Cora dataset
+================ Numerical results ====================
+{
+  "description": "Baseline GCN on Cora dataset",
+  "per_run": {
+    "Cora_gcn_baseline": {
+      "val_acc": 0.7120000123977661,
+      "test_acc": 0.7470000386238098,
+      "epochs": 27
+    }
+  }
+}
+================ Figures saved ========================
+training_loss_Cora_gcn_baseline.pdf
+================ Saved JSON content ==================
+{
+  "description": "Baseline GCN on Cora dataset",
+  "per_run": {
+    "Cora_gcn_baseline": {
+      "val_acc": 0.7120000123977661,
+      "test_acc": 0.7470000386238098,
+      "epochs": 27
+    }
+  }
+}
+=== experiment end Tue Sep  9 05:14:27 AM UTC 2025 ===
