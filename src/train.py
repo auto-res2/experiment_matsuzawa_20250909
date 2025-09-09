@@ -105,12 +105,12 @@ def run_experiment(cfg: Dict[str, Any], *, rho: float, seed: int) -> Dict[str, A
         subset,
         batch_size=cfg["optim"]["batch_size"],
         shuffle=True,
-        num_workers=8,
+        num_workers=4,  # reduce workers for safer portability
         pin_memory=True,
     )
 
     val_ds = WaterbirdsWrapper(split="validation")
-    val_loader = DataLoader(val_ds, batch_size=512, shuffle=False, num_workers=4)
+    val_loader = DataLoader(val_ds, batch_size=512, shuffle=False, num_workers=2)
 
     model = create_backbone(cfg["model"], num_classes=2).to(device)
     optimiser = torch.optim.AdamW(
@@ -128,8 +128,8 @@ def run_experiment(cfg: Dict[str, Any], *, rho: float, seed: int) -> Dict[str, A
     for epoch in range(num_epochs):
         model.train()
         for x, y, _ in train_loader:
-            x = x.to(device)
-            y = y.to(device)
+            x = x.to(device, non_blocking=True)
+            y = y.to(device, non_blocking=True)
             optimiser.zero_grad()
             logits = model(x)
             loss = loss_fn(logits, y, groups=y)  # using label as group as in original script
@@ -142,18 +142,18 @@ def run_experiment(cfg: Dict[str, Any], *, rho: float, seed: int) -> Dict[str, A
         total = 0
         with torch.no_grad():
             for x, y, _ in val_loader:
-                x = x.to(device)
-                y = y.to(device)
+                x = x.to(device, non_blocking=True)
+                y = y.to(device, non_blocking=True)
                 logits = model(x)
                 pred = logits.argmax(1)
                 correct += (pred == y).sum().item()
                 total += y.size(0)
-        val_acc = correct / total
+        val_acc = correct / total if total > 0 else 0.0
         history.append(val_acc)
         print(f"Epoch {epoch+1}/{num_epochs} – val_acc={val_acc:.4f}")
 
     # ---------------- persistence ----------------
-    results_root = pathlib.Path(cfg["output_dir"])
+    results_root = pathlib.Path(cfg["output_dir"]).resolve()
     images_root = results_root / "images"
     ensure_dir(results_root)
     ensure_dir(images_root)
@@ -161,8 +161,9 @@ def run_experiment(cfg: Dict[str, Any], *, rho: float, seed: int) -> Dict[str, A
     res: Dict[str, Any] = {
         "rho": rho,
         "seed": seed,
-        "val_acc": history[-1],
+        "val_acc": history[-1] if history else 0.0,
         "history": history,
+        "timestamp": time.strftime("%Y-%m-%d_%H-%M-%S"),
     }
 
     json_path = results_root / f"{cfg['name']}_rho{rho:.2f}_seed{seed}.json"

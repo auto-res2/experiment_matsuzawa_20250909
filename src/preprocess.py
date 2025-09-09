@@ -30,6 +30,7 @@ class WaterbirdsWrapper(Dataset):
     def __init__(self, split: str = "train", transform=None):
         if split not in {"train", "validation", "test"}:
             raise ValueError(f"Invalid split '{split}'.")
+        # Use ./data cache dir to avoid polluting the workspace root
         self.ds = datasets.load_dataset("grodino/waterbirds", split=split, cache_dir="./data")
         self.transform = transform or _DEFAULT_TRANSFORM
 
@@ -67,7 +68,9 @@ def build_correlated_subset(wrapper: WaterbirdsWrapper, *, rho: float, seed: int
         diff = indices_by_group[(y, 1 - y)]
         k_same = int(rho * min_size)
         k_diff = int((1 - rho) * min_size)
-        selected.extend(rng.choice(same, k_same, replace=False))
-        selected.extend(rng.choice(diff, k_diff, replace=False))
+        if k_same:
+            selected.extend(rng.choice(same, k_same, replace=False))
+        if k_diff:
+            selected.extend(rng.choice(diff, k_diff, replace=False))
 
     return Subset(wrapper, selected)

@@ -37,6 +37,7 @@ def line_plot(
     pdf_path: str | pathlib.Path,
 ) -> None:
     pdf_path = pathlib.Path(pdf_path)
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(xs, ys, marker="o", label=title)
     for x, y in zip(xs, ys):

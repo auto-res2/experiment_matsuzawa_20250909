@@ -7,12 +7,19 @@ from __future__ import annotations
 
 import json
 import pathlib
+import sys
 from typing import Any, Dict
 
 import yaml
 
-from train import run_experiment  # relative import (this module lives in src)
+# -----------------------------------------------------------------------------
+#  Ensure src directory is on the import path *before* importing local modules
+# -----------------------------------------------------------------------------
+BASE_DIR = pathlib.Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
+from train import run_experiment  # noqa: E402  pylint: disable=wrong-import-position
 
 # -----------------------------------------------------------------------------
 #  1. load configuration -------------------------------------------------------
