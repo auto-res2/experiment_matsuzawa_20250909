@@ -13,14 +13,17 @@ authors = [
 ]
 
 dependencies = [
-  # Pin PyTorch to 2.0.1 to avoid automatic heavy CUDA dependency pulls that
-  # can fail extraction in constrained environments while remaining compatible
-  # with torch-geometric CPU wheels.
-  "torch==2.0.1",
+  # Use the CPU-only build of PyTorch to avoid unnecessary CUDA pulls.
+  "torch==2.0.1+cpu",
+  # torch-geometric is compiled against specific PyTorch versions – keep it broad but
+  # still recent enough for the required APIs.
   "torch-geometric>=2.4.0",
   "matplotlib>=3.7",
   "pyyaml>=6.0",
   "networkx>=3.2",
+  # Pin NumPy to <2.0 because PyTorch <2.1 and many scientific wheels are not yet
+  # built against the new NumPy C-API, which previously caused runtime failures.
+  "numpy<2.0",
   # Pre-install curvature library. Though not used in baseline runs, it is
   # required for GRADE-GNN experiments.
   "GraphRicciCurvature==0.5.3.2",
