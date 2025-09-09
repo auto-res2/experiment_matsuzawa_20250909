@@ -1,0 +1,4 @@
+=== uv sync start Tue Sep  9 05:04:31 AM UTC 2025 ===
+=== uv install end Tue Sep  9 05:05:17 AM UTC 2025 ===
+=== experiment start Tue Sep  9 05:05:17 AM UTC 2025 ===
+[RUN] Cora_gcn_baseline
