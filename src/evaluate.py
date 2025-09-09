@@ -1,81 +1,50 @@
 """src/evaluate.py
-Evaluation, metrics and plotting utilities.
+Utilities for aggregating results and producing the PDF figures + JSON
+summary.  No training or model-related code should live here.
 """
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import Dict, List, Tuple
 
-import torch
 import matplotlib
+import numpy as np
 
-matplotlib.use("Agg")  # headless
-import matplotlib.pyplot as plt
-
-try:
-    import torch_geometric
-except ImportError:
-    print("[FATAL] PyTorch-Geometric not available – aborting (STRICT NO-FALLBACK)")
-    import sys
-    sys.exit(1)
-
-from torch_geometric.data import Data
-
-__all__ = ["evaluate", "save_curve_pdf", "dump_json"]
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402  pylint: disable=wrong-import-position
 
 
-def _unpack_model_output(model_out: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]):
-    if isinstance(model_out, tuple):
-        out, _ = model_out
-    else:
-        out = model_out
-    return out
+def save_results_and_plot(results: List[Dict], paths: Dict):
+    """Persist *results* to `paths["results"]` + generate accuracy bars."""
 
+    grouped: Dict[Tuple[str, str], List[float]] = {}
+    for row in results:
+        key = (row["dataset"], row["method"])
+        grouped.setdefault(key, []).append(row["test_acc"])
 
-def evaluate(model: torch.nn.Module, data: Data, split: str, device):
-    model.eval()
-    with torch.no_grad():
-        data = data.to(device)
-        out_raw = model(data.x, data.edge_index)
-        out = _unpack_model_output(out_raw)
-        pred = out.argmax(dim=-1)  # shape (N,)
-        if split == "val":
-            mask = data.val_mask
-        elif split == "test":
-            mask = data.test_mask
-        else:
-            mask = data.train_mask
-        correct = (pred[mask] == data.y[mask]).sum().item()
-        acc = correct / mask.sum().item()
-        return acc
+    for (dataset, method), accs in grouped.items():
+        mean = float(np.mean(accs))
+        std = float(np.std(accs))
+        fig, ax = plt.subplots(figsize=(4, 3))
+        ax.bar([0], [mean], yerr=[std], color="C0", alpha=0.7)
+        ax.set_xticks([0])
+        ax.set_xticklabels([method])
+        ax.set_ylim(0, 1)
+        ax.set_ylabel("Accuracy")
+        ax.annotate(f"{mean:.2%}", xy=(0, mean + 0.01), ha="center")
+        ax.set_title(f"{dataset} – {method}")
+        fig.tight_layout()
+        fname = Path(paths["figures"]) / f"accuracy_{dataset}_{method}.pdf"
+        fig.savefig(fname, bbox_inches="tight")
+        plt.close(fig)
+        print(f"[Figure saved] {fname.relative_to(Path.cwd())}")
 
+    json_path = Path(paths["results"]) / "quick_results.json"
+    with open(json_path, "w", encoding="utf-8") as fp:
+        json.dump(results, fp, indent=2)
 
-# ------------------------------------------------------------------
-# Plot helper
-# ------------------------------------------------------------------
-
-def save_curve_pdf(xs: List[int], ys: List[float], title: str, ylabel: str, fname: str | Path):
-    plt.figure(figsize=(6, 4))
-    plt.plot(xs, ys, marker="o", label=title)
-    for x, y in zip(xs, ys):
-        plt.text(x, y, f"{y:.3f}")
-    plt.xlabel("epoch")
-    plt.ylabel(ylabel)
-    plt.title(title)
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    Path(fname).parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(fname, bbox_inches="tight")
-    plt.close()
-
-
-# ------------------------------------------------------------------
-# JSON result helper
-# ------------------------------------------------------------------
-
-def dump_json(obj, path: str | Path):
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(obj, f, indent=2)
+    # stdout dump for CI / human inspection
+    print("\n==================== RAW RESULTS ======================")
+    print(json.dumps(results, indent=2))
+    print("=======================================================")

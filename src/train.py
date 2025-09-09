@@ -1,195 +1,233 @@
 """src/train.py
-Model architectures and training utilities.
+Model architectures and training utilities for the GRADE-GNN study.
+The file only collects functionality that is strictly related to the
+forward / training logic so that the remaining pipeline pieces
+(pre-processing, evaluation, orchestration) can live in their dedicated
+modules.
 """
 from __future__ import annotations
 
+import math
+import time
+from typing import Dict, Tuple
+
+import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim import Optimizer
-from typing import Tuple, Union
+from torch import Tensor, nn
+from torch_geometric.nn import GCNConv
 
-try:
-    import torch_geometric
-    from torch_geometric.utils import softmax
-except Exception as e:  # pragma: no cover – hard-fail if PyG missing
-    print("[FATAL] PyTorch-Geometric not available – aborting (STRICT NO-FALLBACK)")
-    import sys
-    sys.exit(1)
+# ---------------------------------------------------------------------------
+#  Back-bones
+# ---------------------------------------------------------------------------
 
-__all__ = [
-    "GCNBackbone",
-    "EdgeGate",
-    "NodeDepthController",
-    "GradeGCN",
-    "train_one_epoch",
-]
-
-
-# ============================================================
-# Back-bone GCN
-# ============================================================
 
 class GCNBackbone(nn.Module):
-    """Vanilla GCN with residual every two layers (identical to experiment script)."""
+    """Vanilla GCN with an arbitrary number of hidden layers."""
 
-    def __init__(self, in_dim: int, out_dim: int, hidden: int, layers: int):
+    def __init__(self, in_channels: int, hidden: int, out_channels: int, layers: int):
         super().__init__()
-        from torch_geometric.nn import GCNConv, LayerNorm
-
-        if layers < 2:
-            raise ValueError("layers must be >=2")
-
+        self.layers = layers
         self.convs = nn.ModuleList()
-        self.norms = nn.ModuleList()
-
-        self.convs.append(GCNConv(in_dim, hidden))
-        self.norms.append(LayerNorm(hidden))
+        # first
+        self.convs.append(GCNConv(in_channels, hidden))
+        # hidden
         for _ in range(layers - 2):
             self.convs.append(GCNConv(hidden, hidden))
-            self.norms.append(LayerNorm(hidden))
-        self.convs.append(GCNConv(hidden, out_dim))
+        # last
+        self.convs.append(GCNConv(hidden, out_channels))
+        self.dropout = 0.5
 
-    # --------------------------------------------------------
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:  # type: ignore
-        """Forward with residual connection every two layers.
-        The residual connects the input of the *current* two-layer block to its
-        output, ensuring identical dimensionality (hidden → hidden).
-        """
-        for l, conv in enumerate(self.convs[:-1]):
-            # start a new residual block on even layers
-            if l % 2 == 0:
-                x_res = x  # save for residual (same hidden dim)
-            x = conv(x, edge_index)
+    def forward(self, x: Tensor, edge_index: Tensor, edge_weight: Tensor | None = None):
+        for conv in self.convs[:-1]:
+            x = conv(x, edge_index, edge_weight)
             x = F.relu(x)
-            # apply residual on odd layers where dimensions match
-            if l % 2 == 1:
-                x = x + x_res
-            x = self.norms[l](x)
-        x = self.convs[-1](x, edge_index)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.convs[-1](x, edge_index, edge_weight)
         return x
 
 
-# ============================================================
-# GRADE-GNN components
-# ============================================================
-
-class EdgeGate(nn.Module):
-    """Learnable sigmoid gate per edge (simplified – curvature regulariser only)."""
-
-    def __init__(self, edge_index: torch.Tensor, kappa: torch.Tensor):
-        super().__init__()
-        self.edge_index = edge_index  # [2, E]
-        self.theta = nn.Parameter(torch.zeros(edge_index.size(1)))
-        self.register_buffer("kappa", kappa)
-
-    # --------------------------------------------------------
-    def forward(self):
-        g = torch.sigmoid(self.theta)  # (0,1)
-        return self.edge_index, g
-
-    # --------------------------------------------------------
-    def geo_loss(self, lambda_geo: float) -> torch.Tensor:
-        return lambda_geo * (self.kappa * self.theta).mean()
-
-
-class NodeDepthController(nn.Module):
-    """Node-wise halting probability controller."""
-
-    def __init__(self, feat_dim: int, tau_init: float = 0.5):
-        super().__init__()
-        self.fc = nn.Linear(feat_dim, 1)
-        self.tau = nn.Parameter(torch.tensor(tau_init))
-
-    # --------------------------------------------------------
-    def forward(self, h: torch.Tensor, grad_norm: torch.Tensor):  # grad_norm placeholder
-        prob = torch.sigmoid(self.fc(h).squeeze())  # (N,)
-        mask = (prob >= self.tau).float().unsqueeze(1)
-        # Return float scalar to avoid device casting issues downstream
-        return h * mask, float(mask.mean().item())
-
-
-class GradeGCN(nn.Module):
-    """Full GRADE-GNN wrapper around GCN back-bone."""
+class GradeGNN(nn.Module):
+    """GCN backbone augmented with the GRADE-GNN modules (§ ‘New Method’)."""
 
     def __init__(
         self,
-        in_dim: int,
-        out_dim: int,
-        hidden: int,
-        layers: int,
-        edge_index: torch.Tensor,
-        kappa: torch.Tensor,
-        lambda_geo: float,
-        lambda_grad: float,
-        tau_init: float,
+        data,
+        kappa: Tensor,
+        hidden: int = 256,
+        layers: int = 64,
+        lambda_geo: float = 1e-3,
+        lambda_grad: float = 1e-3,
+        tau_init: float = 0.5,
     ):
         super().__init__()
-        self.edge_gate = EdgeGate(edge_index, kappa)
-        self.backbone = GCNBackbone(in_dim, out_dim, hidden, layers)
-        # Depth controller must match the feature dimension it receives (out_dim)
-        self.depth_ctl = NodeDepthController(out_dim, tau_init)
         self.lambda_geo = lambda_geo
-        self.lambda_grad = lambda_grad  # retained for completeness
+        self.lambda_grad = lambda_grad
+        self.tau = nn.Parameter(torch.tensor(tau_init))
 
-    # --------------------------------------------------------
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> Tuple[torch.Tensor, float]:
-        edge_index, g = self.edge_gate()
-        _ = softmax(g, edge_index[0])  # placeholder – not used in GCN op here
-        x = self.backbone(x, edge_index)
-        x, depth_ratio = self.depth_ctl(x, torch.tensor(0.0, device=x.device))
-        return x, depth_ratio
+        self.register_buffer("kappa", kappa)
+        self.register_buffer("edge_mask", torch.ones_like(kappa))
 
-    # --------------------------------------------------------
-    def extra_loss(self) -> torch.Tensor:
-        return self.edge_gate.geo_loss(self.lambda_geo)
+        out_channels = int(data.y.max()) + 1 if data.y.dim() == 1 else data.y.size(-1)
+        self.backbone = GCNBackbone(
+            in_channels=data.num_features,
+            hidden=hidden,
+            out_channels=out_channels,
+            layers=layers,
+        )
+        # Learnable gates θₑ  – initialised to zero (sigmoid → 0.5)
+        self.theta_e = nn.Parameter(torch.zeros_like(kappa))
 
+    # ---------------------------------------------------------------------
+    #  forward + auxiliary losses
+    # ---------------------------------------------------------------------
 
-# ============================================================
-# Training loop
-# ============================================================
+    def forward(self, x: Tensor, edge_index: Tensor):
+        g_e = torch.sigmoid(self.theta_e) * self.edge_mask  # (E,)
+        out = self.backbone(x, edge_index, edge_weight=g_e)
+        return out
 
-from torch_geometric.data import Data  # after PyG availability check
-
-def _unpack_model_output(model_out: Union[torch.Tensor, Tuple[torch.Tensor, Union[torch.Tensor, float]]]):
-    """Utility that makes the training/eval code agnostic to whether the model
-    returns a single tensor (logits) or a tuple (logits, aux_stat).
-    The auxiliary statistic is converted to a Python float when it is a scalar
-    tensor to ensure subsequent `float(aux)` calls are always safe regardless of
-    device placement (CPU/GPU).
-    """
-    if isinstance(model_out, tuple):
-        out, aux = model_out
-    else:
-        out = model_out
-        aux = torch.tensor(0.0, device=out.device)
-
-    # Convert 0-dim tensor -> float for safe downstream casting
-    if torch.is_tensor(aux) and aux.ndim == 0:
-        aux = aux.item()
-    return out, aux
+    def extra_losses(self, grads_on_edges: Tensor | None = None) -> Tuple[Tensor, Tensor]:
+        """Return (L_geo, L_grad) as described in the paper."""
+        l_geo = self.lambda_geo * torch.mean(self.kappa * torch.sigmoid(self.theta_e))
+        if grads_on_edges is not None:
+            l_grad = self.lambda_grad * torch.mean((1.0 - grads_on_edges) ** 2)
+        else:
+            l_grad = torch.tensor(0.0, device=self.theta_e.device)
+        return l_geo, l_grad
 
 
-def train_one_epoch(
-    model: nn.Module,
-    data: Data,  # full-batch only in this compact demo
-    optimizer: Optimizer,
-    device: torch.device | str,
+# ---------------------------------------------------------------------------
+#  Train one split  (used by src.main)
+# ---------------------------------------------------------------------------
+
+def run_one_split(
+    *,
+    data,
+    model_type: str,
+    hyper: Dict,
+    dataset_name: str,
+    method_name: str,
+    compute_or_load_curvature,
+    split_id: int = 0,
+    seed: int = 0,
 ):
-    model.train()
-    optimizer.zero_grad(set_to_none=True)
+    """Complete routine: model creation → training → early-stop evaluation."""
 
+    # local import to avoid circular dependency
+    from .preprocess import set_deterministic  # type: ignore
+
+    set_deterministic(seed)
+    kappa = compute_or_load_curvature(data, dataset_name)
+
+    # ------------- create model ------------------------------------------------
+    if model_type == "gcn2":
+        layers = 2
+    elif model_type == "gcn32":
+        layers = 32
+    else:
+        layers = 64
+
+    if method_name.startswith("grade"):
+        model = GradeGNN(
+            data,
+            kappa=kappa,
+            hidden=hyper.get("hidden", 256),
+            layers=layers,
+            lambda_geo=0.0 if "grad_only" in method_name else hyper["lambda_geo"],
+            lambda_grad=hyper["lambda_grad"],
+            tau_init=hyper["tau_init"],
+        )
+    else:
+        model = GCNBackbone(
+            in_channels=data.num_features,
+            hidden=hyper.get("hidden", 256),
+            out_channels=int(data.y.max()) + 1 if data.y.dim() == 1 else data.y.size(-1),
+            layers=layers,
+        )
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
     data = data.to(device)
-    out_raw = model(data.x, data.edge_index)
-    out, depth_ratio = _unpack_model_output(out_raw)
 
-    loss = F.cross_entropy(out[data.train_mask], data.y.squeeze()[data.train_mask])
+    # fallback split masks (datasets like Cora already include masks)
+    if not hasattr(data, "train_mask"):
+        n = data.num_nodes
+        perm = torch.randperm(n, device=device)
+        data.train_mask = torch.zeros(n, dtype=torch.bool, device=device)
+        data.val_mask = torch.zeros(n, dtype=torch.bool, device=device)
+        data.test_mask = torch.zeros(n, dtype=torch.bool, device=device)
+        data.train_mask[perm[: int(0.6 * n)]] = True
+        data.val_mask[perm[int(0.6 * n) : int(0.8 * n)]] = True
+        data.test_mask[perm[int(0.8 * n) :]] = True
 
-    loss_total = loss
-    # models that implement extra_loss provide attribute; fallback 0
-    if hasattr(model, "extra_loss"):
-        loss_total = loss_total + model.extra_loss()
+    optimiser = torch.optim.Adam(
+        model.parameters(), lr=hyper["lr"], weight_decay=hyper["weight_decay"]
+    )
 
-    loss_total.backward()
-    optimizer.step()
-    return loss.item(), float(depth_ratio)
+    best_val = -math.inf
+    best_test = -math.inf
+    patience, waited = 200, 0
+    t0 = time.time()
+    epoch_times = []
+
+    for epoch in range(1, 1001):
+        t_epoch = time.time()
+        model.train()
+        optimiser.zero_grad()
+        out = model(data.x, data.edge_index)
+        loss_main = F.cross_entropy(out[data.train_mask], data.y[data.train_mask])
+
+        grads_on_edges = None
+        if isinstance(model, GradeGNN):
+            if epoch % 10 == 0:
+                loss_main.backward(retain_graph=True)
+                with torch.no_grad():
+                    grads_on_edges = model.theta_e.grad.detach().abs()
+                optimiser.zero_grad()
+            l_geo, l_grad = model.extra_losses(grads_on_edges)
+            loss = loss_main + l_geo + l_grad
+        else:
+            loss = loss_main
+
+        loss.backward()
+        optimiser.step()
+        epoch_times.append(time.time() - t_epoch)
+
+        # ---------------- evaluation / early stop ----------------------
+        if epoch % 10 == 0 or epoch == 1:
+            model.eval()
+            with torch.no_grad():
+                logits = model(data.x, data.edge_index)
+                acc_val = accuracy(logits[data.val_mask], data.y[data.val_mask])
+                acc_test = accuracy(logits[data.test_mask], data.y[data.test_mask])
+            if acc_val > best_val:
+                best_val, best_test = acc_val, acc_test
+                waited = 0
+            else:
+                waited += 1
+            if waited > patience:
+                break
+
+    wall = time.time() - t0
+    output = {
+        "dataset": dataset_name,
+        "method": method_name,
+        "backbone": model_type,
+        "seed": seed,
+        "split": split_id,
+        "val_acc": best_val,
+        "test_acc": best_test,
+        "wall_clock": wall,
+        "secs_per_epoch": float(np.mean(epoch_times) if epoch_times else 0.0),
+    }
+    return output
+
+
+# ---------------------------------------------------------------------------
+#  Lightweight utility (kept here to avoid another cross-import)
+# ---------------------------------------------------------------------------
+
+def accuracy(logits: Tensor, y: Tensor) -> float:
+    preds = logits.argmax(dim=-1)
+    return float((preds == y).sum().item() / y.size(0))
