@@ -7,7 +7,7 @@ objects – inference utilities live in evaluate.py.
 from __future__ import annotations
 import os, random, time
 from pathlib import Path
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Union
 
 import torch
 import torch.nn.functional as F
@@ -15,7 +15,9 @@ from torch.utils.data import DataLoader
 from accelerate import Accelerator, DistributedDataParallelKwargs
 import timm
 
-from preprocess import make_dataset
+# NOTE: use absolute package import (src.preprocess) to avoid ModuleNotFound
+# errors when the codebase is executed via ``python -m src.main``.
+from src.preprocess import make_dataset  # noqa: E402  (import after third-party)
 
 # -----------------------------------------------------------------------------
 #  Helpers
@@ -114,13 +116,14 @@ class DiceAugmentor:
 
     # ---------------------------------------------------------------------
     def __call__(self, x: torch.Tensor, y: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        from preprocess import _DEF_TRAIN_TRANSF  # late import avoids circularity
+        # Late import to avoid circular dependency at module import time
+        from src.preprocess import _DEF_TRAIN_TRANSF  # noqa: WPS433
         batch_aug: List[torch.Tensor] = []
         for img in x:  # iterate over batch
             pil = _T.ToPILImage()(img.cpu())
             masks = self.mask_gen.generate(pil)
             if not masks:
-                batch_aug.append(img)  # keep original
+                batch_aug.append(img)  # keep original if SAM failed
                 continue
             fg_mask = (masks[0]["segmentation"].astype("uint8") * 255)
             bg_prompt = random.choice(self.prompts)
@@ -179,7 +182,7 @@ class Engine:
         )
 
         # ---- OPTIONAL DICE -----------------------------------------------
-        self.dice_aug = None
+        self.dice_aug: Union[DiceAugmentor, None] = None
         if cfg.get("method", "erm").lower() == "dice":
             self.dice_aug = DiceAugmentor(cfg, self.accel)
 
@@ -193,14 +196,24 @@ class Engine:
         self.history: Dict[str, List[float]] = {"train_loss": [], "val_acc": []}
 
     # ------------------------------------------------------------------
+    def _parse_batch(self, batch):
+        """Handle both dict- and tuple-based batches seamlessly."""
+        if isinstance(batch, dict):
+            x, y = batch["image"], batch["label"]
+        elif isinstance(batch, (list, tuple)) and len(batch) == 2:
+            x, y = batch  # type: ignore[misc]
+        else:  # pragma: no cover – unexpected batch shape
+            raise TypeError("Unsupported batch format returned by DataLoader.")
+        return x, y
+
     def _forward(self, batch):
-        x, y = batch["image"], batch["label"]
+        x, y = self._parse_batch(batch)
         if self.dice_aug is not None:
             x, y = self.dice_aug(x, y)
         logits = self.model(x)
         loss   = F.cross_entropy(logits, y)
         acc    = (logits.argmax(1) == y).float().mean()
-        return loss, acc
+        return loss, acc, len(y)
 
     # ------------------------------------------------------------------
     def _train_epoch(self):
@@ -208,10 +221,9 @@ class Engine:
         total_loss, total_acc, n = 0.0, 0.0, 0
         for batch in self.train_loader:
             with self.accel.autocast():
-                loss, acc = self._forward(batch)
+                loss, acc, bs = self._forward(batch)
             self.accel.backward(loss)
             self.opt.step(); self.opt.zero_grad()
-            bs = len(batch["label"])
             total_loss += loss.item() * bs
             total_acc  += acc.item()  * bs
             n += bs
@@ -224,8 +236,7 @@ class Engine:
         self.model.eval()
         total_acc, n = 0.0, 0
         for batch in loader:
-            _, acc = self._forward(batch)
-            bs = len(batch["label"])
+            _, acc, bs = self._forward(batch)
             total_acc += acc.item() * bs
             n += bs
         return total_acc / n

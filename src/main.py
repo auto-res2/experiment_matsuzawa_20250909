@@ -2,8 +2,8 @@
 Entry point that orchestrates a single experiment using the refactored
 module structure.  It follows the assignment requirements:
   • read all hyper-parameters from config/config.yaml via PyYAML
-  • train + evaluate -> JSON result file in .research/iteration2/
-  • create figures inside .research/iteration2/images/
+  • train + evaluate -> JSON result file in .research/iteration3/
+  • create figures inside .research/iteration3/images/
   • print the JSON contents to stdout for verification
 """
 from __future__ import annotations
@@ -12,8 +12,10 @@ from pathlib import Path
 
 import yaml
 
-from train import Engine
-from evaluate import generate_figures
+# NOTE: use package-relative imports to avoid ModuleNotFound errors when the
+# entry point is executed with ``python -m src.main``.
+from .train import Engine
+from .evaluate import generate_figures
 
 # -----------------------------------------------------------------------------
 #  Configuration loading
@@ -25,9 +27,9 @@ with open(CFG_PATH) as fp:
     CFG = yaml.safe_load(fp)
 
 # -----------------------------------------------------------------------------
-#  Output directories (mandatory iteration2 path)
+#  Output directories (mandatory iteration3 path)
 # -----------------------------------------------------------------------------
-RESEARCH_DIR = Path('.research/iteration2')
+RESEARCH_DIR = Path('.research/iteration3')
 RESEARCH_DIR.mkdir(parents=True, exist_ok=True)
 
 # -----------------------------------------------------------------------------
@@ -52,7 +54,7 @@ def main():
         print('\n--- Results (json) ---')
         print(json.dumps(results, indent=2))
         print(f"\nResults saved to {json_path}")
-    except Exception as e:
+    except Exception as e:  # noqa: F841 (the variable is still used for printing)
         print('\n!! Experiment failed – STRICT NO-FALLBACK triggered !!', file=sys.stderr)
         traceback.print_exc()
         sys.exit(1)

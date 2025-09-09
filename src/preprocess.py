@@ -56,11 +56,11 @@ class _HFWrapper(torch.utils.data.Dataset):
 def make_dataset(cfg: Dict[str, Any], accel) -> Tuple[torch.utils.data.Dataset, ...]:
     name = cfg["dataset"].lower()
 
-    def _download(name: str, split: str):
+    def _download(hf_name: str, split: str):
         try:
-            return load_dataset(name, split=split)
+            return load_dataset(hf_name, split=split)
         except Exception as e:
-            raise RuntimeError(f"Failed to download {name}:{split} – {e}")
+            raise RuntimeError(f"Failed to download {hf_name}:{split} – {e}")
 
     if name == 'waterbirds':
         tr = _HFWrapper(_download('grodino/waterbirds', 'train'), _DEF_TRAIN_TRANSF)
