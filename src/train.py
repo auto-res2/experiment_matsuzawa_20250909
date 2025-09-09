@@ -126,6 +126,29 @@ def set_seed(seed: int):
 
 
 # --------------------------------------------------------------------------------------
+#  Auxiliary helpers
+# --------------------------------------------------------------------------------------
+
+def _coerce_numeric_dict(d: Dict[str, Any]) -> Dict[str, Any]:
+    """Attempt to convert *all* string values in *d* to floats.
+
+    This is primarily needed because YAML treats scientific-notation literals
+    like `1e-3` as **strings** (YAML 1.1 spec). The optimiser expects numeric
+    values, hence the explicit coercion.
+    """
+    out: Dict[str, Any] = {}
+    for k, v in d.items():
+        if isinstance(v, str):
+            try:
+                out[k] = float(v)
+                continue
+            except ValueError:
+                pass  # fall back to original string if conversion fails
+        out[k] = v
+    return out
+
+
+# --------------------------------------------------------------------------------------
 #  Meta-MPNN Layer
 # --------------------------------------------------------------------------------------
 class MetaLayer(nn.Module):
@@ -224,8 +247,14 @@ class GCNNet(nn.Module):
 # --------------------------------------------------------------------------------------
 class Trainer:
     def __init__(self, cfg: Dict[str, Any]):
+        # ------------------------------------------------------------------
+        #  Coerce optimiser hyper-params to *actual* numeric types.
+        # ------------------------------------------------------------------
+        cfg = cfg.copy()
+        cfg["optim"] = _coerce_numeric_dict(cfg.get("optim", {}))
         self.cfg = cfg
-        requested = cfg["device"].lower()
+
+        requested = cfg.get("device", "cpu").lower()
         self.device = torch.device(
             "cuda" if requested == "cuda" and torch.cuda.is_available() else "cpu"
         )
@@ -287,8 +316,8 @@ class Trainer:
     # ------------------------------------------------------------------
     def run_exp1(self):
         exp_cfg = self.cfg["experiment1"]
-        # Mandatory research directory (iteration-9 as per instructions)
-        research_dir = Path(".research/iteration9")
+        # Mandatory research directory (iteration-10 as per instructions)
+        research_dir = Path(".research/iteration10")
         img_dir = research_dir / "images"
         research_dir.mkdir(parents=True, exist_ok=True)
         img_dir.mkdir(exist_ok=True)
@@ -296,6 +325,14 @@ class Trainer:
 
         for dname in exp_cfg["datasets"]:
             ds = load_dataset(dname)
+            # ------------------------------------------------------------------
+            #  We only support *single-graph* (node-level) benchmarks in this
+            #  experiment. Skip datasets that don't meet this criterion (e.g.
+            #  Peptides-func which is graph-classification).
+            # ------------------------------------------------------------------
+            if len(ds) != 1:
+                print(f"[SKIP] Dataset '{dname}' is not a single-graph node-classification task – skipping.")
+                continue
             data = ds[0].to(self.device)
             if data.y.dim() > 1:
                 data.y = data.y.squeeze()
@@ -333,6 +370,8 @@ class Trainer:
             # ------------- plot (meta vs vanilla) -------------
             depths = exp_cfg["depths"]
             for variant in exp_cfg["variants"]:
+                if f"{dname}_{variant}_{depths[0]}" not in all_results:
+                    continue  # dataset skipped
                 ys = [all_results[f"{dname}_{variant}_{d}"]["test_acc"] for d in depths]
                 plt.plot(depths, ys, marker="o", label=variant)
                 for (x, y) in zip(depths, ys):
@@ -351,6 +390,8 @@ class Trainer:
             json.dump(all_results, fh, indent=2)
         print("DEPTH-SCALING STRESS-TEST (Experiment 1)")
         print(json.dumps(all_results, indent=2))
-        print("Generated figures (stored in .research/iteration9/images):")
+        print("Generated figures (stored in .research/iteration10/images):")
         for dname in exp_cfg["datasets"]:
+            if len(load_dataset(dname)) != 1:
+                continue
             print(f"accuracy_{dname.lower()}.pdf")
