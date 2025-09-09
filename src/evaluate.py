@@ -1,7 +1,7 @@
 # src/evaluate.py
 """Runs the *Ultra-low-footprint* experiment and handles statistics/plots.
 
-All I/O artefacts are saved under `.research/iteration1/` so that multiple
+All I/O artefacts are saved under `.research/iteration2/` so that multiple
 independent experiment runs are kept separate from the source code.
 """
 from __future__ import annotations
@@ -18,7 +18,6 @@ import yaml
 from avalanche.benchmarks.classic import SplitCIFAR100
 from avalanche.training.strategies import Replay
 from torch import nn
-from torchvision import transforms
 
 from .preprocess import get_cifar100_benchmark
 from .train import PenultimateMapper, ResNet18Backbone, OrthogonalClassifier
@@ -29,7 +28,7 @@ matplotlib.use("Agg")  # headless rendering only
 #  GLOBAL PATHS  (resolved from project root)  ------------------------------
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration1"
+RESEARCH_DIR = ROOT / ".research" / "iteration2"
 IMAGES_DIR = RESEARCH_DIR / "images"
 for p in (RESEARCH_DIR, IMAGES_DIR):
     p.mkdir(parents=True, exist_ok=True)
@@ -53,10 +52,33 @@ exp1_cfg = CFG["exp1"]
 
 
 # ---------------------------------------------------------------------------
+#  TASK-AWARE MODEL WRAPPER  -------------------------------------------------
+# ---------------------------------------------------------------------------
+class TaskAwareModel(nn.Module):
+    """Wraps backbone+mapper+classifier and routes prediction to the proper task.
+
+    The `current_task` attribute **must** be set externally before every call
+    (training/evaluation) – this is handled inside the experiment loop.
+    """
+
+    def __init__(self, backbone: nn.Module, mapper: nn.Module, classifier: OrthogonalClassifier):
+        super().__init__()
+        self.backbone = backbone
+        self.mapper = mapper
+        self.classifier = classifier
+        self.current_task: int | None = None
+
+    # ------------------------------------------------------------------
+    def forward(self, x: torch.Tensor):  # noqa: D401
+        if self.current_task is None:
+            raise RuntimeError("`current_task` not set before forward call")
+        feats = self.mapper(self.backbone(x))
+        return self.classifier(feats, self.current_task)
+
+
+# ---------------------------------------------------------------------------
 #  BASE CLASS --------------------------------------------------------------
 # ---------------------------------------------------------------------------
-
-
 class BaseExperiment:
     def __init__(self, name: str):
         self.name = name
@@ -102,7 +124,7 @@ class UltraLowFootprintExperiment(BaseExperiment):
                 backbone = ResNet18Backbone().to(self.device)
                 mapper = PenultimateMapper().to(self.device)
                 classifier = OrthogonalClassifier().to(self.device)
-                model = nn.Sequential(backbone, mapper)  # classifier handled separately
+                model = TaskAwareModel(backbone, mapper, classifier).to(self.device)
 
                 optimiser = torch.optim.SGD(
                     model.parameters(),
@@ -111,12 +133,12 @@ class UltraLowFootprintExperiment(BaseExperiment):
                     weight_decay=optim_cfg["weight_decay"],
                 )
 
-                # Replay is used as placeholder for our custom H-VQ strategy.
+                # Replay serves as placeholder for H-VQ strategy.
                 strategy = Replay(
                     model=model,
                     optimizer=optimiser,
                     criterion=nn.CrossEntropyLoss(),
-                    mem_size=budget // 1024,  # Avalanche expects number of patterns
+                    mem_size=budget // 1024,  # Avalanche expects pattern count
                     train_mb_size=common_cfg["batch_size"],
                     train_epochs=1,
                     eval_mb_size=common_cfg["batch_size"],
@@ -124,14 +146,19 @@ class UltraLowFootprintExperiment(BaseExperiment):
                 )
 
                 for exp_id, experience in enumerate(benchmark.train_stream):
+                    # Register task in classifier (5-way for SplitCIFAR100)
+                    if str(exp_id) not in classifier.subspaces:
+                        classifier.add_task(exp_id, 5)
+                    model.current_task = exp_id
                     strategy.train(experience)
-                    classifier.add_task(exp_id, 5)  # SplitCIFAR100 ⇒ 5-way per task
-                    # Evaluate on all test experiences seen so far
-                    accs = []
-                    for test_exp in benchmark.test_stream[: exp_id + 1]:
-                        m = strategy.eval(test_exp)
-                        accs.append(m["Top1_Acc_Stream/eval_phase/test_stream"])
-                    avg_acc = sum(accs) / len(accs)
+
+                # Evaluate on all test experiences
+                accs = []
+                for test_exp in benchmark.test_stream:
+                    model.current_task = test_exp.current_experience
+                    m = strategy.eval(test_exp)
+                    accs.append(m["Top1_Acc_Stream/eval_phase/test_stream"])
+                avg_acc = sum(accs) / len(accs)
 
                 faa_matrix[b_idx, s_idx] = avg_acc * 100.0
                 apk_matrix[b_idx, s_idx] = (avg_acc * 100.0) / (budget / 1024)
@@ -151,7 +178,7 @@ class UltraLowFootprintExperiment(BaseExperiment):
         plt.plot(mem_kb, mean_faa, marker="o", label="H-VQ ReGen (ours)")
         for x, y in zip(mem_kb, mean_faa):
             plt.text(x, y + 0.3, f"{y:.1f}")
-        plt.xscale("log", basex=2)
+        plt.xscale("log", base=2)
         plt.xlabel("Memory budget (kB)")
         plt.ylabel("Final Average Accuracy (%)")
         plt.title("FAA vs Memory Budget – Experiment 1")

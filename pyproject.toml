@@ -14,10 +14,11 @@ license = { text = "MIT" }
 # ---------------------------------------------------------------------------
 #  Runtime dependencies  ----------------------------------------------------
 # ---------------------------------------------------------------------------
-[project.dependencies]
-torch = "*"           # tested with 2.1+
-torchvision = "*"
-avalanche-lib = "*"
-PyYAML = "*"
-matplotlib = "*"
-seaborn = "*"
+dependencies = [
+    "torch",            # tested with 2.1+
+    "torchvision",
+    "avalanche-lib",
+    "PyYAML",
+    "matplotlib",
+    "seaborn"
+]
