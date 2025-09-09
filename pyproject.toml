@@ -9,17 +9,21 @@ authors = [
   {name = "Researcher", email = "research@example.com"}
 ]
 
-[project.dependencies]
-torch = "*"
-torchvision = "*"
-accelerate = "*"
-datasets = "*"
-timm = "*"
-pyyaml = "*"
-matplotlib = "*"
-diffusers = "*"
-transformers = "*"
-segment-anything = "*"
+# -----------------------------------------------------------------------------
+# Dependencies must be defined as a list, not a table (PEP 621 compliant)
+# -----------------------------------------------------------------------------
+dependencies = [
+  "torch",
+  "torchvision",
+  "accelerate",
+  "datasets",
+  "timm",
+  "pyyaml",
+  "matplotlib",
+  "diffusers",
+  "transformers",
+  "segment-anything"
+]
 
 [tool.setuptools]
 packages = ["."]

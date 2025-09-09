@@ -9,8 +9,10 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-# Directory where all images must be stored (Instruction requirement)
-IMG_DIR = Path('.research/iteration1/images')
+# -----------------------------------------------------------------------------
+# Directory where all images must be stored (mandatory iteration2 path)
+# -----------------------------------------------------------------------------
+IMG_DIR = Path('.research/iteration2/images')
 IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 # -----------------------------------------------------------------------------
