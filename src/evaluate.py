@@ -1,7 +1,7 @@
 """
 Contains evaluation utilities, plotting helpers and the three experiment
-entry-points.  Results are written to .research/iteration1/ and figures to
-.research/iteration1/images/ as required by the specification.
+entry-points.  Results are written to .research/iteration2/ and figures to
+.research/iteration2/images/ as required by the specification.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .preprocess import split_cifar100
 # --------------------------------------------------------------
 # 0.  Directories (auto-create)
 # --------------------------------------------------------------
-RESEARCH_DIR = Path(".research/iteration1")
+RESEARCH_DIR = Path(".research/iteration2")
 IMAGES_DIR = RESEARCH_DIR / "images"
 RESEARCH_DIR.mkdir(parents=True, exist_ok=True)
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
@@ -33,7 +33,7 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 # --------------------------------------------------------------
 
 def save_curve(x, ys: Dict[str, List[float]], title: str, ylabel: str, fname_core: str):
-    """Save PDF + PNG curves into the images directory."""
+    """Save PDF curves into the mandatory images directory."""
     plt.figure(figsize=(6, 4))
     for lbl, y in ys.items():
         sns.lineplot(x=x, y=y, marker="o", label=lbl)
