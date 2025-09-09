@@ -13,8 +13,8 @@ authors = [
 ]
 
 dependencies = [
-  # Use the CPU-only build of PyTorch to avoid unnecessary CUDA pulls.
-  "torch==2.0.1+cpu",
+  # Use the stable CPU-only Wheel published to PyPI (no "+cpu" suffix required).
+  "torch==2.0.1",
   # torch-geometric is compiled against specific PyTorch versions – keep it broad but
   # still recent enough for the required APIs.
   "torch-geometric>=2.4.0",
