@@ -1,0 +1,173 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+Resolved 90 packages in 408ms
+   Building c3d @ file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909
+Downloading nvidia-cublas-cu12 (566.8MiB)
+Downloading transformers (11.1MiB)
+Downloading nvidia-cusparselt-cu12 (273.9MiB)
+Downloading nvidia-cufft-cu12 (184.2MiB)
+Downloading nvidia-nccl-cu12 (307.4MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (84.0MiB)
+Downloading nvidia-cusolver-cu12 (255.1MiB)
+Downloading torch (846.9MiB)
+Downloading pyarrow (40.8MiB)
+Downloading timm (2.4MiB)
+Downloading diffusers (3.9MiB)
+Downloading pandas (11.8MiB)
+Downloading nvidia-cusparse-cu12 (274.9MiB)
+Downloading aiohttp (1.7MiB)
+Downloading setuptools (1.1MiB)
+Downloading triton (148.3MiB)
+Downloading hf-xet (3.0MiB)
+Downloading tokenizers (3.2MiB)
+Downloading nvidia-cudnn-cu12 (674.0MiB)
+ Downloading aiohttp
+      Built c3d @ file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909
+ Downloading hf-xet
+ Downloading tokenizers
+ Downloading timm
+ Downloading setuptools
+ Downloading diffusers
+ Downloading pandas
+ Downloading transformers
+ Downloading nvidia-cuda-nvrtc-cu12
+ Downloading pyarrow
+ Downloading triton
+ Downloading nvidia-cufft-cu12
+ Downloading nvidia-cusolver-cu12
+ Downloading nvidia-cusparse-cu12
+ Downloading nvidia-cusparselt-cu12
+ Downloading nvidia-nccl-cu12
+ Downloading nvidia-cudnn-cu12
+ Downloading nvidia-cublas-cu12
+ Downloading torch
+Prepared 40 packages in 1m 35s
+Installed 76 packages in 16.48s
+ + aiohappyeyeballs==2.6.1
+ + aiohttp==3.12.15
+ + aiosignal==1.4.0
+ + attrs==25.3.0
+ + c3d==0.1.0 (from file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909)
+ + certifi==2025.8.3
+ + charset-normalizer==3.4.3
+ + contourpy==1.3.3
+ + cycler==0.12.1
+ + datasets==4.0.0
+ + diffusers==0.35.1
+ + dill==0.3.8
+ + filelock==3.19.1
+ + fonttools==4.59.2
+ + frozenlist==1.7.0
+ + fsspec==2025.3.0
+ + hf-xet==1.1.9
+ + huggingface-hub==0.34.4
+ + idna==3.10
+ + importlib-metadata==8.7.0
+ + jinja2==3.1.6
+ + joblib==1.5.2
+ + kiwisolver==1.4.9
+ + markupsafe==3.0.2
+ + matplotlib==3.10.6
+ + mpmath==1.3.0
+ + multidict==6.6.4
+ + multiprocess==0.70.16
+ + networkx==3.5
+ + numpy==2.3.2
+ + nvidia-cublas-cu12==12.8.4.1
+ + nvidia-cuda-cupti-cu12==12.8.90
+ + nvidia-cuda-nvrtc-cu12==12.8.93
+ + nvidia-cuda-runtime-cu12==12.8.90
+ + nvidia-cudnn-cu12==9.10.2.21
+ + nvidia-cufft-cu12==11.3.3.83
+ + nvidia-cufile-cu12==1.13.1.3
+ + nvidia-curand-cu12==10.3.9.90
+ + nvidia-cusolver-cu12==11.7.3.90
+ + nvidia-cusparse-cu12==12.5.8.93
+ + nvidia-cusparselt-cu12==0.7.1
+ + nvidia-nccl-cu12==2.27.3
+ + nvidia-nvjitlink-cu12==12.8.93
+ + nvidia-nvtx-cu12==12.8.90
+ + packaging==25.0
+ + pandas==2.3.2
+ + pillow==11.3.0
+ + propcache==0.3.2
+ + pyarrow==21.0.0
+ + pyparsing==3.2.3
+ + python-dateutil==2.9.0.post0
+ + pytz==2025.2
+ + pyyaml==6.0.2
+ + regex==2025.9.1
+ + requests==2.32.5
+ + safetensors==0.6.2
+ + scikit-learn==1.7.1
+ + scipy==1.16.1
+ + seaborn==0.13.2
+ + setuptools==80.9.0
+ + six==1.17.0
+ + sympy==1.14.0
+ + threadpoolctl==3.6.0
+ + timm==1.0.19
+ + tokenizers==0.22.0
+ + torch==2.8.0
+ + torchvision==0.23.0
+ + tqdm==4.67.1
+ + transformers==4.56.1
+ + triton==3.4.0
+ + typing-extensions==4.15.0
+ + tzdata==2025.2
+ + urllib3==2.5.0
+ + xxhash==3.5.0
+ + yarl==1.20.1
+ + zipp==3.23.0
+Generating train split:   0%|          | 0/4795 [00:00<?, ? examples/s]Generating train split:   2%|▏         | 100/4795 [00:01<01:26, 54.58 examples/s]Generating train split:  48%|████▊     | 2300/4795 [00:01<00:01, 1636.62 examples/s]Generating train split:  83%|████████▎ | 4000/4795 [00:02<00:00, 3055.15 examples/s]Generating train split: 100%|██████████| 4795/4795 [00:02<00:00, 1752.64 examples/s]
+Generating validation split:   0%|          | 0/1199 [00:00<?, ? examples/s]Generating validation split: 100%|██████████| 1199/1199 [00:00<00:00, 7736.78 examples/s]
+Generating test split:   0%|          | 0/5794 [00:00<?, ? examples/s]Generating test split:  28%|██▊       | 1600/5794 [00:00<00:00, 15408.48 examples/s]Generating test split:  69%|██████▉   | 4000/5794 [00:00<00:00, 18659.27 examples/s]Generating test split: 100%|██████████| 5794/5794 [00:00<00:00, 9538.92 examples/s] 
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+Fetching 1 files:   0%|          | 0/1 [00:00<?, ?it/s]Fetching 1 files: 100%|██████████| 1/1 [00:00<00:00,  2.10it/s]Fetching 1 files: 100%|██████████| 1/1 [00:00<00:00,  2.10it/s]
+Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with: 
+```
+pip install accelerate
+```
+.
+Fetching 13 files:   0%|          | 0/13 [00:00<?, ?it/s]Fetching 13 files:   8%|▊         | 1/13 [00:00<00:05,  2.02it/s]Fetching 13 files:  38%|███▊      | 5/13 [01:17<02:12, 16.55s/it]Fetching 13 files:  85%|████████▍ | 11/13 [01:39<00:16,  8.15s/it]Fetching 13 files: 100%|██████████| 13/13 [01:39<00:00,  7.63s/it]
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  50%|█████     | 3/6 [00:07<00:07,  2.54s/it]Loading pipeline components...:  67%|██████▋   | 4/6 [00:08<00:04,  2.01s/it]Loading pipeline components...:  83%|████████▎ | 5/6 [00:09<00:01,  1.77s/it]`torch_dtype` is deprecated! Use `dtype` instead!
+Loading pipeline components...: 100%|██████████| 6/6 [00:14<00:00,  2.77s/it]Loading pipeline components...: 100%|██████████| 6/6 [00:14<00:00,  2.46s/it]
+  0%|          | 0/50 [00:00<?, ?it/s]  2%|▏         | 1/50 [00:01<00:57,  1.16s/it]  8%|▊         | 4/50 [00:01<00:12,  3.82it/s] 14%|█▍        | 7/50 [00:01<00:06,  6.79it/s] 18%|█▊        | 9/50 [00:01<00:04,  8.75it/s] 24%|██▍       | 12/50 [00:01<00:03, 11.60it/s] 30%|███       | 15/50 [00:01<00:02, 13.85it/s] 36%|███▌      | 18/50 [00:01<00:02, 15.74it/s] 42%|████▏     | 21/50 [00:02<00:01, 17.06it/s] 48%|████▊     | 24/50 [00:02<00:01, 18.19it/s] 54%|█████▍    | 27/50 [00:02<00:01, 19.01it/s] 60%|██████    | 30/50 [00:02<00:01, 19.60it/s] 66%|██████▌   | 33/50 [00:02<00:00, 20.04it/s] 72%|███████▏  | 36/50 [00:02<00:00, 20.35it/s] 78%|███████▊  | 39/50 [00:02<00:00, 20.58it/s] 84%|████████▍ | 42/50 [00:03<00:00, 20.73it/s] 90%|█████████ | 45/50 [00:03<00:00, 20.85it/s] 96%|█████████▌| 48/50 [00:03<00:00, 20.92it/s]100%|██████████| 50/50 [00:03<00:00, 14.23it/s]
+  0%|          | 0/50 [00:00<?, ?it/s]  4%|▍         | 2/50 [00:00<00:03, 13.96it/s] 10%|█         | 5/50 [00:00<00:02, 18.34it/s] 16%|█▌        | 8/50 [00:00<00:02, 19.75it/s] 22%|██▏       | 11/50 [00:00<00:01, 20.07it/s] 28%|██▊       | 14/50 [00:00<00:01, 20.13it/s] 34%|███▍      | 17/50 [00:00<00:01, 20.42it/s] 40%|████      | 20/50 [00:01<00:01, 20.68it/s] 46%|████▌     | 23/50 [00:01<00:01, 20.90it/s] 52%|█████▏    | 26/50 [00:01<00:01, 21.04it/s] 58%|█████▊    | 29/50 [00:01<00:01, 20.97it/s] 64%|██████▍   | 32/50 [00:01<00:00, 20.91it/s] 70%|███████   | 35/50 [00:01<00:00, 20.95it/s] 76%|███████▌  | 38/50 [00:01<00:00, 21.06it/s] 82%|████████▏ | 41/50 [00:01<00:00, 21.13it/s] 88%|████████▊ | 44/50 [00:02<00:00, 21.11it/s] 94%|█████████▍| 47/50 [00:02<00:00, 21.17it/s]100%|██████████| 50/50 [00:02<00:00, 21.22it/s]100%|██████████| 50/50 [00:02<00:00, 20.67it/s]
+  0%|          | 0/50 [00:00<?, ?it/s]  4%|▍         | 2/50 [00:00<00:03, 13.35it/s] 10%|█         | 5/50 [00:00<00:02, 17.60it/s] 16%|█▌        | 8/50 [00:00<00:02, 19.01it/s] 22%|██▏       | 11/50 [00:00<00:01, 19.79it/s] 28%|██▊       | 14/50 [00:00<00:01, 20.24it/s] 34%|███▍      | 17/50 [00:00<00:01, 20.53it/s] 40%|████      | 20/50 [00:01<00:01, 20.72it/s] 46%|████▌     | 23/50 [00:01<00:01, 20.79it/s] 52%|█████▏    | 26/50 [00:01<00:01, 20.77it/s] 58%|█████▊    | 29/50 [00:01<00:01, 20.78it/s] 64%|██████▍   | 32/50 [00:01<00:00, 20.80it/s] 70%|███████   | 35/50 [00:01<00:00, 20.82it/s] 76%|███████▌  | 38/50 [00:01<00:00, 20.87it/s] 82%|████████▏ | 41/50 [00:02<00:00, 20.88it/s] 88%|████████▊ | 44/50 [00:02<00:00, 20.86it/s] 94%|█████████▍| 47/50 [00:02<00:00, 20.90it/s]100%|██████████| 50/50 [00:02<00:00, 20.93it/s]100%|██████████| 50/50 [00:02<00:00, 20.44it/s]
+  0%|          | 0/50 [00:00<?, ?it/s]  4%|▍         | 2/50 [00:00<00:03, 13.79it/s] 10%|█         | 5/50 [00:00<00:02, 17.70it/s] 16%|█▌        | 8/50 [00:00<00:02, 18.94it/s] 22%|██▏       | 11/50 [00:00<00:01, 19.68it/s] 26%|██▌       | 13/50 [00:00<00:01, 19.60it/s] 32%|███▏      | 16/50 [00:00<00:01, 19.76it/s] 38%|███▊      | 19/50 [00:00<00:01, 20.07it/s] 44%|████▍     | 22/50 [00:01<00:01, 20.28it/s] 50%|█████     | 25/50 [00:01<00:01, 20.45it/s] 56%|█████▌    | 28/50 [00:01<00:01, 20.58it/s] 62%|██████▏   | 31/50 [00:01<00:00, 20.69it/s] 68%|██████▊   | 34/50 [00:01<00:00, 20.69it/s] 74%|███████▍  | 37/50 [00:01<00:00, 20.75it/s] 80%|████████  | 40/50 [00:01<00:00, 20.66it/s] 86%|████████▌ | 43/50 [00:02<00:00, 20.63it/s] 92%|█████████▏| 46/50 [00:02<00:00, 20.73it/s] 98%|█████████▊| 49/50 [00:02<00:00, 20.80it/s]100%|██████████| 50/50 [00:02<00:00, 20.22it/s]
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/main.py", line 114, in <module>
+    main()
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/main.py", line 95, in main
+    results = run_training(exp_key, exp_cfg)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/train.py", line 197, in run_training
+    logits_cf = model(cf_imgs.detach())
+                ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/timm/models/vision_transformer.py", line 993, in forward
+    x = self.forward_features(x, attn_mask=attn_mask)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/timm/models/vision_transformer.py", line 936, in forward_features
+    x = self.patch_embed(x)
+        ^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/timm/layers/patch_embed.py", line 116, in forward
+    _assert(H == self.img_size[0], f"Input height ({H}) doesn't match model ({self.img_size[0]}).")
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/__init__.py", line 2174, in _assert
+    assert condition, message
+           ^^^^^^^^^
+AssertionError: Input height (512) doesn't match model (224).
