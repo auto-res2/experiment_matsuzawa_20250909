@@ -20,3 +20,9 @@ dependencies = [
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.uv.extra-build-dependencies]
+# Ensure torch is pre-installed inside the isolated build env when building
+# wheels for torch-sparse.  This prevents the "ModuleNotFoundError: torch"
+# observed during wheel compilation.
+torch-sparse = ["torch"]

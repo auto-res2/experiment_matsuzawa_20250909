@@ -7,7 +7,7 @@ from __future__ import annotations
 import time
 import pathlib
 import json
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 
 import torch
 import torch.nn as nn
@@ -19,6 +19,7 @@ from torch_geometric.loader import NeighborLoader  # noqa: F401 – retained for
 ###############################################################################
 #                                    MODEL                                   #
 ###############################################################################
+
 
 class Controller(nn.Module):
     """Two-layer MLP that outputs logits for the self-gate α and edge gate p."""
@@ -129,9 +130,18 @@ from .evaluate import evaluate_model, line_plot  # noqa: E402 – after definiti
 from .utils import dump_json  # noqa: E402 – local util
 
 
-def train_one(model: nn.Module, data, cfg_exp, device: str = "cuda") -> None:
+def _select_device(pref: Optional[str] = None) -> str:
+    """Return a valid device string.  Falls back to CPU if CUDA is unavailable."""
+
+    if pref is not None and pref.lower().startswith("cuda"):
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    return pref or ("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def train_one(model: nn.Module, data, cfg_exp, device: Optional[str] = None) -> None:
     """Train a *single* (dataset, backbone, variant, seed) configuration."""
 
+    device = _select_device(device)
     model = model.to(device)
     data = data.to(device)
     opt = torch.optim.AdamW(
@@ -173,7 +183,7 @@ def train_one(model: nn.Module, data, cfg_exp, device: str = "cuda") -> None:
     test_acc = evaluate_model(model, data, split="test")
 
     # -------------------------- visualisations ------------------------------
-    pdf_file = f".research/iteration19/images/{cfg_exp.name}.pdf"
+    pdf_file = f".research/iteration20/images/{cfg_exp.name}.pdf"
     pathlib.Path(pdf_file).parent.mkdir(parents=True, exist_ok=True)
     line_plot(
         list(range(len(history["train_loss"]))),
@@ -193,7 +203,8 @@ def train_one(model: nn.Module, data, cfg_exp, device: str = "cuda") -> None:
         "figure": pdf_file,
     }
 
-    out_json = f".research/iteration19/{cfg_exp.name}.json"
+    out_json = f".research/iteration20/{cfg_exp.name}.json"
+    pathlib.Path(out_json).parent.mkdir(parents=True, exist_ok=True)
     dump_json(result, out_json)
 
     print("\n===== EXPERIMENT:", cfg_exp.name, "=====")

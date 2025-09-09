@@ -13,23 +13,24 @@ import pathlib
 import glob
 import importlib
 
-import torch_sparse  # noqa: F401 – used for kernel check only
+# Optional torch_sparse kernel check – run only if the package is available.
+try:
+    import torch_sparse  # noqa: F401 – optional runtime dependency for PyG
+
+    try:
+        torch_sparse.matmul.dense_sparse(
+            torch_sparse.SparseTensor.eye(1), torch_sparse.SparseTensor.eye(1)
+        )
+    except Exception:
+        sys.exit("torch-sparse kernels missing – please rebuild before training.")
+except ModuleNotFoundError:
+    print("[WARN] torch-sparse not found – certain PyG ops may be slower.")
+
 import yaml
 
 from preprocess import get_dataset
 from train import MetaGCN, train_one
 from utils import set_seed  # local util – see utils/__init__.py below
-
-###############################################################################
-#                          SPARSE-KERNELS NO-FALLBACK                         #
-###############################################################################
-
-try:
-    torch_sparse.matmul.dense_sparse(
-        torch_sparse.SparseTensor.eye(1), torch_sparse.SparseTensor.eye(1)
-    )
-except Exception:
-    sys.exit("torch-sparse kernels missing – please rebuild before training.")
 
 ###############################################################################
 #                                 CONFIG                                     #
@@ -42,12 +43,11 @@ if not CONFIG_PATH.exists():
 with open(CONFIG_PATH) as f:
     raw_cfg = yaml.safe_load(f)
 
-# ---------------------------------------------------------------------------
-# Convert YAML ➔ simple Namespace-like object (keep code short & explicit).
-# ---------------------------------------------------------------------------
+
 class DotDict(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
+
 
 cfg = DotDict(raw_cfg)
 
