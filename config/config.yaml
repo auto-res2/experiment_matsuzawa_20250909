@@ -1,0 +1,22 @@
+# Global configuration for all experiments
+
+device: "cuda"  # automatically overridden to cpu if CUDA not available in code
+epochs: 2000
+patience: 100
+
+optim:
+  lr: 1e-3
+  weight_decay: 1e-4
+
+controller:
+  hidden: 32
+  tau: 0.5
+  kl_alpha: 0.1
+  kl_p: 0.1
+
+experiment1:
+  datasets: ["Cora", "Chameleon", "PeptidesFunc"]
+  depths: [8, 16, 32, 64]
+  backbones: ["GCN"]
+  variants: ["vanilla", "meta"]
+  hidden: 128
