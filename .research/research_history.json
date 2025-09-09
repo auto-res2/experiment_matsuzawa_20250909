@@ -6,5 +6,82 @@
     "invariant risk minimization",
     "domain generalization spurious",
     "causal representation learning"
+  ],
+  "research_study_list": [
+    {
+      "title": "Seeing is not Believing: Robust Reinforcement Learning against Spurious Correlation"
+    },
+    {
+      "title": "A Causal Framework for Decomposing Spurious Variations"
+    },
+    {
+      "title": "Accuracy on the Curve: On the Nonlinear Correlation of ML Performance Between Data Subpopulations"
+    },
+    {
+      "title": "Contextual Reliability: When Different Features Matter in Different Contexts"
+    },
+    {
+      "title": "Examining and Combating Spurious Features under Distribution Shift"
+    },
+    {
+      "title": "YolOOD: Utilizing Object Detection Concepts for Multi-Label Out-of-Distribution Detection"
+    },
+    {
+      "title": "In or Out? Fixing ImageNet Out-of-Distribution Detection Evaluation"
+    },
+    {
+      "title": "Long-Tailed Out-of-Distribution Detection via Normalized Outlier Distribution Adaptation"
+    },
+    {
+      "title": "POODLE: Improving Few-shot Learning via Penalizing Out-of-Distribution Samples"
+    },
+    {
+      "title": "A Noisy Elephant in the Room: Is Your Out-of-Distribution Detector Robust to Label Noise?"
+    },
+    {
+      "title": "Invariant Risk Minimization Is A Total Variation Model"
+    },
+    {
+      "title": "The Missing Invariance Principle found --  the Reciprocal Twin of Invariant Risk Minimization "
+    },
+    {
+      "title": "Sparse Invariant Risk Minimization"
+    },
+    {
+      "title": "Sparse Invariant Risk Minimization"
+    },
+    {
+      "title": "The Risks of Invariant Risk Minimization"
+    },
+    {
+      "title": "Understanding Domain Generalization: A Noise Robustness Perspective"
+    },
+    {
+      "title": "Selecting Data Augmentation for Simulating Interventions"
+    },
+    {
+      "title": "Rethinking the Evaluation Protocol of Domain Generalization"
+    },
+    {
+      "title": "Hard ImageNet: Segmentations for Objects with Strong Spurious Cues"
+    },
+    {
+      "title": "Self-training Avoids Using Spurious Features Under Domain Shift"
+    },
+    {
+      "title": "Causal Representation Learning Made Identifiable by Grouping of Observational Variables"
+    },
+    {
+      "title": "Causal Representation Learning for Instantaneous and Temporal Effects in Interactive Systems"
+    },
+    {
+      "title": "A Sparsity Principle for Partially Observable Causal Representation Learning"
+    },
+    {
+      "title": "Identifiable Latent Polynomial Causal Models through the Lens of Change"
+    },
+    {
+      "title": "Causal Representation Learning from Multiple Distributions: A General Setting"
+    }
   ]
 }
