@@ -192,6 +192,10 @@ def run_training(exp_key: str, exp_cfg: ExperimentConfig) -> Dict:
                 masks = discover_masks(imgs, exp_cfg)
                 cf_imgs = generate_counterfactuals(imgs, masks, exp_cfg)
 
+                # Ensure counterfactuals match classifier resolution ----------
+                if cf_imgs.shape[-2:] != imgs.shape[-2:]:
+                    cf_imgs = F.interpolate(cf_imgs, size=imgs.shape[-2:], mode="bilinear", align_corners=False)
+
                 # Forward ------------------------------------------------------
                 logits_orig = model(imgs)
                 logits_cf = model(cf_imgs.detach())
