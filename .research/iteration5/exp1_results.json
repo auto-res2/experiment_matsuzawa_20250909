@@ -1,0 +1,7 @@
+{
+  "experiment": "DistractImageNet++ Spurious-Patch Localisation and Reliance Reduction",
+  "baseline": {
+    "method": "ERM",
+    "val_top1": 0.6953125
+  }
+}
