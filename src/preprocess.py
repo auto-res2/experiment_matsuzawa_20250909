@@ -23,9 +23,9 @@ from torch_geometric.utils import to_undirected
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Mandatory paths enforced by the evaluation harness ------------------------
-_RESEARCH_ROOT = ROOT / ".research" / "iteration3"
-FIG_DIR = _RESEARCH_ROOT / "images"  # .research/iteration3/images
-RES_DIR = _RESEARCH_ROOT               # .research/iteration3/
+_RESEARCH_ROOT = ROOT / ".research" / "iteration4"  # UPDATED TO ITERATION4
+FIG_DIR = _RESEARCH_ROOT / "images"  # .research/iteration4/images
+RES_DIR = _RESEARCH_ROOT               # .research/iteration4/
 DATA_DIR = ROOT / "data"
 
 # Make sure all directories exist ------------------------------------------
@@ -68,9 +68,7 @@ def graph_curvature(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
     try:
         import GraphRicciCurvature as grc
     except ImportError:
-        # Lazy, one-time install if missing. We intentionally pin the version
-        # to 0.5.3.2 to remain consistent with the upper-bound specified in
-        # pyproject.toml.
+        # Lazy, one-time install if missing.
         import subprocess, sys
 
         subprocess.check_call(

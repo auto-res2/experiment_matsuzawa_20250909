@@ -66,20 +66,44 @@ if not CONFIG_FILE.exists():
 with open(CONFIG_FILE) as fp:
     cfg_raw: Dict[str, Any] = yaml.safe_load(fp)
 
+# --------------------------- Type coercion ---------------------------------
+# Explicitly cast numeric fields to ensure correct dtypes (avoids YAML quirks)
+_num_keys = [
+    "epochs",
+    "lr",
+    "weight_decay",
+    "dropout",
+    "lambda_geo",
+    "lambda_grad",
+    "tau",
+    "patience",
+]
+for k in _num_keys:
+    if k in cfg_raw:
+        try:
+            # cast ints separately to preserve integer nature where relevant
+            if isinstance(cfg_raw[k], str) and cfg_raw[k].isdigit():
+                cfg_raw[k] = int(cfg_raw[k])
+            else:
+                cfg_raw[k] = float(cfg_raw[k]) if "lr" in k or "lambda" in k or k in ("weight_decay", "dropout", "tau") else int(cfg_raw[k])
+        except ValueError:
+            # leave as is; will error later if truly invalid
+            pass
+
 # Convert raw dicts into dataclasses for nicer attribute access
 CFG = ExpConf(
-    exp_id=cfg_raw["exp_id"],
-    description=cfg_raw["description"],
+    exp_id=str(cfg_raw["exp_id"]),
+    description=str(cfg_raw["description"]),
     datasets=[DataConf(**d) for d in cfg_raw["datasets"]],
     models=[ModelConf(**m) for m in cfg_raw["models"]],
-    epochs=cfg_raw["epochs"],
-    lr=cfg_raw["lr"],
-    weight_decay=cfg_raw["weight_decay"],
-    dropout=cfg_raw["dropout"],
-    lambda_geo=cfg_raw["lambda_geo"],
-    lambda_grad=cfg_raw["lambda_grad"],
-    tau=cfg_raw["tau"],
-    patience=cfg_raw["patience"],
+    epochs=int(cfg_raw["epochs"]),
+    lr=float(cfg_raw["lr"]),
+    weight_decay=float(cfg_raw["weight_decay"]),
+    dropout=float(cfg_raw["dropout"]),
+    lambda_geo=float(cfg_raw["lambda_geo"]),
+    lambda_grad=float(cfg_raw["lambda_grad"]),
+    tau=float(cfg_raw["tau"]),
+    patience=int(cfg_raw["patience"]),
 )
 
 # ---------------------------------------------------------------------------
@@ -135,7 +159,8 @@ def run_single(dataset_name: str, model_conf: ModelConf):
 
     best_val = 0.0
     patience_left = CFG.patience
-    best_state = None
+    # Ensure best_state is always initialised to a valid state_dict --------
+    best_state = {k: v.clone() for k, v in model.state_dict().items()}
     history = {"train_loss": [], "val_acc": [], "test_acc": []}
 
     for epoch in range(1, CFG.epochs + 1):
