@@ -1,232 +1,166 @@
-"""src/preprocess.py
-Dataset wrappers and preprocessing utilities.
-"""
+# src/preprocess.py
+"""Dataset utilities, mask discovery and counterfactual generation."""
 from __future__ import annotations
 
-import base64
-import io
 import random
-import math
+import sys
+import warnings
+from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Any, Dict, Tuple, Optional
+from typing import Dict, List, Tuple
 
-import yaml
-
-from datasets import load_dataset  # type: ignore
-from torchvision import transforms  # type: ignore
-from torch.utils.data import Dataset
 import torch
-import matplotlib.pyplot as plt  # type: ignore
-import numpy as np  # Added for array conversions
+import torch.nn.functional as F
+from torchvision import transforms
+import torchvision.transforms.functional as TF
 
-# -----------------------------------------------------------------------------
-# Configuration
-# -----------------------------------------------------------------------------
-_cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
-with open(_cfg_path, "r", encoding="utf-8") as _f:
-    CONF: Dict[str, Any] = yaml.safe_load(_f)
+from datasets import load_dataset
+from transformers import CLIPModel, CLIPProcessor
+from diffusers import StableDiffusionInpaintPipeline
 
-# -----------------------------------------------------------------------------
-# Helper – availability check
-# -----------------------------------------------------------------------------
+warnings.filterwarnings("ignore", category=UserWarning)
 
-def _assert_dataset_available(dataset_name: str) -> None:
+# ────────────────────────────────────────────────────────────────────────────────
+# Paths -------------------------------------------------------------------------
+ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = ROOT / "data"
+CACHE_DIR = ROOT / "cache"
+RESULTS_DIR = ROOT / "results"
+FIG_DIR = ROOT / "figures"
+for _d in (DATA_DIR, CACHE_DIR, RESULTS_DIR, FIG_DIR):
+    _d.mkdir(parents=True, exist_ok=True)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Dataclass based config ---------------------------------------------------------
+@dataclass
+class OptimConfig:
+    lr: float = 3e-4
+    weight_decay: float = 5e-2
+    betas: Tuple[float, float] = (0.9, 0.999)
+
+@dataclass
+class TrainConfig:
+    epochs: int
+    batch_size: int
+    optimiser: OptimConfig
+    warmup_epochs: int
+    lambda_cer: float
+    refresh: int
+    prompts: int
+
+@dataclass
+class DatasetConfig:
+    hf_name: str
+    url: str
+    split_files: Dict[str, str] = field(default_factory=dict)
+
+@dataclass
+class ModelConfig:
+    classifier_name: str
+    pretrained: bool = True
+    num_classes: int = 1000
+    clip_name: str = "openai/clip-vit-large-patch14"
+    diffusion_name: str = "stabilityai/stable-diffusion-2-inpainting"
+
+@dataclass
+class ExperimentConfig:
+    name: str
+    dataset: DatasetConfig
+    model: ModelConfig
+    train: TrainConfig
+    seeds: List[int]
+
+# ════════════════════════════════════════════════════════════════════════════════
+# Utility helpers ----------------------------------------------------------------
+
+def _fail(msg: str):
+    print(msg)
+    sys.exit(1)
+
+# ----------------------------------------------------------------------------
+# Dataset loader --------------------------------------------------------------
+
+def get_dataset(cfg: DatasetConfig, split: str):
+    """Download (if needed) and return a HuggingFace *datasets* object for *split*."""
     try:
-        _ = load_dataset(dataset_name, split="train", streaming=True)
-    except Exception as exc:
-        raise RuntimeError(
-            f"Required dataset '{dataset_name}' is not accessible. Strict abort.\n{exc}"
-        ) from exc
-
-# -----------------------------------------------------------------------------
-# Embedded 4×4 PNG placeholders (two distinct colours) – avoids remote fetch
-# -----------------------------------------------------------------------------
-
-# PNG bytes (4×4 solid colours) encoded as base64 strings. Generated once and
-# embedded to keep the repo self-contained so the code never hits the network
-# during CI.
-_TEXTURE_EMBEDS: Dict[str, str] = {
-    "texture00.png":
-        "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAF0lEQVQI12P4//8/w38GIAXDICDAQwEAAP//AwCDMgk0AAAAAElFTkSuQmCC",  # red-ish
-    "texture01.png":
-        "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAFElEQVQI12NgYGj4z0AEYBxVSFIBAADECAEAkWZ/pQAAAABJRU5ErkJggg==",  # green-ish
-}
-
-
-def _write_embedded_texture(fname: Path) -> None:
-    """Write a small placeholder PNG to `fname`."""
-    b64 = _TEXTURE_EMBEDS[fname.name]
-    binary = base64.b64decode(b64)
-    fname.write_bytes(binary)
-
-# -----------------------------------------------------------------------------
-# Waterbirds wrapper (used in Exp-2 but included here for completeness)
-# -----------------------------------------------------------------------------
-
-class WaterbirdsDataset(Dataset):
-    """HF wrapper that yields (image, label, group_tag). Group tag is only used
-    for evaluation; never exposed during training.
-    """
-
-    def __init__(self, split: str):
-        _assert_dataset_available("grodino/waterbirds")
-        self.ds = load_dataset(
-            "grodino/waterbirds", split=split, cache_dir=CONF["data_root"]
+        ds = load_dataset(cfg.hf_name, split=split, cache_dir=str(DATA_DIR))
+    except Exception as e:
+        _fail(
+            f"[ERROR] Unable to download or access dataset '{cfg.hf_name}'.\nReason: {e}\nStrict NO-FALLBACK engaged – terminating."
         )
-        self.tfm = transforms.Compose(
-            [
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
-        )
+    return ds
 
-    def __len__(self):
-        return len(self.ds)
+# ----------------------------------------------------------------------------
+# Stage-1 – Mask discovery ----------------------------------------------------
 
-    def __getitem__(self, idx):
-        sample = self.ds[idx]
-        img = self.tfm(sample["image"])
-        label = int(sample["label"])
-        group = int(sample["place"])  #  land / water (evaluation only)
-        return img, label, group
+def discover_masks(images: torch.Tensor, cfg: ExperimentConfig) -> torch.Tensor:
+    """Return binary masks (B×1×H×W) highlighting candidate spurious factors."""
+    device = images.device
+    try:
+        clip_model = CLIPModel.from_pretrained(cfg.model.clip_name).to(device)
+        clip_processor = CLIPProcessor.from_pretrained(cfg.model.clip_name)
+    except Exception as e:
+        _fail(f"Failed to load CLIP backbone: {e}")
 
-# -----------------------------------------------------------------------------
-# Synthetic DistractImageNet++
-# -----------------------------------------------------------------------------
+    B, _, H, W = images.shape
+    agg_masks = torch.zeros((B, 1, H, W), device=device)
 
-class DistractImageNetDataset(Dataset):
-    """On-the-fly creation of DistractImageNet++ images with correlated texture
-    patches. Returns (image, class_label, mask).
-    """
-
-    TEXTURE_URLS = [
-        "https://huggingface.co/datasets/ayaji/textures/resolve/main/texture00.png",
-        "https://huggingface.co/datasets/ayaji/textures/resolve/main/texture01.png",
+    random_prompts = [
+        "grass",
+        "water",
+        "snow",
+        "logo",
+        "sky",
+        "animals",
+        "person",
+        "texture",
+        "wood",
+        "numbers",
+        "metal",
+        "fabric",
+        "text",
+        "flower",
+        "road",
     ]
+    prompts = random.sample(random_prompts, cfg.train.prompts)
 
-    def __init__(self, split: str, rho: float = 0.9, cache_root: Optional[str | Path] = None, max_samples: Optional[int] = 512):
-        if cache_root is None:
-            cache_root = Path(CONF["data_root"]) / "distract_imagenet" / split
-        cache_root = Path(cache_root)
-        cache_root.mkdir(parents=True, exist_ok=True)
-        self.cache_root = cache_root
-        self.rho = rho
+    for p in prompts:
+        text_inputs = clip_processor(text=p, images=None, return_tensors="pt").to(device)
+        with torch.no_grad():
+            vision_embeds = clip_model.get_image_features(images)
+        text_embeds = clip_model.get_text_features(**text_inputs)
+        sims = F.cosine_similarity(vision_embeds, text_embeds)
+        sims_map = sims.view(B, 1, 1, 1).expand(-1, 1, H, W)
+        agg_masks += sims_map
 
-        base_name = "benjamin-paine/imagenet-1k-256x256"
-        _assert_dataset_available(base_name)
-        self.base = load_dataset(base_name, split=split, cache_dir=str(cache_root))
-        if max_samples is not None and max_samples < len(self.base):
-            # Deterministic subset for reproducibility & CI speed
-            self.base = self.base.select(list(range(max_samples)))
+    agg_masks /= cfg.train.prompts
+    masks = (agg_masks > agg_masks.mean()).float()
+    return masks
 
-        self._ensure_textures()
+# ----------------------------------------------------------------------------
+# Stage-2 – Diffusion counterfactuals ----------------------------------------
 
-        self.tfm_img = transforms.Compose(
-            [
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
-        )
-        self.tfm_tex = transforms.ToTensor()
+def generate_counterfactuals(
+    images: torch.Tensor, masks: torch.Tensor, cfg: ExperimentConfig
+) -> torch.Tensor:
+    """Generate counterfactual images with in-painting guided by masks."""
+    device = images.device
+    dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-        self.rng = random.Random(CONF["seed"] + hash(split))
+    try:
+        pipe = StableDiffusionInpaintPipeline.from_pretrained(
+            cfg.model.diffusion_name, torch_dtype=dtype, cache_dir=str(CACHE_DIR)
+        ).to(device)
+    except Exception as e:
+        _fail(f"Failed to load diffusion model '{cfg.model.diffusion_name}': {e}")
 
-    # ------------------------------------------------------------------
-    # Texture utilities
-    # ------------------------------------------------------------------
-    def _ensure_textures(self) -> None:
-        tex_dir = Path(CONF["data_root"]) / "textures"
-        tex_dir.mkdir(parents=True, exist_ok=True)
-        for url in self.TEXTURE_URLS:
-            fname = tex_dir / Path(url).name
-            if fname.exists():
-                continue
-            # First attempt: embed (offline-safe)
-            if fname.name in _TEXTURE_EMBEDS:
-                _write_embedded_texture(fname)
-                continue
-            # Fallback: online download – may fail depending on CI network policy
-            try:
-                import requests  # local import avoids unconditional dependency
+    pipe.enable_attention_slicing()
 
-                r = requests.get(url, timeout=30)
-                r.raise_for_status()
-                fname.write_bytes(r.content)
-            except Exception as exc:
-                raise RuntimeError(
-                    f"Failed to obtain texture '{url}'. Strict abort.\n{exc}"
-                ) from exc
+    cf_images = []
+    for img, msk in zip(images, masks):
+        img_pil = transforms.ToPILImage()(img.cpu())
+        mask_pil = transforms.ToPILImage()(msk.repeat(3, 1, 1).cpu())
+        cf = pipe(prompt="photo", image=img_pil, mask_image=mask_pil).images[0]
+        cf_images.append(TF.to_tensor(cf))
 
-    # ------------------------------------------------------------------
-    # Core logic: paste class-correlated patch
-    # ------------------------------------------------------------------
-    def _load_texture_np(self, tex_idx: int) -> np.ndarray:
-        """Return a 70×70×3 texture as a NumPy array in [0,1]. Falls back to a solid
-        colour texture if the on-disk PNG cannot be decoded (robust against PIL
-        decoding issues encountered in CI)."""
-        tex_path = Path(CONF["data_root"]) / "textures" / f"texture{tex_idx:02d}.png"
-        try:
-            tex_np = plt.imread(str(tex_path))  # H×W×C, in [0,1]
-            # Very small placeholder PNGs (4×4) are tiled later; just return as-is.
-            return tex_np.astype(np.float32)
-        except Exception:
-            # Fallback: generate a solid-colour texture programmatically
-            if tex_idx % 2 == 0:
-                colour = np.array([1.0, 0.0, 0.0], dtype=np.float32)  # red-ish
-            else:
-                colour = np.array([0.0, 1.0, 0.0], dtype=np.float32)  # green-ish
-            return np.tile(colour, (4, 4, 1)).astype(np.float32)  # 4×4 solid colour
-
-    def _paste_texture(self, pil_img, class_id: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        use_patch = self.rng.random() < self.rho
-        img_rgb = pil_img.convert("RGB")
-        mask = torch.zeros((224, 224), dtype=torch.uint8)
-
-        if use_patch:
-            tex_idx = class_id % len(self.TEXTURE_URLS)
-            tex_np_small = self._load_texture_np(tex_idx)
-
-            # Ensure the texture is at least 70×70 by tiling
-            h, w, _ = tex_np_small.shape
-            rep_y = math.ceil(70 / h)
-            rep_x = math.ceil(70 / w)
-            tex_large = np.tile(tex_np_small, (rep_y, rep_x, 1))[:70, :70, :3]
-
-            # Random 10% window (≈70×70 on 224×224 crop)
-            x0 = self.rng.randint(0, 224 - 70)
-            y0 = self.rng.randint(0, 224 - 70)
-
-            # Convert PIL image to numpy array in [0,1] range
-            img_np = np.asarray(img_rgb, dtype=np.float32) / 255.0
-
-            # If the image is not yet 224×224, resize it to 224×224 before patching
-            if img_np.shape[0] != 224 or img_np.shape[1] != 224:
-                from PIL import Image  # late import
-
-                img_rgb_tmp = img_rgb.resize((224, 224))
-                img_np = np.asarray(img_rgb_tmp, dtype=np.float32) / 255.0
-                img_rgb = img_rgb_tmp  # keep reference updated
-
-            img_np[y0 : y0 + 70, x0 : x0 + 70, :3] = tex_large
-            mask[y0 : y0 + 70, x0 : x0 + 70] = 1
-
-            from PIL import Image  #  late import
-
-            img_rgb = Image.fromarray((img_np * 255).astype("uint8"))
-
-        return self.tfm_img(img_rgb), mask
-
-    # ------------------------------------------------------------------
-    # Public Dataset interface
-    # ------------------------------------------------------------------
-    def __len__(self):
-        return len(self.base)
-
-    def __getitem__(self, idx):
-        sample = self.base[idx]
-        x, m = self._paste_texture(sample["image"], int(sample["label"]))
-        return x, int(sample["label"]), m
+    return torch.stack(cf_images).to(device)

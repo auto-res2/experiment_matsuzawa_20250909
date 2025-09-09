@@ -1,35 +1,63 @@
-data_root: data
-exp_root: results
-seed: 0
-num_workers: 8
-experiments:
-  exp1:
-    name: DistractImageNet++ Spurious-Patch Localisation and Reliance Reduction
-    dataset_script: distract_imagenet
-    rho: [0.9, 0.7, 0.5]
-    train_size: 450000
-    val_size: 25000
-    test_size: 25000
+exp1_rho0.9_resnet50:
+  name: DistractImageNet++_rho0.9_resnet50
+  dataset:
+    hf_name: c3d/DistractImageNetPP
+    url: https://huggingface.co/datasets/c3d/DistractImageNetPP
+    split_files:
+      train: splits/rho0p9/train_indices_seed0.json
+      val: splits/rho0p9/val_indices_seed0.json
+      test: splits/rho0p9/test_indices_seed0.json
+  model:
+    classifier_name: resnet50
+    pretrained: true
+    num_classes: 1000
+    clip_name: openai/clip-vit-large-patch14
+    diffusion_name: stabilityai/stable-diffusion-2-inpainting
+  train:
     epochs: 50
     batch_size: 1024
-    backbones:
-      - arch: resnet50
-        pretrained: imagenet
-      - arch: vit_base_patch16_224
-        pretrained: imagenet21k
-    baselines: [ERM, RSC, AutoACER, GroupDRO_oracle]
-    method_ours: C3D
-    lambda_grid: [0.5, 1.0, 2.0]
-  exp2:
-    name: Context-Aware vs Global Invariance on Mixed-Correlation Benchmarks
-    datasets: [grodino/waterbirds, flwrlabs/celeba, imagenet9_swapped]
+    optimiser:
+      lr: 0.0003
+      weight_decay: 0.05
+      betas:
+      - 0.9
+      - 0.999
+    warmup_epochs: 5
+    lambda_cer: 1.0
+    refresh: 3
+    prompts: 8
+  seeds:
+  - 0
+  - 1
+  - 2
+exp2_waterbirds_vit:
+  name: Waterbirds_ViT_B16
+  dataset:
+    hf_name: grodino/waterbirds
+    url: https://huggingface.co/datasets/grodino/waterbirds
+    split_files: {}
+  model:
+    classifier_name: vit_base_patch16_224
+    pretrained: true
+    num_classes: 2
+    clip_name: openai/clip-vit-large-patch14
+    diffusion_name: stabilityai/stable-diffusion-2-inpainting
+  train:
     epochs: 90
     batch_size: 512
-    methods: [ERM, RSC, ENP_pred, GC_DRO, C3D]
-  exp3:
-    name: Stress-testing C3D under Novel Distractors & Certified Robustness
-    imagenet_training_epochs: 120
-    sigma_certify: 0.25
-    shiftA_patches: [hexagon, emoji]
-    shiftB: imagenet_c
-    shiftC: domainnet_real_clipart
+    optimiser:
+      lr: 0.0003
+      weight_decay: 0.05
+      betas:
+      - 0.9
+      - 0.999
+    warmup_epochs: 5
+    lambda_cer: 1.0
+    refresh: 5
+    prompts: 8
+  seeds:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4

@@ -1,38 +1,43 @@
-"""src/evaluate.py
-Plotting & evaluation helpers.
-"""
+# src/evaluate.py
+"""Evaluation, statistics and visualisation helpers."""
 from __future__ import annotations
 
-import yaml
+import json
 from pathlib import Path
-from typing import List
+from typing import Dict
 
 import matplotlib
-matplotlib.use("Agg")  # headless back-end
-import matplotlib.pyplot as plt  # type: ignore
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
-# -----------------------------------------------------------------------------
-# Configuration (optional – currently unused but loaded for completeness)
-# -----------------------------------------------------------------------------
-_cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
-with open(_cfg_path, "r", encoding="utf-8") as _f:
-    CONF = yaml.safe_load(_f)
+from .preprocess import FIG_DIR, RESULTS_DIR
 
-# -----------------------------------------------------------------------------
-# Public functions
-# -----------------------------------------------------------------------------
+# ────────────────────────────────────────────────────────────────────────────────
+# Save results to disk -----------------------------------------------------------
 
-def plot_line(xs: List[int], ys: List[float], title: str, ylabel: str, fname: str) -> None:
-    """Simple line plot that annotates values and stores a PDF under `fname`."""
-    plt.figure(figsize=(6, 4))
-    plt.plot(xs, ys, marker="o", label=title)
-    for x, y in zip(xs, ys):
-        plt.text(x, y, f"{y:.2f}")
-    plt.xlabel("epoch")
-    plt.ylabel(ylabel)
+def save_results(exp_key: str, results: Dict) -> Path:
+    json_path = RESULTS_DIR / f"{exp_key}_results.json"
+    with open(json_path, "w") as fp:
+        json.dump(results, fp, indent=2)
+    return json_path
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Plot validation accuracy curves ------------------------------------------------
+
+def plot_results(exp_key: str, results: Dict, title: str) -> Path:
+    fig = plt.figure(figsize=(6, 4))
+    for seed, res in results.items():
+        epochs = res["history"]["epoch"]
+        vals = res["history"]["val_acc"]
+        plt.plot(epochs, vals, label=f"seed{seed}")
+        for x, y in zip(epochs, vals):
+            plt.annotate(f"{y:.2f}", (x, y), textcoords="offset points", xytext=(0, 4), ha="center", fontsize=6)
+
+    plt.xlabel("Epoch")
+    plt.ylabel("Validation accuracy")
     plt.title(title)
     plt.legend()
-    plt.tight_layout()
-    Path(fname).parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(fname, bbox_inches="tight", format="pdf")
-    plt.close()
+    fig_path = FIG_DIR / f"accuracy_{exp_key}.pdf"
+    plt.savefig(fig_path, bbox_inches="tight")
+    plt.close(fig)
+    return fig_path

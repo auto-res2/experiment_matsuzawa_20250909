@@ -1,29 +1,24 @@
-[project]
-name = "c3d-research"
-version = "0.1.0"
-description = "Research code-base for C3D experiments (refactored)."
-readme = "README.md"
-requires-python = ">=3.9"
-
-# -----------------------------------------------------------------------------
-# Core dependencies – pinned loosely for GPU research environments
-# -----------------------------------------------------------------------------
-dependencies = [
-    "torch>=2.0",
-    "torchvision",
-    "timm",
-    "accelerate",
-    "datasets",
-    "diffusers",
-    "transformers",
-    "scikit-learn",
-    "matplotlib",
-    "captum",
-    "pyyaml",
-    "requests",
-    "numpy",
-]
-
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "c3d"
+version = "0.1.0"
+description = "Causal Diffusion Discovery & Debiasing experiments"
+authors = [ { name = "Researcher" } ]
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+# Core runtime dependencies ------------------------------------------------------
+[project.dependencies]
+torch = "*"
+torchvision = "*"
+datasets = "*"
+diffusers = "*"
+transformers = "*"
+timm = "*"
+matplotlib = "*"
+seaborn = "*"
+scikit-learn = "*"
+PyYAML = "*"

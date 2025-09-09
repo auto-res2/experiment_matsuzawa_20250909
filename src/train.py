@@ -1,93 +1,196 @@
-"""src/train.py
-Model construction and training utilities.
+# src/train.py
+"""Training utilities for the C3D experiments.
+Splits the original monolithic script into reusable functions so that
+src.main can orchestrate the whole pipeline.
 """
 from __future__ import annotations
 
-import yaml
+import math
+import json
+import random
 from pathlib import Path
-from typing import List
+from typing import Dict
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torchvision import models, transforms
 
-import timm  # type: ignore
-from accelerate import Accelerator  # type: ignore
+# local modules
+from .preprocess import (
+    ExperimentConfig,
+    discover_masks,
+    generate_counterfactuals,
+    get_dataset,
+    ROOT,
+    RESULTS_DIR,
+    _fail,
+)
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
-# -----------------------------------------------------------------------------
-# Configuration (read once so every module shares identical values)
-# -----------------------------------------------------------------------------
-_cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
-with open(_cfg_path, "r", encoding="utf-8") as _f:
-    CONF = yaml.safe_load(_f)
+# ────────────────────────────────────────────────────────────────────────────────
+# Helper – cosine LR schedule ----------------------------------------------------
 
-# -----------------------------------------------------------------------------
-# Helpers
-# -----------------------------------------------------------------------------
+def _cosine_schedule(total_epochs: int):
+    return lambda epoch: 0.5 * (1 + math.cos(math.pi * epoch / total_epochs))
 
-def build_backbone(arch: str, num_classes: int) -> nn.Module:
-    """Create a classification backbone using timm with ImageNet weights."""
-    model = timm.create_model(arch, pretrained=True, num_classes=num_classes)
-    return model
+# ────────────────────────────────────────────────────────────────────────────────
+# Core CER helper ----------------------------------------------------------------
 
+def cer_loss(original_logits: torch.Tensor, cf_logits: torch.Tensor) -> torch.Tensor:
+    """Contextual Effect Regularisation loss (L1 difference)."""
+    return (original_logits - cf_logits).abs().mean()
 
-def accuracy(pred: torch.Tensor, target: torch.Tensor) -> float:
-    """Top-1 accuracy helper (expects logits)."""
-    return (pred.argmax(1) == target).float().mean().item()
+# ────────────────────────────────────────────────────────────────────────────────
+# Main training routine ----------------------------------------------------------
 
-
-class ERMTrainer:
-    """Empirical-Risk-Minimisation baseline trainer.
-
-    A lightweight wrapper around AdamW + optional mixed-precision via
-    HuggingFace Accelerate so the same code path works on single or multi-GPU
-    machines.
+def run_training(exp_key: str, exp_cfg: ExperimentConfig) -> Dict:
+    """Run the complete training loop for a single experiment.
+    Returns the *results_all_seeds* dictionary so that src.main can take care of
+    saving, plotting and printing.
     """
+    # --------------- data ----------------
+    train_ds = get_dataset(exp_cfg.dataset, "train")
+    val_split = "validation" if "validation" in train_ds.builder_name else "val"
+    val_ds = get_dataset(exp_cfg.dataset, val_split)
 
-    def __init__(self, model: nn.Module, lr: float, epochs: int, accelerator: Accelerator):
-        self.model = model
-        self.lr = lr
-        self.epochs = epochs
-        self.accelerator = accelerator
-        self.opt = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=0.05)
-        # prepare handles device placement / DDP / AMP automatically
-        self.model, self.opt = self.accelerator.prepare(self.model, self.opt)
+    if "label" not in train_ds.column_names:
+        _fail("Dataset missing `label` column – cannot proceed.")
 
-    # ------------------------------------------------------------------
-    # Training loop
-    # ------------------------------------------------------------------
-    def fit(self, train_loader: DataLoader, val_loader: DataLoader) -> float:
-        # Prepare the dataloaders once – this moves tensors to the right device
-        train_loader, val_loader = self.accelerator.prepare(train_loader, val_loader)
+    num_classes = exp_cfg.model.num_classes
 
-        best_acc: float = 0.0
-        for ep in range(self.epochs):
-            self.model.train()
-            for xb, yb, *_ in train_loader:
-                with self.accelerator.accumulate(self.model):
-                    logits = self.model(xb)
-                    loss = F.cross_entropy(logits, yb)
-                    self.accelerator.backward(loss)
-                    self.opt.step()
-                    self.opt.zero_grad()
-            val_acc = self.evaluate(val_loader)
-            if self.accelerator.is_main_process:
-                print(f"[ERM] epoch {ep + 1}/{self.epochs}  val_acc = {val_acc:.3f}")
-            best_acc = max(best_acc, val_acc)
-        return best_acc
+    transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
 
-    # ------------------------------------------------------------------
-    # Validation
-    # ------------------------------------------------------------------
-    @torch.no_grad()
-    def evaluate(self, loader: DataLoader) -> float:
-        self.model.eval()
-        accs: List[torch.Tensor] = []
-        for xb, yb, *_ in loader:
-            logits = self.model(xb)
-            accs.append((logits.argmax(1) == yb).float())
-        # Gather across processes
-        acc_tensor = torch.cat(accs)
-        acc_tensor = self.accelerator.gather(acc_tensor)
-        return acc_tensor.mean().item()
+    def _tf(example):
+        example["image"] = transform(example["image"])
+        return example
+
+    train_ds.set_transform(_tf)
+    val_ds.set_transform(_tf)
+
+    # --------------- model ---------------
+    if "resnet" in exp_cfg.model.classifier_name:
+        weights = (
+            models.ResNet50_Weights.IMAGENET1K_V2 if exp_cfg.model.pretrained else None
+        )
+        model = models.get_model(exp_cfg.model.classifier_name, weights=weights)
+        model.fc = nn.Linear(model.fc.in_features, num_classes)
+    else:  # vit or other timm model
+        try:
+            import timm  # local import avoids mandatory dependency if unused
+        except ImportError as e:
+            _fail(f"[timm missing] Ensure timm is installed – {e}")
+        model = timm.create_model(
+            exp_cfg.model.classifier_name,
+            pretrained=exp_cfg.model.pretrained,
+            num_classes=num_classes,
+        )
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+
+    # --------------- optimiser --------------
+    optim_cfg = exp_cfg.train.optimiser
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=optim_cfg.lr,
+        weight_decay=optim_cfg.weight_decay,
+        betas=optim_cfg.betas,
+    )
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer, _cosine_schedule(exp_cfg.train.epochs)
+    )
+
+    # --------------- dataloaders ------------
+    world_bs = exp_cfg.train.batch_size
+    num_gpus = max(1, torch.cuda.device_count())
+    per_device_bs = max(1, world_bs // num_gpus)
+
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=per_device_bs,
+        shuffle=True,
+        num_workers=8,
+        pin_memory=True,
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=256, shuffle=False, num_workers=4, pin_memory=True
+    )
+
+    # --------------- training loop ----------
+    results_all_seeds: Dict = {}
+
+    for seed in exp_cfg.seeds:
+        torch.manual_seed(seed)
+        random.seed(seed)
+
+        best_val_acc = 0.0
+        metrics_history = {"epoch": [], "train_loss": [], "val_acc": []}
+
+        for epoch in range(exp_cfg.train.epochs):
+            model.train()
+            running_loss = 0.0
+            for batch in train_loader:
+                imgs = batch["image"].to(device, non_blocking=True)
+                labels = batch["label"].to(device, non_blocking=True)
+
+                # Stage-1 & 2 --------------------------------------------------
+                masks = discover_masks(imgs, exp_cfg)
+                cf_imgs = generate_counterfactuals(imgs, masks, exp_cfg)
+
+                # Forward ------------------------------------------------------
+                logits_orig = model(imgs)
+                logits_cf = model(cf_imgs.detach())
+
+                ce = F.cross_entropy(logits_orig, labels, label_smoothing=0.1)
+                cer = cer_loss(logits_orig, logits_cf)
+                loss = ce + exp_cfg.train.lambda_cer * cer
+
+                optimizer.zero_grad(set_to_none=True)
+                loss.backward()
+                optimizer.step()
+                running_loss += loss.item() * imgs.size(0)
+
+            scheduler.step()
+            train_loss = running_loss / len(train_loader.dataset)
+
+            # ---------------- validation ----------------
+            model.eval()
+            correct = 0
+            with torch.no_grad():
+                for batch in val_loader:
+                    imgs = batch["image"].to(device, non_blocking=True)
+                    labels = batch["label"].to(device, non_blocking=True)
+                    pred = model(imgs).argmax(dim=1)
+                    correct += (pred == labels).sum().item()
+            val_acc = correct / len(val_loader.dataset)
+
+            metrics_history["epoch"].append(epoch)
+            metrics_history["train_loss"].append(train_loss)
+            metrics_history["val_acc"].append(val_acc)
+
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                ckpt_path = RESULTS_DIR / f"{exp_key}_seed{seed}.pt"
+                torch.save({"model_state": model.state_dict(), "epoch": epoch}, ckpt_path)
+
+            print(
+                f"[{exp_key}|seed{seed}] epoch {epoch+1}/{exp_cfg.train.epochs} "
+                f"loss={train_loss:.3f}  val_acc={val_acc:.3f}"
+            )
+
+        # --------------- summarise ---------------
+        results_all_seeds[seed] = {
+            "best_val_acc": best_val_acc,
+            "history": metrics_history,
+        }
+
+    return results_all_seeds

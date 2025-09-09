@@ -1,108 +1,73 @@
-"""src/main.py
-Entry-point orchestrating the experimental workflow.
-Run via `python -m src.main`.
-"""
+# src/main.py
+"""Project entry-point – orchestrates the whole C3D pipeline."""
 from __future__ import annotations
 
-import os
-import json
-import random
-from pathlib import Path
-from typing import Any, Dict
-
 import yaml
-from accelerate import Accelerator  # type: ignore
+from pathlib import Path
 
-# --------------------------- local imports -----------------------------------
-from .train import build_backbone, ERMTrainer
-from .preprocess import DistractImageNetDataset
-from .evaluate import plot_line
+from .preprocess import (
+    ExperimentConfig,
+    DatasetConfig,
+    ModelConfig,
+    TrainConfig,
+    OptimConfig,
+    ROOT,
+)
+from .train import run_training
+from .evaluate import save_results, plot_results
 
-# --------------------------- configuration -----------------------------------
-_cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
-with open(_cfg_path, "r", encoding="utf-8") as _f:
-    CONF: Dict[str, Any] = yaml.safe_load(_f)
+CONFIG_PATH = ROOT / "config" / "config.yaml"
 
-# -----------------------------------------------------------------------------
-# Experiment 1 – minimal demo (full C3D pipeline omitted for brevity)
-# -----------------------------------------------------------------------------
+# ────────────────────────────────────────────────────────────────────────────────
+# Helper to recursively build dataclasses ---------------------------------------
 
-def run_experiment_1() -> Dict[str, Any]:
-    exp_conf = CONF["experiments"]["exp1"]
+def _dict_to_dataclass(d, cls):
+    if not hasattr(cls, "__annotations__"):
+        return d  # primitive
+    kwargs = {}
+    for k, t in cls.__annotations__.items():
+        if k not in d:
+            continue
+        val = d[k]
+        origin = getattr(t, "__origin__", None)
+        if origin is list:
+            sub_cls = t.__args__[0]
+            kwargs[k] = [_dict_to_dataclass(i, sub_cls) for i in val]
+        elif origin is dict:
+            kwargs[k] = val
+        else:
+            kwargs[k] = _dict_to_dataclass(val, t)
+    return cls(**kwargs)
 
-    random.seed(CONF["seed"])
+# ────────────────────────────────────────────────────────────────────────────────
+# Main driver -------------------------------------------------------------------
 
-    # --------------------- data loaders ---------------------------------
-    ds_train = DistractImageNetDataset("train", rho=0.9, max_samples=512)
-    ds_val = DistractImageNetDataset("validation", rho=0.9, max_samples=128)
+def main():
+    if not CONFIG_PATH.exists():
+        raise FileNotFoundError(f"Config YAML not found at {CONFIG_PATH}")
 
-    from torch.utils.data import DataLoader  # local import keeps API surface small
+    with open(CONFIG_PATH) as fp:
+        raw_cfg = yaml.safe_load(fp)
 
-    dl_train = DataLoader(
-        ds_train,
-        batch_size=64,
-        shuffle=True,
-        num_workers=min(4, CONF["num_workers"]),
-        pin_memory=True,
-    )
-    dl_val = DataLoader(
-        ds_val,
-        batch_size=64,
-        shuffle=False,
-        num_workers=min(4, CONF["num_workers"]),
-        pin_memory=True,
-    )
+    for exp_key, cfg_dict in raw_cfg.items():
+        exp_cfg: ExperimentConfig = _dict_to_dataclass(cfg_dict, ExperimentConfig)
 
-    # ----------------------- model + trainer -----------------------------
-    model = build_backbone("resnet50", num_classes=1000)
-    accelerator = Accelerator(mixed_precision="fp16")
-    trainer = ERMTrainer(model, lr=3e-4, epochs=3, accelerator=accelerator)  # short demo
-    best_val_acc = trainer.fit(dl_train, dl_val)
+        results = run_training(exp_key, exp_cfg)
+        json_path = save_results(exp_key, results)
+        fig_path = plot_results(exp_key, results, exp_cfg.name)
 
-    # ----------------------- save results -------------------------------
-    res = {
-        "experiment": exp_conf["name"],
-        "baseline": {"method": "ERM", "val_top1": best_val_acc},
-    }
-
-    out_root = Path(".research") / "iteration5"  # Updated path as per spec
-    out_root.mkdir(parents=True, exist_ok=True)
-    json_path = out_root / "exp1_results.json"
-    json_path.write_text(json.dumps(res, indent=2))
-
-    # ----------------------- figure --------------------------------------
-    fig_dir = Path(".research") / "iteration5" / "images"  # Updated path
-    fig_dir.mkdir(parents=True, exist_ok=True)
-    plot_line(
-        xs=[1, 2, 3],
-        ys=[0.1, 0.5, best_val_acc],
-        title="Validation top-1 accuracy (demo)",
-        ylabel="Acc.",
-        fname=str(fig_dir / "accuracy_resnet50.pdf"),
-    )
-
-    # ----------------------- stdout --------------------------------------
-    print("\n================= EXPERIMENT 1 – DESCRIPTION =================")
-    print(exp_conf["name"])
-    print("\n================= EXPERIMENT 1 – NUMERICAL RESULTS ============")
-    print(json.dumps(res, indent=2))
-    print("\n================= FIGURE FILES ===============================")
-    print("accuracy_resnet50.pdf (saved under .research/iteration5/images)")
-
-    # Ensure JSON content is printed for verification (required by grading)
-    print("\n================= JSON CONTENTS ==============================")
-    print(json_path.read_text())
-
-    return res
-
-# -----------------------------------------------------------------------------
-# Main
-# -----------------------------------------------------------------------------
-
-def main() -> None:
-    os.environ["TOKENIZERS_PARALLELISM"] = "false"
-    _ = run_experiment_1()
-    #  Exp-2 / Exp-3 follow identical structure and can be plugged in here.
+        # stdout summary --------------------------------------------------------
+        print("\n────────────────────────  EXPERIMENT DESCRIPTION  ────────────────────────")
+        print(f"Experiment key          : {exp_key}")
+        print(f"Human-readable name     : {exp_cfg.name}")
+        print(f"Dataset URL             : {exp_cfg.dataset.url}")
+        print(f"Backbone                : {exp_cfg.model.classifier_name}")
+        print(f"Total epochs            : {exp_cfg.train.epochs}")
+        print("──────────────────────────────────────────────────────────────────────────")
+        with open(json_path) as fp:
+            print(fp.read())
+        print("Figures saved:")
+        print(fig_path.name)
 
 
 if __name__ == "__main__":
