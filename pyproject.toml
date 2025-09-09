@@ -1,1 +1,23 @@
-# Please list the required python packages.
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hvq-regen"
+version = "0.1.0"
+description = "Refactored research prototype for H-VQ ReGen continual-learning"
+authors = [{ name = "Research Team" }]
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+# ---------------------------------------------------------------------------
+#  Runtime dependencies  ----------------------------------------------------
+# ---------------------------------------------------------------------------
+[project.dependencies]
+torch = "*"           # tested with 2.1+
+torchvision = "*"
+avalanche-lib = "*"
+PyYAML = "*"
+matplotlib = "*"
+seaborn = "*"

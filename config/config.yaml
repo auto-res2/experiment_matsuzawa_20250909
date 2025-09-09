@@ -1,0 +1,28 @@
+optimiser:
+  lr: 0.05
+  momentum: 0.9
+  weight_decay: 0.0001
+hvq:
+  tier1_codebook: 256
+  tier1_code_dim: 32
+  tier1_codes_per_img: 16
+  tier2_codebook: 4096
+  tier2_code_bytes: 2
+  commit_beta: 0.25
+common:
+  batch_size: 128
+  replay_ratio: 4
+  seeds: [2023, 2024, 2025]
+exp1:
+  name: ultra_low_footprint
+  memory_grid: [1048576, 524288, 262144, 131072, 65536, 32768]
+  datasets: [SplitCIFAR100]
+exp2:
+  name: long_horizon_100tasks
+  permuted_mnist_tasks: 100
+  mini_imagenet_tasks: 100
+exp3:
+  name: edge_robustness
+  pgd_eps: 0.03137254901960784  # 8/255
+  pgd_alpha: 0.00784313725490196
+  pgd_steps: 10
