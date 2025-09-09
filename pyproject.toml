@@ -9,18 +9,22 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "Anonymous Researcher"}
+  {name = "Anonymous Researcher"}
 ]
 
-[project.dependencies]
-# Core frameworks
-torch = "*"
-torch-geometric = "*"
-# OGB datasets
-ogb = "*"
-# Plotting & utilities
-matplotlib = "*"
-pyyaml = "*"
+# ------------------------------------------------------------------
+# Dependencies – array of strings as per PEP 621
+# ------------------------------------------------------------------
+dependencies = [
+  # Core frameworks
+  "torch",
+  "torch-geometric",
+  # OGB datasets
+  "ogb",
+  # Plotting & utilities
+  "matplotlib",
+  "pyyaml",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

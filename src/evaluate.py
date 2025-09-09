@@ -30,7 +30,7 @@ def evaluate(model: torch.nn.Module, data: Data, split: str, device):
     with torch.no_grad():
         data = data.to(device)
         out, _ = model(data.x, data.edge_index)
-        pred = out.argmax(dim=-1, keepdim=True)
+        pred = out.argmax(dim=-1)  # shape (N,)
         if split == "val":
             mask = data.val_mask
         elif split == "test":
@@ -46,7 +46,7 @@ def evaluate(model: torch.nn.Module, data: Data, split: str, device):
 # Plot helper
 # ------------------------------------------------------------------
 
-def save_curve_pdf(xs: List[int], ys: List[float], title: str, ylabel: str, fname: str):
+def save_curve_pdf(xs: List[int], ys: List[float], title: str, ylabel: str, fname: str | Path):
     plt.figure(figsize=(6, 4))
     plt.plot(xs, ys, marker="o", label=title)
     for x, y in zip(xs, ys):

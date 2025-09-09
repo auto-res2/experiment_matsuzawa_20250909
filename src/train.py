@@ -51,12 +51,19 @@ class GCNBackbone(nn.Module):
 
     # --------------------------------------------------------
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:  # type: ignore
-        h0 = x
+        """Forward with residual connection every two layers.
+        The residual connects the input of the *current* two-layer block to its
+        output, ensuring identical dimensionality (hidden → hidden).
+        """
         for l, conv in enumerate(self.convs[:-1]):
+            # start a new residual block on even layers
+            if l % 2 == 0:
+                x_res = x  # save for residual (same hidden dim)
             x = conv(x, edge_index)
             x = F.relu(x)
+            # apply residual on odd layers where dimensions match
             if l % 2 == 1:
-                x = x + h0  # residual
+                x = x + x_res
             x = self.norms[l](x)
         x = self.convs[-1](x, edge_index)
         return x
