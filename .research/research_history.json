@@ -6,5 +6,82 @@
     "residual connections GNN",
     "normalization GNN oversmooth",
     "jumping knowledge GNN"
+  ],
+  "research_study_list": [
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "Demystifying Oversmoothing in Attention-Based Graph Neural Networks"
+    },
+    {
+      "title": "PairNorm: Tackling Oversmoothing in GNNs"
+    },
+    {
+      "title": "Graph Neural Networks Do Not Always Oversmooth"
+    },
+    {
+      "title": "Towards Deeper Graph Neural Networks with Differentiable Group Normalization"
+    },
+    {
+      "title": "Mind the spikes: Benign overfitting of kernels and neural networks in fixed dimension"
+    },
+    {
+      "title": "Optimal Regularization can Mitigate Double Descent"
+    },
+    {
+      "title": "Implicit Regularization in Over-Parameterized Support Vector Machine"
+    },
+    {
+      "title": "Sketched Ridgeless Linear Regression: The Role of Downsampling"
+    },
+    {
+      "title": "On the Frequency-bias of Coordinate-MLPs"
+    },
+    {
+      "title": "Graph Neural Networks with Adaptive Residual"
+    },
+    {
+      "title": "Deep Graph Neural Networks via Posteriori-Sampling-based Node-Adaptative Residual Module"
+    },
+    {
+      "title": "Simple and Deep Graph Convolutional Networks"
+    },
+    {
+      "title": "Scattering GCN: Overcoming Oversmoothness in Graph Convolutional Networks"
+    },
+    {
+      "title": "Riemannian Residual Neural Networks"
+    },
+    {
+      "title": "Towards Deeper Graph Neural Networks with Differentiable Group Normalization"
+    },
+    {
+      "title": "PairNorm: Tackling Oversmoothing in GNNs"
+    },
+    {
+      "title": "ContraNorm: A Contrastive Learning Perspective on Oversmoothing and Beyond"
+    },
+    {
+      "title": "A Non-Asymptotic Analysis of Oversmoothing in Graph Neural Networks"
+    },
+    {
+      "title": "GraphNorm: A Principled Approach to Accelerating Graph Neural Network Training"
+    },
+    {
+      "title": "From Node Interaction To Hop Interaction: New Effective and Scalable Graph Learning Paradigm"
+    },
+    {
+      "title": "INDIGO: GNN-Based Inductive Knowledge Graph Completion Using Pair-Wise Encoding"
+    },
+    {
+      "title": "How Powerful are K-hop Message Passing Graph Neural Networks"
+    },
+    {
+      "title": "Finding Global Homophily in Graph Neural Networks When Meeting Heterophily"
+    },
+    {
+      "title": "Finding Global Homophily in Graph Neural Networks When Meeting Heterophily"
+    }
   ]
 }
