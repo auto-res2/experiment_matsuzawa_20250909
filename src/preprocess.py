@@ -14,6 +14,7 @@ from torchvision import transforms  # type: ignore
 from torch.utils.data import Dataset
 import torch
 import matplotlib.pyplot as plt  # type: ignore
+import numpy as np  # Added for array conversions
 
 # -----------------------------------------------------------------------------
 # Configuration
@@ -143,7 +144,9 @@ class DistractImageNetDataset(Dataset):
             x0 = self.rng.randint(0, 224 - 70)
             y0 = self.rng.randint(0, 224 - 70)
 
-            img_np = plt.imread(pil_img)
+            # Convert PIL image to numpy array in [0,1] range
+            img_np = np.asarray(img_rgb, dtype=np.float32) / 255.0
+
             img_np[y0 : y0 + 70, x0 : x0 + 70, :3] = tex_np[y0 : y0 + 70, x0 : x0 + 70, :3]
             mask[y0 : y0 + 70, x0 : x0 + 70] = 1
 
