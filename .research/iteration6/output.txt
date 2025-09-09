@@ -1,0 +1,4 @@
+=== uv sync start Tue Sep  9 04:03:03 AM UTC 2025 ===
+=== uv install end Tue Sep  9 04:03:09 AM UTC 2025 ===
+=== experiment start Tue Sep  9 04:03:09 AM UTC 2025 ===
+===== exp1_diff_waterbirds | resnet18 | seed 0 =====
