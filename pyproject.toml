@@ -1,24 +1,22 @@
 [project]
 name = "adasmooth_ode"
-version = "0.1.2"  # bumped after dependency resolution hot-fix
+version = "0.1.3"  # bumped after NumPy compatibility fix
 description = "Depth-scalable GNNs with node-adaptive smoothing times (AdaSmooth-ODE)"
 requires-python = ">=3.9"
 
 # ---------------------------------------------------------------------------
 # Dependency pinning strategy (wheel-only – *no local builds*)
 # ---------------------------------------------------------------------------
-# Previous attempt used CUDA-enabled wheels ("+cu118") for PyTorch 2.1.0.
-# Unfortunately the default PyPI index does **not** expose these local-version
-# variants, which caused the resolver to fail.  We therefore switch to the CPU
-# build of PyTorch while still relying on fully pre-compiled wheels for the
-# PyG stack that are ABI-compatible with the CPU runtime ("+pt21cpu").  This
-# guarantees a successful, build-free installation on the execution backend
-# while retaining full functionality for the small-to-medium datasets used in
-# our experiments.
+# A hard pin to NumPy < 2 is required because the compiled PyG extension
+# modules shipped on the official wheel repository are still built against the
+# 1.x NumPy C-API.  Loading them with NumPy>=2 raises a hard error at runtime.
+# We therefore lock to the latest 1.x release that is compatible with CPython
+# 3.11 (currently 1.26.x).
 # ---------------------------------------------------------------------------
 
 dependencies = [
   # ---------- core ML stack ----------
+  "numpy>=1.26,<2",                # <-- explicit pin to avoid ABI mismatch
   "torch==2.1.0",                 # CPU wheel available on the default index
   "torchvision==0.16.0",          # CPU build automatically selected
 
@@ -31,6 +29,3 @@ dependencies = [
   "torchdiffeq", "ogb", "networkx", "scikit-learn",
   "seaborn", "matplotlib", "pyyaml", "tqdm"
 ]
-
-# No `extra-build-dependencies` stanza required – all binary wheels are pulled
-# directly from the official PyG mirror, eliminating local compilation steps.

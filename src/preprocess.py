@@ -4,10 +4,12 @@ from __future__ import annotations
 This revision updates the research output directories in compliance with the
 project-wide specification:
 
-  • All image artifacts must be saved inside  ``.research/iteration5/images``
-  • All JSON artefacts must live directly in ``.research/iteration5``
+  • All image artefacts must be saved inside  ``.research/iteration6/images``
+  • All JSON artefacts must live directly in ``.research/iteration6``
 
-No other functional changes were introduced.
+It also fixes an incorrect import for the *Texas* and *Wisconsin* datasets by
+using the generic ``WebKB`` wrapper provided by PyG.  No other functional
+changes were introduced.
 """
 
 import json
@@ -15,14 +17,10 @@ import random
 from pathlib import Path
 from typing import Dict
 
-import yaml
 import torch
 import torch_sparse
-from torch_geometric.datasets import (
-    Planetoid,
-    Texas,
-    Wisconsin,
-)
+import yaml
+from torch_geometric.datasets import Planetoid, WebKB
 from torch_geometric.transforms import ToUndirected
 from ogb.nodeproppred import PygNodePropPredDataset
 
@@ -32,9 +30,9 @@ from ogb.nodeproppred import PygNodePropPredDataset
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # NOTE: mandatory path update (specification requirement) -------------------
-RESEARCH_DIR = BASE_DIR / ".research" / "iteration5"  # <- UPDATED to iteration5
+RESEARCH_DIR = BASE_DIR / ".research" / "iteration6"  # <-- UPDATED to iteration6
 IMAGE_DIR = RESEARCH_DIR / "images"
-RESULT_DIR = RESEARCH_DIR  # JSON files live directly in iteration5/
+RESULT_DIR = RESEARCH_DIR  # JSON files live directly in iteration6/
 # ---------------------------------------------------------------------------
 
 DATA_DIR = BASE_DIR / "data"
@@ -91,12 +89,14 @@ def get_normalised_laplacian(
 # ---------------------------------------------------------------------------
 #                               DATASETS
 # ---------------------------------------------------------------------------
+
 _DATASET_MAP = {
     "cora": lambda: Planetoid(DATA_DIR.as_posix(), "Cora", transform=ToUndirected()),
     "citeseer": lambda: Planetoid(DATA_DIR.as_posix(), "Citeseer", transform=ToUndirected()),
     "pubmed": lambda: Planetoid(DATA_DIR.as_posix(), "Pubmed", transform=ToUndirected()),
-    "texas": lambda: Texas(DATA_DIR.as_posix()),
-    "wisconsin": lambda: Wisconsin(DATA_DIR.as_posix()),
+    # WebKB variants --------------------------------------------------------
+    "texas": lambda: WebKB(DATA_DIR.as_posix(), name="Texas", transform=ToUndirected()),
+    "wisconsin": lambda: WebKB(DATA_DIR.as_posix(), name="Wisconsin", transform=ToUndirected()),
 }
 
 
