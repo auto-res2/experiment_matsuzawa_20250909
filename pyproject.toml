@@ -1,23 +1,18 @@
 [project]
-name = "hvqregen-cl"
+name = "hvq-regen-cl"
 version = "0.1.0"
-description = "H-VQ ReGen: ultra-low-footprint rehearsal for continual learning"
+description = "Refactored experimental code for H-VQ ReGen continual-learning project"
+readme = "README.md"
 requires-python = ">=3.8"
-authors = [ { name = "OpenAI Assistant" } ]
-license = { text = "Apache-2.0" }
+license = {text = "MIT"}
 
-# --------------------------------------------------------------------
-#  Core dependencies  (listed as an array per PEP 621)
-# --------------------------------------------------------------------
-dependencies = [
-    "torch>=2.0",
-    "torchvision>=0.15",
-    "numpy",
-    "matplotlib",
-    "seaborn",
-    "pyyaml",
-    "fvcore"
-]
+# Core dependencies extracted from import statements
+[project.dependencies]
+torch = ">=1.12"
+torchvision = ">=0.13"
+avalanche-lib = ">=0.4"
+matplotlib = ">=3.5"
+PyYAML = ">=6.0"
 
 [build-system]
 requires = ["setuptools", "wheel"]

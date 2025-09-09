@@ -1,19 +1,58 @@
-experiment_1:
-  dataset_name: SplitCIFAR100
-  dataset_loader: split_cifar100
-  replay_budget: 1048576  # 1 MB
-  epochs_per_task: 3
-  lr: 0.05
-  replay_ratio: 0.25
-  n_classes: 100
-  seeds: [2023, 2024, 2025]
-experiment_2:
-  dataset_name: PermutedMNIST
-  dataset_loader: permuted_mnist
-  n_tasks: 20
-  replay_budget: 262144  # 256 kB
-  epochs_per_task: 2
-  lr: 0.03
-  replay_ratio: 0.25
-  n_classes: 10
-  seeds: [2023]
+global:
+  seed: 2023
+  device: "cuda" if "${CUDA_AVAILABLE}" else "cpu"
+  batch_size: 128
+  num_workers: 8
+  optimizer:
+    name: SGD
+    lr: 0.05
+    momentum: 0.9
+    weight_decay: 0.0001
+  scheduler:
+    name: CosineAnnealingLR
+    T_max: 5
+  mixed_precision: true
+exp1_ci_gate:
+  datasets:
+    - CIFAR10
+    - MNIST
+  n_samples: 2048
+  mse_tol: 0.001
+  top1_tol: 0.98
+exp2_memory_accuracy:
+  datasets:
+    - SplitCIFAR100
+    - PermutedMNIST
+  budgets:
+    - 32768
+    - 65536
+    - 131072
+    - 262144
+    - 524288
+    - 1048576
+  methods:
+    - hvq_regen
+    - derpp
+    - er_ring
+    - orthosubspace
+    - aqm
+    - sparcl
+    - ucb
+  seeds:
+    - 2023
+    - 2024
+    - 2025
+exp3_long_horizon:
+  datasets:
+    - PermutedMNIST100
+  budget: 1048576
+  methods:
+    - hvq_regen
+    - sparcl
+    - er_ring
+    - la_maml_er
+  tasks: 100
+  seeds:
+    - 2023
+    - 2024
+    - 2025
