@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Optimizer
+from typing import Tuple, Union
 
 try:
     import torch_geometric
@@ -130,7 +131,7 @@ class GradeGCN(nn.Module):
         self.lambda_grad = lambda_grad  # retained for completeness
 
     # --------------------------------------------------------
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor):
+    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         edge_index, g = self.edge_gate()
         _ = softmax(g, edge_index[0])  # placeholder – not used in GCN op here
         x = self.backbone(x, edge_index)
@@ -148,6 +149,18 @@ class GradeGCN(nn.Module):
 
 from torch_geometric.data import Data  # after PyG availability check
 
+def _unpack_model_output(model_out: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]):
+    """Utility that makes the training/eval code agnostic to whether the model
+    returns a single tensor (logits) or a tuple (logits, aux_stat).
+    """
+    if isinstance(model_out, tuple):
+        out, aux = model_out
+    else:
+        out = model_out
+        aux = torch.tensor(0.0, device=out.device)
+    return out, aux
+
+
 def train_one_epoch(
     model: nn.Module,
     data: Data,  # full-batch only in this compact demo
@@ -158,7 +171,9 @@ def train_one_epoch(
     optimizer.zero_grad(set_to_none=True)
 
     data = data.to(device)
-    out, depth_ratio = model(data.x, data.edge_index)
+    out_raw = model(data.x, data.edge_index)
+    out, depth_ratio = _unpack_model_output(out_raw)
+
     loss = F.cross_entropy(out[data.train_mask], data.y.squeeze()[data.train_mask])
 
     loss_total = loss

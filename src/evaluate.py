@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Tuple, Union
 
 import torch
 import matplotlib
@@ -25,11 +25,20 @@ from torch_geometric.data import Data
 __all__ = ["evaluate", "save_curve_pdf", "dump_json"]
 
 
+def _unpack_model_output(model_out: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]):
+    if isinstance(model_out, tuple):
+        out, _ = model_out
+    else:
+        out = model_out
+    return out
+
+
 def evaluate(model: torch.nn.Module, data: Data, split: str, device):
     model.eval()
     with torch.no_grad():
         data = data.to(device)
-        out, _ = model(data.x, data.edge_index)
+        out_raw = model(data.x, data.edge_index)
+        out = _unpack_model_output(out_raw)
         pred = out.argmax(dim=-1)  # shape (N,)
         if split == "val":
             mask = data.val_mask
