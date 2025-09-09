@@ -10,9 +10,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 # -----------------------------------------------------------------------------
-# Directory where all images must be stored (mandatory iteration4 path)
+# Directory where all images must be stored (mandatory iteration5 path)
 # -----------------------------------------------------------------------------
-IMG_DIR = Path('.research/iteration4/images')
+IMG_DIR = Path('.research/iteration5/images')
 IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 # -----------------------------------------------------------------------------
@@ -32,13 +32,17 @@ def generate_figures(results: Dict[str, Any], cfg: Dict[str, Any]):
     # -- training loss -----------------------------------------------------
     fig, ax = plt.subplots()
     ax.plot(results["train_loss"], label="train_loss")
-    ax.set_xlabel("Epoch"); ax.set_ylabel("Cross-Entropy Loss"); ax.legend()
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Cross-Entropy Loss")
+    ax.legend()
     figs.append(_save(fig, f"train_loss_{cfg['experiment_name']}"))
 
     # -- validation accuracy ----------------------------------------------
     fig, ax = plt.subplots()
     ax.plot(results["val_acc_curve"], label="val_acc")
-    ax.set_xlabel("Epoch"); ax.set_ylabel("Accuracy"); ax.legend()
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Accuracy")
+    ax.legend()
     figs.append(_save(fig, f"val_acc_{cfg['experiment_name']}"))
 
     results["figures"] = figs

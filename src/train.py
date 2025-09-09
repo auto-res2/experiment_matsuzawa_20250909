@@ -34,6 +34,7 @@ def _set_seed(seed: int):
 #  MODEL
 # -----------------------------------------------------------------------------
 
+
 def build_model(cfg: Dict[str, Any]):
     name = cfg["model"].lower()
     if name == "resnet50":
@@ -61,6 +62,7 @@ try:
 except Exception:  # pragma: no cover – imported conditionally
     _T = None  # type: ignore
 
+
 class DiceAugmentor:
     """Minimal implementation of DiCE data augmentation.
 
@@ -76,8 +78,8 @@ class DiceAugmentor:
     def __init__(self, cfg: Dict[str, Any], accelerator: Accelerator):
         if _T is None:
             raise RuntimeError("torchvision/diffusers not available; cannot use DiCE")
-        self.cfg     = cfg
-        self.device  = accelerator.device
+        self.cfg = cfg
+        self.device = accelerator.device
         self.prompts = cfg.get(
             "dice_prompts",
             ["random landscape", "urban street", "mountain view", "underwater scene"],
@@ -93,31 +95,38 @@ class DiceAugmentor:
 
         # --- 2) Stable Diffusion in-paint -------------------------------------
         try:
+            # Use float32 on CPU to avoid "addmm" fp16 not implemented errors.
+            dtype = torch.float16 if self.device.type == "cuda" else torch.float32
             self.pipe = StableDiffusionInpaintPipeline.from_pretrained(
-                "stabilityai/stable-diffusion-2-inpainting", torch_dtype=torch.float16
+                "stabilityai/stable-diffusion-2-inpainting", torch_dtype=dtype
             ).to(self.device)
         except Exception as e:  # pragma: no cover
             raise RuntimeError("Failed to load StableDiffusion – " + str(e))
 
         # --- 3) CLIP background embedding (not used directly during forward)
         try:
-            self.clip_model     = CLIPModel.from_pretrained("openai/clip-vit-base-patch16").to(self.device)
+            self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16").to(
+                self.device
+            )
             self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
         except Exception as e:  # pragma: no cover
             raise RuntimeError("Failed to load CLIP – " + str(e))
 
         # Resize / normalisation identical to training preprocessing
-        self.pre_tf = _T.Compose([
-            _T.Resize(256),
-            _T.CenterCrop(224),
-            _T.ToTensor(),
-            _T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        self.pre_tf = _T.Compose(
+            [
+                _T.Resize(256),
+                _T.CenterCrop(224),
+                _T.ToTensor(),
+                _T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
 
     # ---------------------------------------------------------------------
     def __call__(self, x: torch.Tensor, y: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         # Late import to avoid circular dependency at module import time
         from src.preprocess import _DEF_TRAIN_TRANSF  # noqa: WPS433
+
         batch_aug: List[torch.Tensor] = []
         for img in x:  # iterate over batch
             pil = _T.ToPILImage()(img.cpu())
@@ -127,9 +136,7 @@ class DiceAugmentor:
                 continue
             fg_mask = (masks[0]["segmentation"].astype("uint8") * 255)
             bg_prompt = random.choice(self.prompts)
-            out_pil = self.pipe(prompt=bg_prompt,
-                                image=pil,
-                                mask_image=Image.fromarray(fg_mask)).images[0]
+            out_pil = self.pipe(prompt=bg_prompt, image=pil, mask_image=Image.fromarray(fg_mask)).images[0]
             batch_aug.append(_DEF_TRAIN_TRANSF(out_pil))
         x_prime = torch.stack(batch_aug).to(x.device, non_blocking=True)
         return x_prime, y  # y unchanged
@@ -138,12 +145,13 @@ class DiceAugmentor:
 #  ENGINE
 # -----------------------------------------------------------------------------
 
+
 class Engine:
     """High-level training / evaluation loop (single / multi GPU via accelerate)."""
 
     def __init__(self, cfg: Dict[str, Any]):
         self.cfg = cfg
-        _set_seed(cfg.get("seed", 11))
+        _set_seed(int(cfg.get("seed", 11)))
 
         ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=False)
         # ------------------------------------------------------------------
@@ -159,35 +167,39 @@ class Engine:
 
         # ---- DATA ---------------------------------------------------------
         self.train_ds, self.val_ds, self.test_ds = make_dataset(cfg, self.accel)
+        bs = int(cfg["batch_size"])
+        nw = int(cfg["num_workers"])
+        pin_mem = torch.cuda.is_available()
         self.train_loader = DataLoader(
             self.train_ds,
-            batch_size=cfg["batch_size"],
+            batch_size=bs,
             shuffle=True,
-            num_workers=cfg["num_workers"],
-            pin_memory=True,
+            num_workers=nw,
+            pin_memory=pin_mem,
         )
         self.val_loader = DataLoader(
             self.val_ds,
-            batch_size=cfg["batch_size"],
+            batch_size=bs,
             shuffle=False,
-            num_workers=cfg["num_workers"],
-            pin_memory=True,
+            num_workers=nw,
+            pin_memory=pin_mem,
         )
         self.test_loader = DataLoader(
             self.test_ds,
-            batch_size=cfg["batch_size"],
+            batch_size=bs,
             shuffle=False,
-            num_workers=cfg["num_workers"],
-            pin_memory=True,
+            num_workers=nw,
+            pin_memory=pin_mem,
         )
 
         # ---- MODEL --------------------------------------------------------
         self.model = build_model(cfg)
-        self.opt = torch.optim.AdamW(self.model.parameters(),
-                                     lr=cfg["lr"],
-                                     weight_decay=cfg["weight_decay"])
+        # Cast LR / WD to float to avoid YAML string parsing pitfalls
+        lr = float(cfg["lr"])
+        wd = float(cfg["weight_decay"])
+        self.opt = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=wd)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.opt, T_max=cfg["epochs"]
+            self.opt, T_max=int(cfg["epochs"])
         )
 
         # ---- OPTIONAL DICE -----------------------------------------------
@@ -196,8 +208,13 @@ class Engine:
             self.dice_aug = DiceAugmentor(cfg, self.accel)
 
         # ---- PREPARE ------------------------------------------------------
-        (self.model, self.opt, self.train_loader,
-         self.val_loader, self.test_loader) = self.accel.prepare(
+        (
+            self.model,
+            self.opt,
+            self.train_loader,
+            self.val_loader,
+            self.test_loader,
+        ) = self.accel.prepare(
             self.model, self.opt, self.train_loader, self.val_loader, self.test_loader
         )
 
@@ -220,8 +237,8 @@ class Engine:
         if self.dice_aug is not None:
             x, y = self.dice_aug(x, y)
         logits = self.model(x)
-        loss   = F.cross_entropy(logits, y)
-        acc    = (logits.argmax(1) == y).float().mean()
+        loss = F.cross_entropy(logits, y)
+        acc = (logits.argmax(1) == y).float().mean()
         return loss, acc, len(y)
 
     # ------------------------------------------------------------------
@@ -232,9 +249,10 @@ class Engine:
             with self.accel.autocast():
                 loss, acc, bs = self._forward(batch)
             self.accel.backward(loss)
-            self.opt.step(); self.opt.zero_grad()
+            self.opt.step()
+            self.opt.zero_grad()
             total_loss += loss.item() * bs
-            total_acc  += acc.item()  * bs
+            total_acc += acc.item() * bs
             n += bs
         self.scheduler.step()
         return total_loss / n, total_acc / n
@@ -253,14 +271,16 @@ class Engine:
     # ------------------------------------------------------------------
     def run(self) -> Dict[str, Any]:
         cfg = self.cfg
-        for epoch in range(1, cfg["epochs"] + 1):
+        for epoch in range(1, int(cfg["epochs"]) + 1):
             t0 = time.time()
             tr_loss, tr_acc = self._train_epoch()
             val_acc = self._evaluate(self.val_loader)
             self.history["train_loss"].append(tr_loss)
             self.history["val_acc"].append(val_acc)
             if self.accel.is_main_process:
-                print(f"Epoch {epoch:3d}/{cfg['epochs']}  loss={tr_loss:.4f}  val_acc={val_acc:.3f}  time={time.time()-t0:.1f}s")
+                print(
+                    f"Epoch {epoch:3d}/{cfg['epochs']}  loss={tr_loss:.4f}  val_acc={val_acc:.3f}  time={time.time()-t0:.1f}s"
+                )
             if val_acc > self.best_val_acc:
                 self.best_val_acc = val_acc
                 if self.accel.is_main_process:
