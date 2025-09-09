@@ -157,7 +157,7 @@ def train_one_epoch(
         if dcd_enabled:
             cf_imgs = []
             for img in imgs:
-                pil = to_pil_image(img.cpu())
+                pil = to_pil_image(torch.clamp(img * torch.tensor([0.229, 0.224, 0.225], device=img.device).view(3,1,1) + torch.tensor([0.485,0.456,0.406], device=img.device).view(3,1,1), 0, 1).cpu())
                 edited = edit_image_pnp(
                     pil_img=pil,
                     prompt="a photo of a bird",

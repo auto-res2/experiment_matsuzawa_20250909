@@ -75,9 +75,13 @@ def get_dataloader(
 
     tfm = transform_train(img_size) if split == "train" else transform_val(img_size)
 
-    def _apply(example):
-        return {"pixel_values": tfm(example["image"]), "label": example["label"]}
+    def _apply(examples):
+        # `examples["image"]` is a list of PIL images. Apply `tfm` to each and
+        # return a list of tensors to keep the correspondence.
+        pixel_values = [tfm(img) for img in examples["image"]]
+        return {"pixel_values": pixel_values, "label": examples["label"]}
 
+    # `with_transform` expects the transform to work on *batches* of examples.
     dataset = dataset.with_transform(_apply)
 
     return DataLoader(

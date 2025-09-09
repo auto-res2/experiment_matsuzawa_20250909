@@ -115,12 +115,12 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
                     scaler,
                     device,
                 )
-                if (epoch + 1) % 5 == 0:
+                if (epoch + 1) % 5 == 0 or (epoch + 1) == exp_cfg["epochs"]:
                     metrics = evaluate(
                         backbone,
                         val_loader,
                         device,
-                        out_json=Path(".research/iteration5")
+                        out_json=Path(".research/iteration6")
                         / f"{exp_name}_{model_name}_seed{seed}_e{epoch+1}.json",
                     )
                     val_top1.append(metrics["top1"])
@@ -130,7 +130,7 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
     # ----------------------------------------------------------------------
     # Persist per-experiment summary
     # ----------------------------------------------------------------------
-    out_dir = Path(".research/iteration5")
+    out_dir = Path(".research/iteration6")
     out_dir.mkdir(parents=True, exist_ok=True)
     summary_path = out_dir / f"{exp_name}_summary.json"
     with open(summary_path, "w") as f:
