@@ -41,8 +41,26 @@ class ContinualTaskDataset(Dataset):
 
     def __getitem__(self, idx):
         sample = self.ds[int(idx)]
-        img = sample["image"]
-        label = int(sample["label"])
+        # ------------------------------------------------------------------
+        # Robust image key resolution: fall back to common alternatives.
+        # ------------------------------------------------------------------
+        img = sample.get("image", None)
+        if img is None:
+            img = sample.get("img", None)
+        if img is None:
+            # Last resort: attempt to fetch the first PIL.Image value in sample
+            for v in sample.values():
+                if "PIL.Image" in str(type(v)):
+                    img = v
+                    break
+        if img is None:
+            raise KeyError(
+                "No image found in sample – looked for keys ['image', 'img']."
+            )
+
+        # Standardise label retrieval (build_stream already ensured column name)
+        label = int(sample["label"]) if "label" in sample else int(sample["labels"])
+
         return self.transform(img), label, self.task_id
 
 # ---------------------------------------------------------------------------

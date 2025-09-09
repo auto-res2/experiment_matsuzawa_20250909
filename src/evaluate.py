@@ -22,8 +22,8 @@ __all__ = ["run_experiment_1"]
 #                       DIRECTORY & PATH CONSTANTS
 # ---------------------------------------------------------------------------
 
-# All artefacts must live under .research/iteration4/
-BASE_DIR = Path(".research/iteration4")
+# All artefacts must live under .research/iteration5/
+BASE_DIR = Path(".research/iteration5")
 IMG_DIR = BASE_DIR / "images"
 
 # Ensure required directories exist at import time so that downstream code
@@ -35,8 +35,8 @@ ensure_dir(IMG_DIR)
 def run_experiment_1(cfg: Dict):
     """Standard Benchmark Suite – Split-CIFAR-100 (20 tasks).
 
-    All JSON results are written to .research/iteration4/ and all figures are
-    written to .research/iteration4/images/ in accordance with the mandatory
+    All JSON results are written to .research/iteration5/ and all figures are
+    written to .research/iteration5/images/ in accordance with the mandatory
     path constraints.
     """
 
