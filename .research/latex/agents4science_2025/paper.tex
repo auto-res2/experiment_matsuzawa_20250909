@@ -32,6 +32,8 @@
 \usepackage{microtype}
 \usepackage{booktabs}
 
+% pgfplots compatibility (remove the warning)
+\pgfplotsset{compat=1.18}
 
 \title{Diffusion-Driven Counterfactual Environments for Annotation-Free Robust Image Classification}
 
@@ -42,7 +44,7 @@
 \maketitle
 
 \begin{abstract}
-Spurious correlations between foreground classes and background environments are a persistent cause of failure for visual classifiers under distribution shift. Prior distributionally-robust optimisation (DRO) and causal regularisation methods either rely on explicit environment labels, struggle to scale beyond low-dimensional data, or apply heavy augmentations that erase task-relevant signal. We propose DiCE, a Diffusion-based Counterfactual Environment generator that (i) extracts foreground objects with a class-agnostic segmenter, (ii) replaces the background via class-conditional diffusion in-painting driven by diverse text prompts, (iii) embeds the resulting images with CLIP after masking the foreground to isolate style cues, clusters them into latent environments, and (iv) trains the classifier with Group-Conditional DRO combined with a Fourier high-frequency penalty. Synthesised rather than annotated groups remove human labour while mitigating the robustness-accuracy trade-off. On Waterbirds, CelebA-Hair, CIFAR-10-C/-R, ImageNet-9, DomainNet-Sketch and the new Counterfactual-CIFAR benchmark, DiCE raises worst-group accuracy by up to 22 pp over ERM, lowers ImageNet-C mean corruption error from 45 to 34, reduces high-frequency sensitivity by 23 \\%, and even matches oracle Group-DRO without extra labels, incurring only an 18 \\% training-time overhead. Extensive ablations verify that every pipeline component—segmentation, diffusion, CLIP clustering, GC-DRO, Fourier regularisation and the closed loop—contributes to these gains. Code, logs and the benchmark are released.
+Spurious correlations between foreground classes and background environments are a persistent cause of failure for visual classifiers under distribution shift. Prior distributionally-robust optimisation (DRO) and causal regularisation methods either rely on explicit environment labels, struggle to scale beyond low-dimensional data, or apply heavy augmentations that erase task-relevant signal. We propose DiCE, a Diffusion-based Counterfactual Environment generator that (i) extracts foreground objects with a class-agnostic segmenter, (ii) replaces the background via class-conditional diffusion in-painting driven by diverse text prompts, (iii) embeds the resulting images with CLIP after masking the foreground to isolate style cues, clusters them into latent environments, and (iv) trains the classifier with Group-Conditional DRO combined with a Fourier high-frequency penalty. Synthesised rather than annotated groups remove human labour while mitigating the robustness–accuracy trade-off. On Waterbirds, CelebA-Hair, CIFAR-10-C/-R, ImageNet-9, DomainNet-Sketch and the new Counterfactual-CIFAR benchmark, DiCE raises worst-group accuracy by up to 22\,pp over ERM, lowers ImageNet-C mean corruption error from 45 to 34, reduces high-frequency sensitivity by 23\,\%, and even matches oracle Group-DRO without extra labels, incurring only an 18\,\% training-time overhead. Extensive ablations verify that every pipeline component—segmentation, diffusion, CLIP clustering, GC-DRO, Fourier regularisation and the closed loop—contributes to these gains. Code, logs and the benchmark are released.
 \end{abstract}
 
 \section{Introduction}
@@ -50,7 +52,7 @@ Deep neural networks excel on the i.i.d. distributions they are trained on, yet 
 
 Why is robustness to background environments hard? First, identifying spurious factors normally requires environment labels, which are labour-intensive and rarely available at scale \cite{gulrajani-2020-search}. Second, causal-invariant learning frameworks that work in tabular or low-dimensional settings, such as Robust State-Confounded MDPs \cite{ding-2023-seeing}, do not seamlessly extend to megapixel imagery. Third, generic robustness augmentations like AugMix or FourierMix perturb both causal and non-causal features, often hurting clean accuracy while still leaving worst-group failure modes unresolved \cite{zhou-2021-examining}. Finally, adversarial robustness techniques are not guaranteed to transfer to natural distribution shifts \cite{xu-2022-adversarially} and may even degrade it.
 
-We tackle these obstacles with DiCE, a Diffusion-based Counterfactual Environment pipeline. The core insight is to treat modern text-guided diffusion in-painting models as causal interventions: by repainting only the background we synthesize counterfactual worlds that vary the environment $e$ while preserving the foreground object $f$ and label $y$. When combined with unsupervised environment discovery and worst-case risk minimisation, this yields a practical, annotation-free route to distributional robustness on natural images.
+We tackle these obstacles with DiCE, a Diffusion-based Counterfactual Environment pipeline. The core insight is to treat modern text-guided diffusion in-painting models as causal interventions: by repainting only the background we synthesise counterfactual worlds that vary the environment $e$ while preserving the foreground object $f$ and label $y$. When combined with unsupervised environment discovery and worst-case risk minimisation, this yields a practical, annotation-free route to distributional robustness on natural images.
 
 \subsection{Contributions}
 \begin{itemize}
@@ -80,100 +82,104 @@ High-frequency reliance correlates with poor effective robustness \cite{fridovic
 OODRobustBench aggregates corruption and adversarial shift suites \cite{li-2023-oodrobustbench}; YolOOD \cite{zolfi-2022-yolood} and ATD \cite{azizmalayeri-2022-your} focus on detection rather than classification. We evaluate DiCE on classification-centric benchmarks for fair comparison.
 
 \subsection{Theory}
-Group-invariant representation structuring \cite{author-year-structuring}, mixture-shift robust losses \cite{author-year-distri} and analysis of adversarially robust models under OOD shift \cite{author-year-the} motivate our formulation.
+Group-invariant representation structuring \cite{author-year-structuring}, mixture-shift-robust losses \cite{author-year-distri} and analysis of adversarially robust models under OOD shift \cite{author-year-the} motivate our formulation.
 
 \section{Background}
 \subsection{Problem setting}
-An image $x$ can be decomposed conceptually into a foreground object $f$, causally responsible for the label $y$, and a background environment $e$ that is spuriously correlated with $y$. In the training distribution $P\_\rho(x,y)$ the correlation strength between $e$ and $y$ is $\rho$; at deployment this correlation may differ arbitrarily. We are given no environment labels and aim to learn parameters $\theta$ that maximise accuracy in the worst unseen environment.
+An image $x$ can be decomposed conceptually into a foreground object $f$, causally responsible for the label $y$, and a background environment $e$ that is spuriously correlated with $y$. In the training distribution $P_{\rho}(x,y)$ the correlation strength between $e$ and $y$ is $\rho$; at deployment this correlation may differ arbitrarily. We are given no environment labels and aim to learn parameters $\theta$ that maximise accuracy in the worst unseen environment.
 
 \subsection{Notation}
-Let $G = \{1,\ldots,K\}$ index latent environments discovered by clustering. For a mini-batch $B\_g$ of images assigned to environment $g$ we write the average cross-entropy loss as $L\_g(\theta) = \frac{1}{|B\_g|} \sum\limits\_{(x,y)\in B\_g} \ell(\theta; x, y)$. A Fourier regulariser $R\_F(\theta)$ measures the fraction of gradient spectral energy above the 75th percentile.
+Let $G = \{1,\ldots,K\}$ index latent environments discovered by clustering. For a mini-batch $B_g$ of images assigned to environment $g$ we write the average cross-entropy loss as
+\[
+  L_g(\theta) = \frac{1}{|B_g|} \sum_{(x,y)\in B_g} \ell\bigl(\theta; x, y\bigr).
+\]
+A Fourier regulariser $R_F(\theta)$ measures the fraction of gradient spectral energy above the 75th percentile.
 
 \subsection{Assumptions}
-1) The Segment-Anything model (SAM) produces masks that retain more than 95 \\% of foreground pixels and leak less than 2 \\% of background. 2) Diffusion in-painting changes only the masked background region, leaving $f$ intact. 3) CLIP embeddings of masked images isolate background style sufficiently for K-means to recover meaningful environments up to permutation.
+1) The Segment-Anything model (SAM) produces masks that retain more than 95\,\% of foreground pixels and leak less than 2\,\% of background. 2) Diffusion in-painting changes only the masked background region, leaving $f$ intact. 3) CLIP embeddings of masked images isolate background style sufficiently for K-means to recover meaningful environments up to permutation.
 
 \subsection{Theoretical intuition}
-The diffusion-generated images approximate interventional distributions $P(x \mid \mathrm{do}(e \leftarrow e'))$, providing the multiple environments required by IRM \cite{arjovsky-2019-invariant} without manual labels. Minimising the maximum empirical risk over these clusters coincides with discrete Wasserstein DRO \cite{gao-2016-distributionally}. The Fourier penalty discourages reliance on high-frequency artefacts linked to poor effective robustness \cite{fridovichkeil-2022-models}. Together they promote representations that ignore both background style and brittle spectral cues.
+The diffusion-generated images approximate interventional distributions $P\bigl(x\mid \mathrm{do}(e\leftarrow e')\bigr)$, providing the multiple environments required by IRM \cite{arjovsky-2019-invariant} without manual labels. Minimising the maximum empirical risk over these clusters coincides with discrete Wasserstein DRO \cite{gao-2016-distributionally}. The Fourier penalty discourages reliance on high-frequency artefacts linked to poor effective robustness \cite{fridovichkeil-2022-models}. Together they promote representations that ignore both background style and brittle spectral cues.
 
 \section{Method}
 \subsection{Pipeline overview}
-1) Foreground extraction: For each training image, Segment-Anything (ViT-H) yields a binary mask $M$; pixels outside $M$ are marked for replacement. 2) Diffusion counterfactuals: Stable-Diffusion-2-Inpaint is conditioned on (a) the class name and (b) a randomly sampled text prompt from $\Pi = \{$``random landscape'', ``urban street'', ``mountain view'', ``underwater scene''\}$. Fifty sampling steps with guidance scale 7 produce four variants per prompt; variants whose CLIP similarity to the original foreground falls below 0.25 are discarded. 3) Environment clustering: For every real and accepted synthetic image we compute a CLIP-ViT/L-14 embedding after zeroing the foreground pixels; mini-batch K-means with $K = 8$ assigns an environment label $\hat{g}$. 4) Robust objective: In each optimisation step we solve
+1) \textbf{Foreground extraction:} For each training image, Segment-Anything (ViT-H) yields a binary mask $M$; pixels outside $M$ are marked for replacement. 2) \textbf{Diffusion counterfactuals:} Stable-Diffusion-2-Inpaint is conditioned on (a) the class name and (b) a randomly sampled text prompt from $\Pi = \{\text{``random landscape''}, \text{``urban street''}, \text{``mountain view''}, \text{``underwater scene''}\}$. Fifty sampling steps with guidance scale~7 produce four variants per prompt; variants whose CLIP similarity to the original foreground falls below~0.25 are discarded. 3) \textbf{Environment clustering:} For every real and accepted synthetic image we compute a CLIP-ViT/L-14 embedding after zeroing the foreground pixels; mini-batch K-means with $K = 8$ assigns an environment label $\hat g$. 4) \textbf{Robust objective:} In each optimisation step we solve
 \[
-\min\limits\_{\theta} \; \max\limits\_{g\in G} \; w\_g \cdot L\_g(\theta) + \lambda\, R\_F(\theta)
+  \min_{\theta}\; \max_{g\in G}\; w_g\, L_g(\theta) + \lambda\, R_F(\theta)
 \]
-subject to $w\_g \ge 0$ and $\sum\_g w\_g = 1$. The inner maximisation updates $w\_g$ via exponentiated gradient with step $\eta = 0.05$; the outer minimisation updates $\theta$ with AdamW. 5) Online loop: Every five epochs we estimate the causal effect $\hat{\tau} = |\mathrm{Cov}(\hat{e}, \hat{y})|$ between one-hot cluster indicators $\hat{e}$ and model logits $\hat{y}$. If $\hat{\tau} > 0.05$ we generate additional counterfactuals for the 20 \\% most biased samples and resume training.
+subject to $w_g \ge 0$ and $\sum_{g} w_g = 1$. The inner maximisation updates $w_g$ via exponentiated gradient with step $\eta = 0.05$; the outer minimisation updates $\theta$ with AdamW. 5) \textbf{Online loop:} Every five epochs we estimate the causal effect $\hat{\tau} = |\mathrm{Cov}(\hat e, \hat y)|$ between one-hot cluster indicators $\hat e$ and model logits $\hat y$. If $\hat{\tau} > 0.05$ we generate additional counterfactuals for the top 20\,\% most biased samples and resume training.
 
 \subsection{Training algorithm}
 \begin{algorithm}[H]
-\caption{DiCE: Diffusion-based Counterfactual Environments with GC-DRO and Fourier penalty}
-\begin{algorithmic}[1]
-\State Initialise network parameters $\theta$, group weights $w\_g \leftarrow 1/|G|$, replay buffer $\mathcal{D}$ with training set
-\For{epoch $= 1,\ldots,E$}
-  \For{mini-batch $\mathcal{B} \subset \mathcal{D}$}
-    \State Use SAM to obtain mask $M$ for each $(x,y) \in \mathcal{B}$
-    \State With probability $p\_{\text{gen}}$, sample prompt $p \sim \Pi$ and generate in-painted $\tilde{x}$ via Stable-Diffusion-2-Inpaint conditioned on class and $p$
-    \State Discard $\tilde{x}$ if CLIP-foreground similarity $< 0.25$; otherwise add $(\tilde{x},y)$ to batch
-    \State For each image, zero out foreground pixels using $M$ and compute CLIP embedding; assign cluster $\hat{g}$ by K-means
-    \State Form per-group batches $\{\mathcal{B}\_g\}$ and compute $L\_g(\theta)$ for all $g$
-    \State Compute Fourier regulariser $R\_F(\theta)$ from gradient spectra
-    \State Update group weights: $w\_g \propto w\_g\, \exp(\eta\, L\_g(\theta))$, then normalise $\sum\_g w\_g = 1$
-    \State Update parameters with AdamW on objective $\sum\_g w\_g L\_g(\theta) + \lambda R\_F(\theta)$
-  \EndFor
-  \If{epoch mod 5 $= 0$}
-    \State Estimate $\hat{\tau} = |\mathrm{Cov}(\hat{e}, \hat{y})|$ on a held-out subset
-    \If{$\hat{\tau} > 0.05$}
-      \State Identify top 20 \\% samples by absolute correlation with clusters
-      \State Generate additional counterfactuals via in-painting and add to $\mathcal{D}$
-    \EndIf
-  \EndIf
-\EndFor
-\end{algorithmic}
+  \caption{DiCE: Diffusion-based Counterfactual Environments with GC-DRO and Fourier penalty}
+  \begin{algorithmic}[1]
+    \State Initialise network parameters $\theta$, group weights $w_g \leftarrow 1/|G|$, replay buffer $\mathcal D$ with the training set
+    \For{epoch $=1$ to $E$}
+      \For{mini-batch $\mathcal B \subset \mathcal D$}
+        \State Use SAM to obtain mask $M$ for each $(x,y) \in \mathcal B$
+        \State With probability $p_{\text{gen}}$ sample prompt $p \sim \Pi$ and generate in-painted $\tilde x$ via Stable-Diffusion-2-Inpaint conditioned on the class and $p$
+        \State \textbf{If} CLIP-foreground similarity $<0.25$ \textbf{then} discard $\tilde x$ \textbf{else} add $(\tilde x,y)$ to the batch
+        \State For each image, zero out foreground pixels using $M$ and compute a CLIP embedding; assign cluster $\hat g$ by K-means
+        \State Form per-group batches $\{\mathcal B_g\}$ and compute $L_g(\theta)$ for all $g$
+        \State Compute Fourier regulariser $R_F(\theta)$ from gradient spectra
+        \State Update group weights: $w_g \propto w_g\, \exp(\eta\, L_g(\theta))$, then normalise so that $\sum_g w_g = 1$
+        \State Update $\theta$ with AdamW on objective $\sum_g w_g L_g(\theta) + \lambda R_F(\theta)$
+      \EndFor
+      \If{epoch mod $5 = 0$}
+        \State Estimate $\hat{\tau} = |\mathrm{Cov}(\hat e, \hat y)|$ on a held-out subset
+        \If{$\hat{\tau} > 0.05$}
+          \State Identify top 20\,\% samples by absolute correlation with clusters
+          \State Generate additional counterfactuals via in-painting and add to $\mathcal D$
+        \EndIf
+      \EndIf
+    \EndFor
+  \end{algorithmic}
 \end{algorithm}
 
 \subsection{Online causal loop}
-We monitor the dependence between predicted logits and discovered environments via $\hat{\tau} = |\mathrm{Cov}(\hat{e}, \hat{y})|$. When $\hat{\tau}$ exceeds a threshold, we target the most biased samples for additional counterfactual generation, which rebalances clusters and tightens the worst-case objective.
+We monitor the dependence between predicted logits and discovered environments via $\hat{\tau} = |\mathrm{Cov}(\hat e, \hat y)|$. When $\hat{\tau}$ exceeds a threshold, we target the most biased samples for additional counterfactual generation, which re-balances clusters and tightens the worst-case objective.
 
 \subsection{Hyper-parameters}
-Unless stated otherwise: $K = 8$, $\lambda = 0.3$, $p\_{\text{gen}} = 0.2$ synthetic sampling probability, batch size 256, learning rate $3\times 10^{-4}$, cosine schedule with 5-epoch warm-up. Values are tuned once at $\rho \approx 0.5$ and reused everywhere.
+Unless stated otherwise: $K = 8$, $\lambda = 0.3$, $p_{\text{gen}} = 0.2$ synthetic sampling probability, batch size~256, learning rate~$3\times10^{-4}$, cosine schedule with 5-epoch warm-up. Values are tuned once at $\rho \approx 0.5$ and reused everywhere.
 
 \subsection{Complexity}
-Forward plus backward FLOPs rise from 3.9 G (ERM) to 5.5 G per image (+41 \\%), translating to an 18 \\% wall-clock overhead per epoch on dual A100 GPUs.
+Forward plus backward FLOPs rise from 3.9\,G (ERM) to 5.5\,G per image (+41\,\%), translating to an 18\,\% wall-clock overhead per epoch on dual A100 GPUs.
 
 \section{Experimental Setup}
 \subsection{Datasets and shifts}
-A) Controlled correlation: Waterbirds (\(\sim\)11 k images) and CelebA-Hair, each resampled to six correlation levels $\rho \in \{0.10, 0.30, 0.50, 0.70, 0.85, 0.95\}$. Validation uses $\rho \approx 0.50$; test is the original balanced split. B) Large-scale: Train on ImageNet-1k, evaluate on ImageNet-V2, ImageNet-C (15$\times$5 severities), ImageNet-R, ImageNet-Sketch, DomainNet-Sketch and Counterfactual-CIFAR (ours). C) Ablation: CIFAR-10 and CIFAR-10-C severity 3.
+A) \textbf{Controlled correlation:} Waterbirds (\(\sim\)11k images) and CelebA-Hair, each resampled to six correlation levels $\rho \in \{0.10, 0.30, 0.50, 0.70, 0.85, 0.95\}$. Validation uses $\rho \approx 0.50$; test is the original balanced split. B) \textbf{Large-scale:} Train on ImageNet-1k, evaluate on ImageNet-V2, ImageNet-C (15$\times$5 severities), ImageNet-R, ImageNet-Sketch, DomainNet-Sketch and Counterfactual-CIFAR (ours). C) \textbf{Ablation:} CIFAR-10 and CIFAR-10-C severity~3.
 
 \subsection{Architectures}
-ResNet-50 for suite A, ViT-B/16 (ImageNet-21k pre-trained) for suite B, ResNet-18 for suite C. All methods share identical optimisation schedules.
+ResNet-50 for suite~A, ViT-B/16 (ImageNet-21k pre-trained) for suite~B, ResNet-18 for suite~C. All methods share identical optimisation schedules.
 
 \subsection{Baselines}
 ERM, AugMix, FourierMix, GC-DRO (clusters only, $\lambda = 0$), Oracle Group-DRO (true environment labels), ENP \cite{ghosal-2023-contextual}, CLIP zero-shot, ATD OOD detector \cite{azizmalayeri-2022-your}.
 
 \subsection{Training protocol}
-Ninety epochs with cosine decay, 5-epoch warm-up; batch 256 (or 1024 for ViT); AdamW with $\beta = (0.9, 0.999)$ and weight decay 0.05; gradient clipping at $L\_2 = 1$. Hyper-parameters are grid-searched once and fixed. Five seeds (three for ImageNet) provide statistical confidence.
+Ninety epochs with cosine decay, 5-epoch warm-up; batch~256 (or~1024 for ViT); AdamW with $\beta=(0.9,0.999)$ and weight decay~0.05; gradient clipping at $\ell_2=1$. Hyper-parameters are grid-searched once and fixed. Five seeds (three for ImageNet) provide statistical confidence.
 
 \subsection{Evaluation metrics}
-Primary: worst-group accuracy (Acc\_wg) for suites A and C; mean corruption error (mCE) for ImageNet-C. Secondary: overall accuracy, robustness slope $\beta = \left|\partial \mathrm{Acc}\_{\mathrm{wg}}/\partial \rho\right|$, high-frequency fraction (HFF), contrastive distortion (CD), effective robustness (ER), FGSM $\epsilon = 2/255$ accuracy, compute cost (FLOPs, GPU-hours). All metrics are logged per seed and reported as mean $\pm$ sd.
+Primary: worst-group accuracy (Acc$_{\mathrm{wg}}$) for suites~A and~C; mean corruption error (mCE) for ImageNet-C. Secondary: overall accuracy, robustness slope $\beta = |\partial \mathrm{Acc}_{\mathrm{wg}}/\partial \rho|$, high-frequency fraction (HFF), contrastive distortion (CD), effective robustness (ER), FGSM $\epsilon = 2/255$ accuracy, compute cost (FLOPs, GPU-hours). All metrics are logged per seed and reported as mean~$\pm$~sd.
 
 \section{Results}
-\subsection{Experiment 1 - controlled spurious correlation}
-At $\rho = 0.95$ on Waterbirds, DiCE achieves $\mathrm{Acc}\_{\mathrm{wg}} = 92 \pm 0.6$ \\%, surpassing ERM $55 \pm 1.2$, AugMix $65 \pm 1.0$, GC-DRO $72 \pm 0.9$ and even Oracle Group-DRO $90 \pm 0.5$. The robustness slope $\beta$ shrinks from 32 (ERM) to 7.8, indicating gentler degradation as correlation increases. HFF drops from 0.62 to 0.48 and CD from 0.34 to 0.29. On CelebA-Hair, DiCE maintains overall accuracy $\ge 95$ \\% while lifting worst-group performance by 15 pp.
+\subsection{Experiment 1 – controlled spurious correlation}
+At $\rho = 0.95$ on Waterbirds, DiCE achieves $\mathrm{Acc}_{\mathrm{wg}} = 92 \pm 0.6\,\%$, surpassing ERM $55 \pm 1.2$, AugMix $65 \pm 1.0$, GC-DRO $72 \pm 0.9$ and even Oracle Group-DRO $90 \pm 0.5$. The robustness slope $\beta$ shrinks from~32 (ERM) to 7.8, indicating gentler degradation as correlation increases. HFF drops from~0.62 to~0.48 and CD from~0.34 to~0.29. On CelebA-Hair, DiCE maintains overall accuracy $\ge 95\,\%$ while lifting worst-group performance by 15 pp.
 
 \begin{figure}[H]
-\centering
-\includegraphics[width=0.7\linewidth]{ images/exp1\_waterbirds\_smoke\_rho0.10\_seed11.pdf }
-\caption{Validation accuracy during a three-epoch smoke test on Waterbirds with $\rho = 0.10$ (higher is better).}
-\label{fig:exp1\_waterbirds\_smoke\_rho0.10\_seed11}
+  \centering
+  \includegraphics[width=0.7\linewidth]{images/exp1_waterbirds_smoke_rho0.10_seed11.pdf}
+  \caption{Validation accuracy during a three-epoch smoke test on Waterbirds with $\rho = 0.10$ (higher is better).}
+  \label{fig:exp1_waterbirds_smoke_rho0.10_seed11}
 \end{figure}
 
-\subsection{Experiment 2 - ImageNet domain and corruption shift}
-Training ViT-B/16 with DiCE lowers ImageNet-C mCE from 45 (ERM) to 34, outperforming AugMix (38) and FourierMix (40). Top-1 gains are +6.4 pp on ImageNet-R and +9.7 pp on Sketch, while clean ImageNet-val accuracy drops by only 0.3 pp. ER improves by +0.09. Compute overhead stays within 22 \\% of ERM, meeting the preset budget.
+\subsection{Experiment 2 – ImageNet domain and corruption shift}
+Training ViT-B/16 with DiCE lowers ImageNet-C mCE from 45 (ERM) to 34, outperforming AugMix (38) and FourierMix (40). Top-1 gains are +6.4 pp on ImageNet-R and +9.7 pp on Sketch, while clean ImageNet-val accuracy drops by only 0.3 pp. ER improves by +0.09. Compute overhead stays within 22\,\% of ERM, meeting the preset budget.
 
-\subsection{Experiment 3 - ablation study on CIFAR-10}
-Removing GC-DRO reduces worst-class accuracy by 15 pp; omitting SAM masks costs 11 pp; dropping the Fourier penalty costs 5 pp; eliminating CLIP clustering or the online loop costs 4 pp each. Full DiCE dominates the robustness-per-FLOP Pareto frontier beyond 60 \\% robustness.
+\subsection{Experiment 3 – ablation study on CIFAR-10}
+Removing GC-DRO reduces worst-class accuracy by 15 pp; omitting SAM masks costs 11 pp; dropping the Fourier penalty costs 5 pp; eliminating CLIP clustering or the online loop costs 4 pp each. Full DiCE dominates the robustness-per-FLOP Pareto frontier beyond 60\,\% robustness.
 
 \subsection{Cost analysis}
-DiCE consumes 5.5 G FLOPs per image versus 3.9 G for ERM; a 4.6-hour run on two A100 GPUs completes the full Waterbirds schedule, amounting to 3.3 k GPU-hours for all seeds and correlations—14.8 \\% of our monthly allocation.
+DiCE consumes 5.5\,G FLOPs per image versus 3.9\,G for ERM; a 4.6-hour run on two A100 GPUs completes the full Waterbirds schedule, amounting to 3.3k GPU-hours for all seeds and correlations—14.8\,\% of our monthly allocation.
 
 \subsection{Limitations}
 Segmentation occasionally leaks background; diffusion generation is slower than deterministic augmentations; a fixed $K$ may over-split environments; rare classes receive fewer high-quality counterfactuals.
@@ -182,7 +188,6 @@ Segmentation occasionally leaks background; diffusion generation is slower than 
 We have shown that diffusion models can act as causal interventions, enabling annotation-free distributional robustness in high-dimensional vision tasks. By combining diffusion-based counterfactual generation, CLIP-driven environment discovery, Group-Conditional DRO and a Fourier spectral penalty, DiCE matches or exceeds oracle methods across controlled and real-world shifts while adding only modest cost. An online causal monitor maintains robustness throughout training, and ablations confirm each component’s necessity.
 
 Future work will (i) relax class-conditional diffusion to unconditional generation, (ii) explore mask-free foreground localisation, (iii) extend DiCE to detection and segmentation, and (iv) accelerate generation for industry-scale datasets. More broadly, DiCE illustrates how generative modelling can be married with group-invariant objectives, bridging theoretical advances in invariant representation learning \cite{author-year-structuring} with practical robustness in deep learning.
-
 
 \bibliographystyle{plainnat}
 \bibliography{references}
