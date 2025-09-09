@@ -15,8 +15,10 @@ authors = [
 dependencies = [
   # Pin NumPy to <2 to avoid binary-compat issues with PyTorch/CuPy wheels
   "numpy<2",
-  # Panda 2.x requires NumPy>=2, so we pin pandas to <2 as it is not a critical dependency here
+  # Pandas 2.x requires NumPy>=2, so we pin pandas to <2 as it is not a critical dependency here
   "pandas<2",
+  # Explicitly constrain SciPy to a version that has pre-built wheels for CPython 3.11
+  "scipy>=1.10,<2",
   "torch==2.2.0",
   "torch-geometric",
   "ogb",
