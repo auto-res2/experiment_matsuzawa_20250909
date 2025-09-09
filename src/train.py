@@ -155,7 +155,9 @@ class HiDeRLearner(nn.Module):
         device = next(self.parameters()).device
         cfg = self.cfg
         optimiser = optim.AdamW(
-            self.parameters(), lr=cfg["TRAIN"]["lr"], weight_decay=cfg["TRAIN"]["weight_decay"]
+            (p for p in self.parameters() if p.requires_grad),
+            lr=float(cfg["TRAIN"]["lr"]),
+            weight_decay=float(cfg["TRAIN"]["weight_decay"]),
         )
         sched = optim.lr_scheduler.CosineAnnealingLR(
             optimiser, T_max=cfg["TRAIN"]["epochs"] * len(loader)
@@ -287,7 +289,11 @@ class ERRingLearner(nn.Module):
     def observe(self, loader: DataLoader, task_id: int):
         device = next(self.parameters()).device
         cfg = self.cfg
-        optimiser = optim.AdamW(self.parameters(), lr=cfg["TRAIN"]["lr"], weight_decay=cfg["TRAIN"]["weight_decay"])
+        optimiser = optim.AdamW(
+            (p for p in self.parameters() if p.requires_grad),
+            lr=float(cfg["TRAIN"]["lr"]),
+            weight_decay=float(cfg["TRAIN"]["weight_decay"]),
+        )
 
         for _ in range(cfg["TRAIN"]["epochs"]):
             for img, y, _ in loader:
