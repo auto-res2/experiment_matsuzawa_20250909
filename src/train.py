@@ -252,6 +252,9 @@ class VisionCLTrainer:
         self.device = torch.device(device) if isinstance(device, str) else device
         self.budget_bytes = int(budget_mb * 1024 ** 2)
 
+        # (code_tensor, label) – initialise BEFORE any method that may access it
+        self.replay_buffer: List[Tuple[torch.Tensor, int]] = []
+
         # ---------------- model / aux modules ----------------
         self.model = ResNet18SparseLoRA(rank=4).to(self.device)
         self.vqvae = VQVAE8bit().to(self.device)
@@ -271,9 +274,6 @@ class VisionCLTrainer:
 
         # Device-agnostic GradScaler
         self.scaler = create_grad_scaler(self.device.type, init_scale=2.0)
-
-        # (code_tensor, label)
-        self.replay_buffer: List[Tuple[torch.Tensor, int]] = []
 
     # --------------------------------------------------
     # Internal helpers

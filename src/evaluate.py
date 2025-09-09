@@ -1,7 +1,7 @@
 """
 Contains evaluation utilities, plotting helpers and the three experiment
-entry-points.  Results are written to .research/iteration7/ and figures to
-.research/iteration7/images/ as required by the specification.
+entry-points.  Results are written to .research/iteration8/ and figures to
+.research/iteration8/images/ as required by the specification.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .preprocess import split_cifar100
 # --------------------------------------------------------------
 # 0.  Directories (auto-create)
 # --------------------------------------------------------------
-RESEARCH_DIR = Path(".research/iteration7")
+RESEARCH_DIR = Path(".research/iteration8")
 IMAGES_DIR = RESEARCH_DIR / "images"
 RESEARCH_DIR.mkdir(parents=True, exist_ok=True)
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
