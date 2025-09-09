@@ -1,0 +1,47 @@
+# config/config.yaml – extracted from inline CONFIG dict
+EXP_ID: exp1
+
+DATA:
+  split_cifar100:
+    hf_repo: cifar100
+    task_size: 5
+    img_size: 224
+    num_tasks: 20
+  split_miniimagenet:
+    hf_repo: datasets:imagenet-1k
+    task_size: 5
+    img_size: 224
+    num_tasks: 20
+  domainnet30:
+    hf_repo: TNILab/DomainNet_FL
+    domains: [real, clipart, sketch, quickdraw, infograph, painting]
+    task_size: 5
+    img_size: 224
+    num_tasks: 30
+  imagenet_r20:
+    hf_repo: axiong/imagenet-r
+    task_size: 5
+    img_size: 224
+    num_tasks: 20
+
+MODEL:
+  backbone: vit_base_patch16_224
+  lo_ra:
+    r: 16
+    lora_alpha: 32
+    lora_dropout: 0.05
+  latent_dim: 32
+  codebook_sizes: [512, 2048]
+
+TRAIN:
+  batch_size: 128
+  epochs: 5
+  lr: 5e-4
+  weight_decay: 5e-2
+  seed_list: [123, 231, 321]
+  grad_clip: 1.0
+
+MEMORY:
+  budget_bytes: 1048576  # 1 MB
+
+OUT_DIR: results

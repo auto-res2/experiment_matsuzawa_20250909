@@ -1,1 +1,27 @@
-# Please list the required python packages.
+[project]
+name = "hider"
+version = "0.1.0"
+description = "Reference implementation of HiDeR – Hierarchical Decoupled Replay"
+requires-python = ">=3.9"
+authors = [
+  { name = "HiDeR Authors", email = "opensource@hider.org" }
+]
+license = { text = "Apache-2.0" }
+
+[project.dependencies]
+torch = "*"
+torchvision = "*"
+timm = "*"
+peft = "*"
+accelerate = "*"
+transformers = "*"  # peft/accelerate dep
+seaborn = "*"
+matplotlib = "*"
+datasets = "*"
+fvcore = "*"
+Pillow = "*"
+PyYAML = "*"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
