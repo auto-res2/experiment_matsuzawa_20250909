@@ -17,7 +17,8 @@ dependencies = [
   # Pin cvxpy below 1.4 to avoid `proxsuite` transitive dependency.
   "cvxpy<1.4",
   "matplotlib>=3.5",
-  "PyYAML>=6.0"
+  "PyYAML>=6.0",
+  "pytorchcv==0.0.73"
 ]
 
 [build-system]

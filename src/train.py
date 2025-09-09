@@ -12,12 +12,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # ---------------------------------------------------------------------------
-# Global paths that are shared across all modules – UPDATED TO ITERATION18
+# Global paths that are shared across all modules – UPDATED TO ITERATION19
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
-# All JSON artefacts must live under “.research/iteration18/”
-RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration18"
-# All figure artefacts must live under “.research/iteration18/images”
+# All JSON artefacts must live under “.research/iteration19/”
+RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration19"
+# All figure artefacts must live under “.research/iteration19/images”
 FIG_DIR = RESULTS_DIR / "images"
 # Keep the original data dir unchanged
 DATA_DIR = PROJECT_ROOT / "data"
@@ -193,11 +193,10 @@ class HVQReGen(nn.Module):
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# *** Compatibility patch for Torch ≥2.1 where `T_co` has been removed ***
-# Some versions of Avalanche (<0.4) import `T_co` from `torch.utils.data.dataset`.
-# We monkey-patch it back BEFORE Avalanche is imported so that the import succeeds
-# without forcing users to downgrade PyTorch.
+# *** Compatibility patches BEFORE importing Avalanche ***
 # ---------------------------------------------------------------------------
+
+# 1. PyTorch ≥2.1 removed `T_co` – reintroduce it so older Avalanche versions import.
 import types as _types  # noqa: E402
 import typing as _typing  # noqa: E402
 
@@ -208,7 +207,34 @@ if _torch_dataset_mod is None:
 if not hasattr(_torch_dataset_mod, "T_co"):
     _torch_dataset_mod.T_co = _typing.TypeVar("T_co", covariant=True)  # type: ignore
 
-# Heavy torchvision import after the patch
+# 2. Older Avalanche versions expect `DwsConvBlock` in pytorchcv but recent
+#    pytorchcv dropped it. We create a lightweight dummy to satisfy the import.
+try:
+    from pytorchcv.models.common import DwsConvBlock  # noqa: F401
+except (ImportError, AttributeError):
+    class _DummyDwsConvBlock(nn.Identity):
+        """Minimal no-op replacement for deprecated DwsConvBlock."""
+        def __init__(self, *args, **kwargs):  # pylint: disable=useless-super-delegation
+            super().__init__()
+
+    import importlib
+    import sys as _sys
+    # Ensure the common submodule exists
+    try:
+        _common_mod = importlib.import_module('pytorchcv.models.common')
+    except ModuleNotFoundError:
+        _common_mod = _types.ModuleType('pytorchcv.models.common')
+        _sys.modules['pytorchcv.models.common'] = _common_mod  # type: ignore
+    setattr(_common_mod, 'DwsConvBlock', _DummyDwsConvBlock)
+
+    # Also register within mobilenet submodule because Avalanche tries both locations
+    try:
+        _mobile_mod = importlib.import_module('pytorchcv.models.mobilenet')
+        setattr(_mobile_mod, 'DwsConvBlock', _DummyDwsConvBlock)
+    except ModuleNotFoundError:
+        pass
+
+# Heavy torchvision import after the patches
 from torchvision import models  # noqa: E402 (delayed heavy import)
 
 
