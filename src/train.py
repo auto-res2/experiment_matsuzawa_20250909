@@ -4,7 +4,7 @@ All model architectures and the training routine live here.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -44,8 +44,8 @@ class ExperimentConfig:
     num_classes: int
     hidden_dim: int = 128
     batch_size: int = 0  # 0 => full-batch
-    controller: ControllerConfig = ControllerConfig()
-    optim: OptimConfig = OptimConfig()
+    controller: ControllerConfig = field(default_factory=ControllerConfig)
+    optim: OptimConfig = field(default_factory=OptimConfig)
 
 # -----------------------------------------------------------------------------
 #  Meta-MPNN -------------------------------------------------------------------
