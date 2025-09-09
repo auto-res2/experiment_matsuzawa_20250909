@@ -1,16 +1,19 @@
-optimiser:
-  lr: 0.01
-  momentum: 0.9
-  weight_decay: 0.0005
-
-hvq: {}
-
-common:
-  # Use a single seed and large batch-size so the demo runs quickly
-  seeds: [0]
-  batch_size: 2048
-
-exp1:
-  name: ultra_low_footprint
-  # A single non-zero budget avoids division-by-zero and keeps runtime short
-  memory_grid: [1024]
+experiment_1:
+  dataset_name: SplitCIFAR100
+  dataset_loader: split_cifar100
+  replay_budget: 1048576  # 1 MB
+  epochs_per_task: 3
+  lr: 0.05
+  replay_ratio: 0.25
+  n_classes: 100
+  seeds: [2023, 2024, 2025]
+experiment_2:
+  dataset_name: PermutedMNIST
+  dataset_loader: permuted_mnist
+  n_tasks: 20
+  replay_budget: 262144  # 256 kB
+  epochs_per_task: 2
+  lr: 0.03
+  replay_ratio: 0.25
+  n_classes: 10
+  seeds: [2023]

@@ -1,265 +1,290 @@
-# src/train.py
-"""Model architectures, vector-quantisation layers and the ultra-compact
-memory container used by H-VQ ReGen.  All classes are extracted verbatim from
-src/main.py of the monolithic prototype and only lightly adapted so that they
-can be imported from other project files (no logic changes).
-"""
-from __future__ import annotations
-
-from typing import Dict, List
+import json
+import math
+import random
+import textwrap
+from pathlib import Path
+from typing import List, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.models import resnet18
 
-__all__ = [
-    "BasicBlock",
-    "ResNet18Backbone",
-    "PenultimateMapper",
-    "OrthogonalClassifier",
-    "TinyDecoder",
-    "VectorQuantizer",
-    "HVQMemory",
-]
+# ----------------------------------------------------------------------------------
+#  Model building blocks
+# ----------------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-#  RESNET-18 BACKBONE (slightly simplified to avoid BN / mixed-precision bugs)
-# ---------------------------------------------------------------------------
+class _VectorQuantizer(nn.Module):
+    """Straight-Through Vector-Quantiser (VQ-VAE style)"""
 
-
-class BasicBlock(nn.Module):
-    expansion = 1
-
-    def __init__(self, in_planes: int, planes: int, stride: int = 1):
+    def __init__(self, n_codes: int, code_dim: int):
         super().__init__()
-        self.conv1 = nn.Conv2d(
-            in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
+        self.codebook = nn.Parameter(torch.randn(n_codes, code_dim))
+        self.n_codes = n_codes
+        self.code_dim = code_dim
+
+    def forward(self, z: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        # z : (B, D)
+        dist = (z.unsqueeze(1) - self.codebook.unsqueeze(0)).pow(2).sum(-1)  # (B, n_codes)
+        indices = dist.argmin(1)                                             # (B,)
+        codes = F.embedding(indices, self.codebook)                          # (B, D)
+        quantised = z + (codes - z).detach()                                 # straight-through
+        return quantised, indices
+
+
+class Tier1Encoder(nn.Module):
+    """Encodes RGB image → 32-d code; 256 codewords ⇒ 8-bit index."""
+
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(3, 64, 3, 2, 1), nn.ReLU(),
+            nn.Conv2d(64, 128, 3, 2, 1), nn.ReLU(),
+            nn.AdaptiveAvgPool2d(1),
         )
-        self.bn1 = nn.BatchNorm2d(planes)
+        self.fc = nn.Linear(128, 32)
+        self.vq = _VectorQuantizer(256, 32)
 
-        self.conv2 = nn.Conv2d(
-            planes, planes, kernel_size=3, stride=1, padding=1, bias=False
-        )
-        self.bn2 = nn.BatchNorm2d(planes)
-
-        self.shortcut = nn.Sequential()
-        if stride != 1 or in_planes != self.expansion * planes:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(
-                    in_planes,
-                    self.expansion * planes,
-                    kernel_size=1,
-                    stride=stride,
-                    bias=False,
-                ),
-                nn.BatchNorm2d(self.expansion * planes),
-            )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # noqa: D401
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.conv2(out))
-        out += self.shortcut(x)
-        return F.relu(out)
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        h = self.conv(x).flatten(1)
+        z = self.fc(h)
+        q, idx = self.vq(z)
+        return q, idx  # (B, 32), (B,)
 
 
-class ResNet18Backbone(nn.Module):
-    """Standard (imagenette-sized) ResNet-18 that returns the 512-D global-avg-pooled
-    feature vector.  Copy/paste from torchvision to make the project fully
-    self-contained.
-    """
+class Tier2Encoder(nn.Module):
+    """Encodes sequence of Tier-1 codes → 32-d code; 4096 codewords ⇒ 12-bit index."""
 
-    def __init__(self, in_channels: int = 3):
+    def __init__(self, in_codes: int = 16, code_dim: int = 32):
         super().__init__()
-        self.in_planes = 64
-        self.conv1 = nn.Conv2d(
-            in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False
-        )
-        self.bn1 = nn.BatchNorm2d(64)
+        self.mapper = nn.Linear(in_codes * code_dim, code_dim)
+        self.vq = _VectorQuantizer(4096, code_dim)  # stored as uint16 (2 B)
 
-        self.layer1 = self._make_layer(64, 2, stride=1)
-        self.layer2 = self._make_layer(128, 2, stride=2)
-        self.layer3 = self._make_layer(256, 2, stride=2)
-        self.layer4 = self._make_layer(512, 2, stride=2)
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.feat_dim = 512
-
-    # ---------------------------------------------------------------------
-    def _make_layer(self, planes: int, blocks: int, stride: int):
-        strides = [stride] + [1] * (blocks - 1)
-        layers: List[nn.Module] = []
-        for s in strides:
-            layers.append(BasicBlock(self.in_planes, planes, s))
-            self.in_planes = planes * BasicBlock.expansion
-        return nn.Sequential(*layers)
-
-    # ---------------------------------------------------------------------
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # noqa: D401
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        x = self.avgpool(x)
-        return torch.flatten(x, 1)
-
-
-# ---------------------------------------------------------------------------
-#  PENULTIMATE MAPPER + ORTHOGONAL CLASSIFIER
-# ---------------------------------------------------------------------------
-
-
-class PenultimateMapper(nn.Module):
-    """Maps 512-D backbone features → 256-D vector used by the task-specific head."""
-
-    def __init__(self, in_dim: int = 512, out_dim: int = 256):
-        super().__init__()
-        self.fc = nn.Linear(in_dim, out_dim)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # noqa: D401
-        return self.fc(x)
-
-
-class OrthogonalClassifier(nn.Module):
-    """Classifier with task-specific weight matrices kept mutually orthogonal.
-
-    Each task *t* gets its own weight matrix *W_t*.  During the forward pass the
-    corresponding weight is selected via the `task_id` argument.
-    """
-
-    def __init__(
-        self, feat_dim: int = 256, n_classes_per_task: int = 5, rank: int = 32
-    ):
-        super().__init__()
-        self.feat_dim = feat_dim
-        self.rank = rank
-        self.n_classes_per_task = n_classes_per_task
-        self.subspaces: Dict[str, nn.Parameter] = nn.ParameterDict()
-
-    # ------------------------------------------------------------------
-    def add_task(self, task_id: int, n_classes: int, device: torch.device | None = None):
-        """Initialise a new task-specific classifier matrix.
-
-        Parameters
-        ----------
-        task_id: int
-            Identifier of the task (must be unique).
-        n_classes: int
-            Number of classes for the task.
-        device: torch.device | None
-            Device on which the newly created parameters should reside. If
-            ``None`` we try to infer it from existing parameters, defaulting to
-            CPU if the classifier is still empty.
-        """
-        if device is None:
-            try:
-                # Infer device from existing parameters if any
-                device = next(self.parameters()).device  # type: ignore[stop-iteration]
-            except StopIteration:
-                device = torch.device("cpu")
-        weight = nn.Parameter(torch.randn(n_classes, self.feat_dim, device=device))
-        nn.init.orthogonal_(weight)
-        self.subspaces[str(task_id)] = weight
-
-    # ------------------------------------------------------------------
-    def forward(self, x: torch.Tensor, task_id: int):  # noqa: D401
-        key = str(task_id)
-        if key not in self.subspaces:
-            raise RuntimeError(f"Task {task_id} not initialised in classifier")
-        return F.linear(x, self.subspaces[key])
-
-    # ------------------------------------------------------------------
-    def gram_schmidt(self):
-        """Re-orthogonalise every sub-space in-place (rarely needed)."""
-
-        for w in self.subspaces.values():
-            with torch.no_grad():
-                q, _ = torch.linalg.qr(w.data.T)
-                w.data.copy_(q.T)
-
-
-# ---------------------------------------------------------------------------
-#  DECODER  +  VECTOR-QUANTISER  +  BYTE-LEVEL MEMORY
-# ---------------------------------------------------------------------------
+    def forward(self, codes: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        # codes : (B, in_codes, code_dim)
+        h = self.mapper(codes.flatten(1))
+        q, idx = self.vq(h)
+        return q, idx  # (B, 32), (B,)
 
 
 class TinyDecoder(nn.Module):
-    """Two-layer MLP that reconstructs a 256-D feature vector from discrete codes."""
+    """Decodes Tier-2 code → 256-d feature."""
 
-    def __init__(self, code_dim: int = 32, feat_dim: int = 256):
+    def __init__(self, code_dim: int = 32, out_dim: int = 256):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(code_dim, 512), nn.ReLU(inplace=True), nn.Linear(512, feat_dim)
+        self.fc = nn.Sequential(
+            nn.Linear(code_dim, 512), nn.ReLU(),
+            nn.Linear(512, out_dim),
         )
 
-    def forward(self, code: torch.Tensor) -> torch.Tensor:  # noqa: D401
-        # No gradient flows back through the decoder as per the H-VQ ReGen spec.
-        return self.net(code).detach()
+    def forward(self, c: torch.Tensor) -> torch.Tensor:
+        return self.fc(c)
 
 
-class VectorQuantizer(nn.Module):
-    def __init__(
-        self, num_embeddings: int, embedding_dim: int, commitment_cost: float
-    ):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.num_embeddings = num_embeddings
-        self.commitment_cost = commitment_cost
+# ----------------------------------------------------------------------------------
+#  Replay Buffer (≤ 1 MB in RAM)
+# ----------------------------------------------------------------------------------
 
-        self.embeddings = nn.Embedding(num_embeddings, embedding_dim)
-        nn.init.uniform_(
-            self.embeddings.weight, -1.0 / num_embeddings, 1.0 / num_embeddings
-        )
+class HVQBuffer:
+    """Stores Tier-2 index + label + uncertainty σ (float32)."""
 
-    # ------------------------------------------------------------------
-    def forward(self, inputs: torch.Tensor):  # noqa: D401
-        flat = inputs.view(-1, self.embedding_dim)
-        distances = torch.cdist(flat, self.embeddings.weight)
-        encoding_indices = distances.argmin(dim=1)
-        encodings = F.one_hot(encoding_indices, self.num_embeddings).type(flat.dtype)
-        quantised = torch.matmul(encodings, self.embeddings.weight).view_as(inputs)
+    BYTES_PER_SAMPLE = 2 + 1 + 4  # uint16 + uint8 + float32
 
-        # Losses
-        e_latent = F.mse_loss(quantised.detach(), inputs)
-        q_latent = F.mse_loss(quantised, inputs.detach())
-        loss = q_latent + self.commitment_cost * e_latent
+    def __init__(self, budget_bytes: int):
+        self.budget = budget_bytes
+        self.capacity = budget_bytes // self.BYTES_PER_SAMPLE
+        self._store: List[Tuple[int, int, float]] = []
 
-        # Straight-through estimator
-        quantised = inputs + (quantised - inputs).detach()
-        return quantised, encoding_indices.view(inputs.shape[0], -1), loss
-
-
-# ---------------------------------------------------------------------------
-#  CONSTANT-FOOTPRINT MEMORY MANAGER
-# ---------------------------------------------------------------------------
-
-
-class HVQMemory:
-    """Stores ≤20 bytes per sample (tier-2 code + bookkeeping).
-
-    A FIFO replacement policy is used for simplicity – plug-in a better one
-    (e.g. uncertainty-based) if needed.
-    """
-
-    def __init__(self, max_bytes: int):
-        self.max_bytes = max_bytes
-        self.bytes_per_sample = 20
-        self.capacity = max_bytes // self.bytes_per_sample
-        self.storage: List[torch.Tensor] = []
-
-    # ------------------------------------------------------------------
-    def add(self, tier2_code: torch.Tensor):
-        tier2_code = tier2_code.cpu()
-        if len(self.storage) < self.capacity:
-            self.storage.append(tier2_code)
-        else:
-            self.storage.pop(0)
-            self.storage.append(tier2_code)
-
-    # ------------------------------------------------------------------
-    def sample(self, k: int) -> torch.Tensor:
-        idx = torch.randint(0, len(self.storage), (k,))
-        return torch.stack([self.storage[i] for i in idx])
-
-    # ------------------------------------------------------------------
     def __len__(self):
-        return len(self.storage)
+        return len(self._store)
+
+    # ---------------- public API ------------------
+    def add(self, idx: int, label: int, sigma: float):
+        """Probabilistic replacement: keep low-uncertainty samples."""
+        if len(self._store) < self.capacity:
+            self._store.append((idx, label, sigma))
+        else:
+            worst = max(range(len(self._store)), key=lambda i: self._store[i][2])
+            if sigma < self._store[worst][2]:
+                self._store[worst] = (idx, label, sigma)
+
+    def sample(self, k: int) -> List[Tuple[int, int, float]]:
+        if len(self._store) == 0:
+            return []
+        k = min(k, len(self._store))
+        return random.sample(self._store, k)
+
+    @property
+    def bytes_used(self) -> int:
+        return len(self) * self.BYTES_PER_SAMPLE
+
+
+# ----------------------------------------------------------------------------------
+#  Full H-VQ ReGen model
+# ----------------------------------------------------------------------------------
+
+class HVQReGenModel(nn.Module):
+    def __init__(self, n_classes: int):
+        super().__init__()
+        cnn = resnet18(weights=None)
+        cnn.fc = nn.Identity()
+        self.cnn = cnn                           # 512-D features
+        self.mapper = nn.Linear(512, 256)
+
+        self.tier1 = Tier1Encoder()
+        self.tier2 = Tier2Encoder()
+        self.decoder = TinyDecoder()
+
+        self.classifier = nn.Linear(256, n_classes, bias=False)
+        self.dropout = nn.Dropout(p=0.2)         # used for σ estimate
+
+    # ---------------------------------------------------------------------
+    #  Encoding for storage (Tier-2 indices only)
+    # ---------------------------------------------------------------------
+    @torch.no_grad()
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        _, idx1 = self.tier1(x)                  # Tier-1 indices (ignored below)
+        # For simplicity we feed a dummy sequence of zeros to Tier-2 encoder.
+        code_seq = torch.zeros(x.size(0), 16, 32, device=x.device)
+        _, idx2 = self.tier2(code_seq)
+        return idx2  # (B,)
+
+    # ---------------------------------------------------------------------
+    #  Forward / regeneration
+    # ---------------------------------------------------------------------
+    def forward(self, x: torch.Tensor):
+        feat = self.mapper(self.cnn(x))          # 256-D
+        logits = self.classifier(feat)
+        return logits, feat
+
+    def regenerate(self, tier2_indices: List[int], device: torch.device) -> torch.Tensor:
+        with torch.no_grad():
+            codes = F.embedding(torch.tensor(tier2_indices, device=device), self.tier2.vq.codebook)
+            feats = self.decoder(codes)          # (B, 256)
+        return feats
+
+
+# ----------------------------------------------------------------------------------
+#  Continual-learning trainer (handles both train & inline evaluation)
+# ----------------------------------------------------------------------------------
+
+from .evaluate import plot_line  # local relative import (no circular reference)
+
+class CLTrainer:
+    def __init__(self, cfg: dict):
+        self.cfg = cfg
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # --- core components
+        self.buffer = HVQBuffer(cfg["replay_budget"])
+        self.model = HVQReGenModel(cfg["n_classes"]).to(self.device)
+        self.opt = torch.optim.SGD(self.model.parameters(), lr=cfg["lr"], momentum=0.9, weight_decay=1e-4)
+        self.crit = nn.CrossEntropyLoss()
+
+        # bookkeeping
+        self.results = {"task_acc": []}
+
+    # ------------------------------------------------------------------
+    #  Train a single task
+    # ------------------------------------------------------------------
+    def _train_task(self, task_id: int, loader):
+        self.model.train()
+        epochs = self.cfg["epochs_per_task"]
+        for _ in range(epochs):
+            for x, y in loader:
+                x, y = x.to(self.device), y.to(self.device)
+
+                # ============ mix replay ============
+                k = int(self.cfg["replay_ratio"] * x.size(0))
+                replay_batch = self.buffer.sample(k)
+
+                loss = 0.0
+                # --- current samples ---
+                logits_cur, feat_cur = self.model(x)
+                loss += self.crit(logits_cur, y)
+
+                # --- replay samples ---
+                if replay_batch:
+                    idxs, labels, _ = zip(*replay_batch)
+                    feat_rep = self.model.regenerate(idxs, self.device)
+                    logits_rep = self.model.classifier(feat_rep)
+                    y_rep = torch.tensor(labels, device=self.device)
+                    loss += self.crit(logits_rep, y_rep)
+
+                # --- optimisation ---
+                self.opt.zero_grad(set_to_none=True)
+                loss.backward()
+                self.opt.step()
+
+                # ============ store samples (uncertainty-guided) ============
+                with torch.no_grad():
+                    out1 = self.model.dropout(feat_cur)
+                    out2 = self.model.dropout(feat_cur)
+                    sigma = (out1 - out2).pow(2).mean(1).cpu().numpy()  # (B,)
+                    idx2 = self.model.encode(x).cpu().numpy()           # (B,)
+                    for i in range(len(x)):
+                        self.buffer.add(int(idx2[i]), int(y[i]), float(sigma[i]))
+
+        # Orthogonalise classifier weights (very light-weight variant)
+        with torch.no_grad():
+            w = self.model.classifier.weight.data  # (C, 256)
+            self.model.classifier.weight.data.copy_(torch.linalg.qr(w.T).Q.T)
+
+    # ------------------------------------------------------------------
+    #  Evaluation on test loader
+    # ------------------------------------------------------------------
+    @torch.no_grad()
+    def _eval(self, loader) -> float:
+        self.model.eval()
+        correct = total = 0
+        for x, y in loader:
+            x, y = x.to(self.device), y.to(self.device)
+            logits, _ = self.model(x)
+            pred = logits.argmax(1)
+            correct += (pred == y).sum().item()
+            total += y.size(0)
+        return 100.0 * correct / total
+
+    # ------------------------------------------------------------------
+    #  Run full stream (continual-learning experiment)
+    # ------------------------------------------------------------------
+    def run_stream(self, stream_gen, exp_name: str):
+        out_root = Path(".research/iteration12")
+        img_dir = out_root / "images"
+        out_root.mkdir(parents=True, exist_ok=True)
+        img_dir.mkdir(exist_ok=True)
+
+        for task_id, dl_train, dl_test in stream_gen:
+            self._train_task(task_id, dl_train)
+            acc = self._eval(dl_test)
+            self.results["task_acc"].append(acc)
+            print(f"Task {task_id:02d}  |  Accuracy: {acc:5.2f}%  |  Buffer: {self.buffer.bytes_used/1024:5.1f} kB")
+
+        # ---------------- summary ----------------
+        faa = sum(self.results["task_acc"]) / len(self.results["task_acc"])
+        res = {
+            "FAA": faa,
+            "task_acc": self.results["task_acc"],
+            "buffer_bytes": self.buffer.bytes_used,
+            "ApK": faa / (self.buffer.bytes_used / 1024 + 1e-8),
+        }
+
+        # save JSON
+        json_path = out_root / f"{exp_name}.json"
+        with open(json_path, "w") as f:
+            json.dump(res, f, indent=2)
+
+        # plot curve
+        fig_path = img_dir / f"accuracy_{exp_name}.pdf"
+        plot_line(list(range(len(self.results["task_acc"]))), [self.results["task_acc"]], ["H-VQ ReGen"],
+                  "Task", "Accuracy (%)", f"Accuracy curve – {exp_name}", fig_path)
+
+        # pretty print
+        print("\n================  Experiment description  ================")
+        print(textwrap.dedent(f"""
+            {exp_name}: dataset = {self.cfg['dataset_name']},  buffer budget = {self.cfg['replay_budget']/1024:.0f} kB,  model = H-VQ ReGen
+        """))
+        print("================  Numerical results (JSON)  ================")
+        print(json.dumps(res, indent=2))
+        print("================  Figure saved  ================")
+        print(str(fig_path))

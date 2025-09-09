@@ -1,59 +1,93 @@
-# src/preprocess.py
-"""Dataset preparation and benchmark helpers."""
-from __future__ import annotations
-
+import itertools
+import random
 from pathlib import Path
-from typing import Any
+from typing import Generator, Tuple
 
-from avalanche.benchmarks.classic import SplitCIFAR100
-from torchvision import transforms
+import numpy as np
+import torch
+from torch.utils.data import DataLoader, Subset
+from torchvision import datasets, transforms
 
-__all__ = ["get_cifar100_benchmark"]
+__all__ = ["split_cifar100", "permuted_mnist"]
+
+# ----------------------------------------------------------------------------------
+#  20 × 5-way Split CIFAR-100
+# ----------------------------------------------------------------------------------
+
+def split_cifar100(root: str, batch: int = 128):
+    root = Path(root)
+    root.mkdir(exist_ok=True, parents=True)
+
+    tf_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.507, 0.486, 0.441), (0.267, 0.256, 0.276)),
+    ])
+    tf_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.507, 0.486, 0.441), (0.267, 0.256, 0.276)),
+    ])
+
+    train_set = datasets.CIFAR100(root, train=True, download=True, transform=tf_train)
+    test_set = datasets.CIFAR100(root, train=False, download=True, transform=tf_test)
+
+    classes = list(range(100))
+    tasks = [classes[i : i + 5] for i in range(0, 100, 5)]
+
+    for tid, cls in enumerate(tasks):
+        idx_tr = [i for i, y in enumerate(train_set.targets) if y in cls]
+        idx_te = [i for i, y in enumerate(test_set.targets) if y in cls]
+
+        yield (
+            tid,
+            DataLoader(Subset(train_set, idx_tr), batch_size=batch, shuffle=True, num_workers=4),
+            DataLoader(Subset(test_set, idx_te), batch_size=batch, shuffle=False, num_workers=4),
+        )
 
 
-def get_cifar100_benchmark(data_root: str | Path | None = None, n_experiences: int = 20):
-    """Return the standard 20-task SplitCIFAR100 benchmark.
+# ----------------------------------------------------------------------------------
+#  Permuted-MNIST  (20 tasks by default)
+# ----------------------------------------------------------------------------------
 
-    Parameters
-    ----------
-    data_root: str | Path | None, optional
-        Directory used to download/store the CIFAR-100 dataset. Defaults to
-        ``<project-root>/.data``.
-    n_experiences: int, optional
-        Number of experiences (tasks). The canonical SplitCIFAR100 uses 20.
-    """
+def permuted_mnist(root: str, n_tasks: int = 20, batch: int = 128, seed: int = 0):
+    torch.manual_seed(seed)
+    root = Path(root)
+    root.mkdir(exist_ok=True, parents=True)
 
-    if data_root is None:
-        # Keep raw datasets out of repo – store under project-root/.data
-        data_root = Path(__file__).resolve().parent.parent / ".data"
-    data_root = Path(data_root)
-    data_root.mkdir(parents=True, exist_ok=True)
+    base_tf = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,)),
+    ])
+    train_set = datasets.MNIST(root, train=True, download=True, transform=base_tf)
+    test_set = datasets.MNIST(root, train=False, download=True, transform=base_tf)
 
-    # Normalisation constants from CIFAR-100 statistics
-    mean = (0.5071, 0.4865, 0.4409)
-    std = (0.2673, 0.2564, 0.2761)
+    pixels = 28 * 28
+    permutations = [torch.randperm(pixels) for _ in range(n_tasks)]
 
-    train_transform = transforms.Compose(
-        [
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
+    for tid in range(n_tasks):
+        p = permutations[tid]
+
+        def _permute(img):
+            img = img.view(-1)[p].view(1, 28, 28)
+            return img
+
+        tf_train = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean, std),
-        ]
-    )
-
-    test_transform = transforms.Compose(
-        [
+            transforms.Lambda(_permute),
+            transforms.Normalize((0.1307,), (0.3081,)),
+        ])
+        tf_test = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean, std),
-        ]
-    )
+            transforms.Lambda(_permute),
+            transforms.Normalize((0.1307,), (0.3081,)),
+        ])
 
-    benchmark = SplitCIFAR100(
-        n_experiences=n_experiences,
-        return_task_id=True,
-        train_transform=train_transform,
-        eval_transform=test_transform,
-        dataset_root=str(data_root),
-    )
-    return benchmark
+        train_set.transform = tf_train
+        test_set.transform = tf_test
+
+        yield (
+            tid,
+            DataLoader(train_set, batch_size=batch, shuffle=True, num_workers=2),
+            DataLoader(test_set, batch_size=batch, shuffle=False, num_workers=2),
+        )

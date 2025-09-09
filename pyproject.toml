@@ -1,28 +1,22 @@
 [project]
-name = "ultra-low-footprint"
+name = "hvqregen-cl"
 version = "0.1.0"
-description = "Continual learning experiments for H-VQ ReGen"
-authors = ["Research Team <research@example.com>"]
-requires-python = ">=3.10"
+description = "H-VQ ReGen: ultra-low-footprint rehearsal for continual learning"
+requires-python = ">=3.8"
+authors = [ {name = "OpenAI Assistant"} ]
+license = {text = "Apache-2.0"}
 
-# ---------------------------------------------------------------------------
-#  Dependencies  ------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# Per PEP 621, the `dependencies` key must be an array of strings (not a table).
-# Each requirement is kept intentionally broad ("*") to let the environment
-# resolver pick a compatible version that satisfies all transitive deps.
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------
+#  Core dependencies  (ordered to avoid circular / optional extras)
+# --------------------------------------------------------------------
+[project.dependencies]
+torch = ">=2.0"
+torchvision = ">=0.15"
+numpy = "*"
+matplotlib = "*"
+seaborn = "*"
+pyyaml = "*"
+fvcore = "*"
 
-dependencies = [
-  "torch",
-  "torchvision",
-  # Pin Avalanche to a version that does not enforce a recent `qpsolvers` release
-  "avalanche-lib==0.3.1",
-  # Pin `qpsolvers` below v1.7 to avoid the hard dependency on the `proxsuite`
-  # native extension, which currently lacks Python 3.11 wheels.
-  "qpsolvers<1.7",
-  "matplotlib",
-  "seaborn",
-  "pyyaml",
-  "pytorchcv",
-]
+[build-system]
+requires = ["setuptools", "wheel"]
