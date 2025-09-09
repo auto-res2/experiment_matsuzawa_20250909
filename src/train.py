@@ -130,6 +130,11 @@ from evaluate import evaluate_model, line_plot  # noqa: E402 – after definitio
 from utils import dump_json  # noqa: E402 – local util
 
 
+# ---------------------------- CONSTANT PATHS ------------------------------
+_ITER_DIR = pathlib.Path(".research/iteration22")
+_IMG_DIR = _ITER_DIR / "images"
+
+
 def _select_device(pref: Optional[str] = None) -> str:
     """Return a valid device string.  Falls back to CPU if CUDA is unavailable."""
 
@@ -183,15 +188,15 @@ def train_one(model: nn.Module, data, cfg_exp, device: Optional[str] = None) -> 
     test_acc = evaluate_model(model, data, split="test")
 
     # -------------------------- visualisations ------------------------------
-    pdf_file = f".research/iteration21/images/{cfg_exp.name}.pdf"
-    pathlib.Path(pdf_file).parent.mkdir(parents=True, exist_ok=True)
+    _IMG_DIR.mkdir(parents=True, exist_ok=True)
+    pdf_file = _IMG_DIR / f"{cfg_exp.name}.pdf"
     line_plot(
         list(range(len(history["train_loss"]))),
         history["train_loss"],
         title=f"Train loss – {cfg_exp.name}",
         xlabel="epoch",
         ylabel="loss",
-        pdf_file=pdf_file,
+        pdf_file=str(pdf_file),
     )
 
     # ------------------------------ logging ---------------------------------
@@ -200,11 +205,12 @@ def train_one(model: nn.Module, data, cfg_exp, device: Optional[str] = None) -> 
         "best_val": best_val,
         "wall_clock_s": wall,
         "epochs_run": len(history["train_loss"]),
-        "figure": pdf_file,
+        "figure": str(pdf_file),
     }
 
-    out_json = f".research/iteration21/{cfg_exp.name}.json"
-    pathlib.Path(out_json).parent.mkdir(parents=True, exist_ok=True)
+    # ----------- persist JSON & echo to stdout for verification -------------
+    _ITER_DIR.mkdir(parents=True, exist_ok=True)
+    out_json = _ITER_DIR / f"{cfg_exp.name}.json"
     dump_json(result, out_json)
 
     print("\n===== EXPERIMENT:", cfg_exp.name, "=====")
