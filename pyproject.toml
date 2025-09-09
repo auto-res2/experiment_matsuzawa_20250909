@@ -13,7 +13,10 @@ authors = [
 ]
 
 dependencies = [
-  # CPU-only PyTorch to avoid large CUDA downloads
+  # Pin NumPy to <2 to avoid binary-compat issues with PyTorch/CuPy wheels
+  "numpy<2",
+  # Panda 2.x requires NumPy>=2, so we pin pandas to <2 as it is not a critical dependency here
+  "pandas<2",
   "torch==2.2.0",
   "torch-geometric",
   "ogb",

@@ -33,9 +33,9 @@ with open(CONFIG_PATH, "r") as f:
 # I/O locations – enforced by task instructions
 # -------------------------------------------------------------------
 # NOTE:  The evaluation harness mandates that *all* JSON artefacts are written
-# to `.research/iteration14/` and *all* image artefacts are written to
-# `.research/iteration14/images/`.
-JSON_DIR = Path(".research/iteration14")
+# to `.research/iteration15/` and *all* image artefacts are written to
+# `.research/iteration15/images/`.
+JSON_DIR = Path(".research/iteration15")
 IMG_DIR = JSON_DIR / "images"
 JSON_DIR.mkdir(parents=True, exist_ok=True)
 IMG_DIR.mkdir(parents=True, exist_ok=True)
