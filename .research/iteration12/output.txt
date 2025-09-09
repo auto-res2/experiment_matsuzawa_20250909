@@ -1,0 +1,35 @@
+=== uv sync start Tue Sep  9 06:41:27 AM UTC 2025 ===
+=== uv install end Tue Sep  9 06:43:24 AM UTC 2025 ===
+=== experiment start Tue Sep  9 06:43:24 AM UTC 2025 ===
+[exp_waterbirds_quick|seed0] epoch 1/2 loss=0.621  val_acc=0.778
+[exp_waterbirds_quick|seed0] epoch 2/2 loss=0.578  val_acc=0.778
+
+────────────────────────  EXPERIMENT DESCRIPTION  ────────────────────────
+Experiment key          : exp_waterbirds_quick
+Human-readable name     : Waterbirds_Quick_Demo
+Dataset URL             : https://huggingface.co/datasets/grodino/waterbirds
+Backbone                : vit_base_patch16_224
+Total epochs            : 2
+──────────────────────────────────────────────────────────────────────────
+{
+  "0": {
+    "best_val_acc": 0.7781484570475397,
+    "history": {
+      "epoch": [
+        0,
+        1
+      ],
+      "train_loss": [
+        0.6209512067661545,
+        0.5780421432787485
+      ],
+      "val_acc": [
+        0.7781484570475397,
+        0.7781484570475397
+      ]
+    }
+  }
+}
+Figures saved:
+accuracy_exp_waterbirds_quick.pdf
+=== experiment end Tue Sep  9 04:41:18 PM UTC 2025 ===
