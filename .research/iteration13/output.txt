@@ -1,0 +1,59 @@
+=== uv sync start Tue Sep  9 05:58:59 AM UTC 2025 ===
+=== uv install end Tue Sep  9 05:59:09 AM UTC 2025 ===
+=== experiment start Tue Sep  9 05:59:09 AM UTC 2025 ===
+Task 00  |  Accuracy: 27.40%  |  Buffer:  51.3 kB
+Task 01  |  Accuracy: 19.80%  |  Buffer: 102.5 kB
+Task 02  |  Accuracy: 17.80%  |  Buffer: 153.8 kB
+Task 03  |  Accuracy: 21.00%  |  Buffer: 205.1 kB
+Task 04  |  Accuracy: 20.00%  |  Buffer: 256.3 kB
+Task 05  |  Accuracy:  0.00%  |  Buffer: 307.6 kB
+Task 06  |  Accuracy: 14.20%  |  Buffer: 358.9 kB
+Task 07  |  Accuracy: 20.00%  |  Buffer: 410.2 kB
+Task 08  |  Accuracy: 20.00%  |  Buffer: 461.4 kB
+Task 09  |  Accuracy:  0.00%  |  Buffer: 512.7 kB
+Task 10  |  Accuracy: 23.60%  |  Buffer: 564.0 kB
+Task 11  |  Accuracy: 17.40%  |  Buffer: 615.2 kB
+Task 12  |  Accuracy: 49.20%  |  Buffer: 666.5 kB
+Task 13  |  Accuracy: 19.60%  |  Buffer: 717.8 kB
+Task 14  |  Accuracy: 20.00%  |  Buffer: 769.0 kB
+Task 15  |  Accuracy: 13.60%  |  Buffer: 820.3 kB
+Task 16  |  Accuracy: 25.20%  |  Buffer: 871.6 kB
+Task 17  |  Accuracy: 25.20%  |  Buffer: 922.9 kB
+Task 18  |  Accuracy: 37.20%  |  Buffer: 974.1 kB
+Task 19  |  Accuracy: 50.00%  |  Buffer: 1024.0 kB
+
+================  Experiment description  ================
+
+experiment1: dataset = SplitCIFAR100,  buffer budget = 1024 kB,  model = H-VQ ReGen
+
+================  Numerical results (JSON)  ================
+{
+  "FAA": 22.06,
+  "task_acc": [
+    27.4,
+    19.8,
+    17.8,
+    21.0,
+    20.0,
+    0.0,
+    14.2,
+    20.0,
+    20.0,
+    0.0,
+    23.6,
+    17.4,
+    49.2,
+    19.6,
+    20.0,
+    13.6,
+    25.2,
+    25.2,
+    37.2,
+    50.0
+  ],
+  "buffer_bytes": 1048572,
+  "ApK": 0.021543050930007093
+}
+================  Figure saved  ================
+.research/iteration13/images/accuracy_experiment1.pdf
+Runtime failure: Given groups=1, weight of size [64, 3, 7, 7], expected input[128, 1, 28, 28] to have 3 channels, but got 1 channels instead
