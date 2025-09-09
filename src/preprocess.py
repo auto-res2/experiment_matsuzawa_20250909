@@ -49,6 +49,30 @@ class ContinualTaskDataset(Dataset):
 #                          STREAM CONSTRUCTION
 # ---------------------------------------------------------------------------
 
+LABEL_CANDIDATES = [
+    "label",  # common
+    "labels",  # some datasets
+    "fine_label",  # CIFAR100 fine-grained
+    "coarse_label",  # CIFAR100 coarse
+    "class",  # fallback
+]
+
+
+def _ensure_label_column(ds: DatasetDict) -> DatasetDict:
+    """Rename an existing class label column to a unified name 'label'."""
+
+    train_cols = set(ds["train"].column_names)
+    if "label" in train_cols:
+        return ds  # already standardised
+
+    for cand in LABEL_CANDIDATES:
+        if cand in train_cols:
+            ds = ds.rename_column(cand, "label")
+            return ds
+
+    raise RuntimeError("No suitable label column found in the dataset.")
+
+
 def build_stream(name: str, cfg: Dict) -> List[Tuple[DataLoader, DataLoader]]:
     """Download dataset `name` and build list of (train, test) loaders."""
 
@@ -59,7 +83,13 @@ def build_stream(name: str, cfg: Dict) -> List[Tuple[DataLoader, DataLoader]]:
     if "train" not in ds_dict or "test" not in ds_dict:
         raise RuntimeError("Dataset must provide 'train' and 'test' splits.")
 
+    # ------------------------------------------------------------------
+    # Standardise label column name across all datasets
+    # ------------------------------------------------------------------
+    ds_dict = _ensure_label_column(ds_dict)
+
     train_ds, test_ds = ds_dict["train"], ds_dict["test"]
+
     all_classes = sorted(list(set(train_ds["label"])))
     task_size, num_tasks = task_cfg["task_size"], task_cfg["num_tasks"]
 
