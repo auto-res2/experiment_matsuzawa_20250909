@@ -47,6 +47,61 @@ def cer_loss(original_logits: torch.Tensor, cf_logits: torch.Tensor) -> torch.Te
 # ────────────────────────────────────────────────────────────────────────────────
 # Main training routine ----------------------------------------------------------
 
+def _safe_get_validation_split(ds_cfg: ExperimentConfig | Dict):
+    """Attempt to load the most common names for the validation split.
+
+    Some datasets expose the split as "validation", others as "val". We try both
+    in a fail-safe manner and raise a clear error if neither exists.
+    """
+    try:
+        return get_dataset(ds_cfg.dataset, "validation")
+    except SystemExit:
+        # propagate fatal errors (e.g. dataset missing entirely)
+        raise
+    except Exception:
+        # fall-back to "val" in case "validation" is absent
+        try:
+            return get_dataset(ds_cfg.dataset, "val")
+        except Exception:
+            _fail("[ERROR] Neither a 'validation' nor a 'val' split could be located in the requested dataset – terminating.")
+
+
+def _build_model(cfg: ExperimentConfig) -> nn.Module:
+    """Return a classification backbone as specified by *cfg*.
+
+    The implementation tries to rely on torchvision whenever possible and only
+    falls back to *timm* for non-torchvision architectures. This avoids making
+    *timm* a hard dependency for plain ResNet experiments.
+    """
+    num_classes = cfg.model.num_classes
+    name = cfg.model.classifier_name.lower()
+
+    # ── torchvision backbones ────────────────────────────────────────────────
+    if "resnet" in name:
+        # example: "resnet50" → models.resnet50
+        ctor = getattr(models, name, None)
+        if ctor is None:
+            _fail(f"[ERROR] Unknown torchvision model '{name}'.")
+        model = ctor(pretrained=cfg.model.pretrained)
+        if hasattr(model, "fc") and isinstance(model.fc, nn.Linear):
+            model.fc = nn.Linear(model.fc.in_features, num_classes)
+        else:
+            _fail("[ERROR] Expected ResNet-like model with an 'fc' attribute – adjust implementation.")
+    else:
+        # ── timm backbones ───────────────────────────────────────────────────
+        try:
+            import timm  # local import avoids mandatory dependency if unused
+        except ImportError as e:
+            _fail(f"[timm missing] Ensure timm is installed – {e}")
+        model = timm.create_model(
+            cfg.model.classifier_name,
+            pretrained=cfg.model.pretrained,
+            num_classes=num_classes,
+        )
+
+    return model
+
+
 def run_training(exp_key: str, exp_cfg: ExperimentConfig) -> Dict:
     """Run the complete training loop for a single experiment.
     Returns the *results_all_seeds* dictionary so that src.main can take care of
@@ -54,13 +109,10 @@ def run_training(exp_key: str, exp_cfg: ExperimentConfig) -> Dict:
     """
     # --------------- data ----------------
     train_ds = get_dataset(exp_cfg.dataset, "train")
-    val_split = "validation" if "validation" in train_ds.builder_name else "val"
-    val_ds = get_dataset(exp_cfg.dataset, val_split)
+    val_ds = _safe_get_validation_split(exp_cfg)
 
     if "label" not in train_ds.column_names:
         _fail("Dataset missing `label` column – cannot proceed.")
-
-    num_classes = exp_cfg.model.num_classes
 
     transform = transforms.Compose([
         transforms.Resize(256),
@@ -77,23 +129,7 @@ def run_training(exp_key: str, exp_cfg: ExperimentConfig) -> Dict:
     val_ds.set_transform(_tf)
 
     # --------------- model ---------------
-    if "resnet" in exp_cfg.model.classifier_name:
-        weights = (
-            models.ResNet50_Weights.IMAGENET1K_V2 if exp_cfg.model.pretrained else None
-        )
-        model = models.get_model(exp_cfg.model.classifier_name, weights=weights)
-        model.fc = nn.Linear(model.fc.in_features, num_classes)
-    else:  # vit or other timm model
-        try:
-            import timm  # local import avoids mandatory dependency if unused
-        except ImportError as e:
-            _fail(f"[timm missing] Ensure timm is installed – {e}")
-        model = timm.create_model(
-            exp_cfg.model.classifier_name,
-            pretrained=exp_cfg.model.pretrained,
-            num_classes=num_classes,
-        )
-
+    model = _build_model(exp_cfg)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
@@ -103,7 +139,7 @@ def run_training(exp_key: str, exp_cfg: ExperimentConfig) -> Dict:
         model.parameters(),
         lr=optim_cfg.lr,
         weight_decay=optim_cfg.weight_decay,
-        betas=optim_cfg.betas,
+        betas=tuple(optim_cfg.betas),
     )
     scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer, _cosine_schedule(exp_cfg.train.epochs)

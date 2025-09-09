@@ -24,4 +24,5 @@ dependencies = [
     "seaborn",
     "scikit-learn",
     "PyYAML",
+    "pillow",
 ]
