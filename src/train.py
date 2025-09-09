@@ -153,6 +153,9 @@ class ResNet18SparseLoRA(nn.Module):
                 h = module.register_forward_hook(_add_lora_out)
                 self._hook_handles.append(h)
 
+        # Cache bytes-per-rank across all adapters for fast budget queries
+        self._bytes_per_rank_total: int | None = None
+
     # --------------------------------------------------
     # Helper utilities
     # --------------------------------------------------
@@ -162,8 +165,26 @@ class ResNet18SparseLoRA(nn.Module):
     def bytes_lora(self) -> int:
         return sum(a.extra_bytes() for a in self.adapters)
 
+    # ----------- new helper ---------------------------------------------------
+    def _compute_bytes_per_rank_total(self) -> int:
+        """Return the additional bytes required when *increasing every adapter* by +1 rank."""
+        total = 0
+        for ad in self.adapters:
+            bytes_single_row = (ad.A.shape[1] + ad.B.shape[0]) * 4
+            total += bytes_single_row
+        return total
+
+    def bytes_per_rank(self) -> int:
+        """Public accessor with caching."""
+        if self._bytes_per_rank_total is None:
+            self._bytes_per_rank_total = self._compute_bytes_per_rank_total()
+        return self._bytes_per_rank_total
+
     def adapt_rank(self, delta_rows: int):
-        """Grow / prune each adapter's rank uniformly."""
+        """Grow / prune each adapter's rank *uniformly*.
+
+        Note: *delta_rows* is interpreted *per adapter* (historical behaviour).
+        """
         if delta_rows == 0:
             return
         for ad in self.adapters:
@@ -181,6 +202,8 @@ class ResNet18SparseLoRA(nn.Module):
                 ad.A.data = ad.A.data[idx]
                 ad.B.data = ad.B.data[:, idx]
             ad.r = ad.A.shape[0]
+        # Invalidate cache
+        self._bytes_per_rank_total = None
 
 
 # --------------------------------------------------------------
@@ -297,8 +320,41 @@ class VisionCLTrainer:
                 f"Budget={self.budget_bytes} bytes, model={self.model.bytes_lora()} bytes."
             )
 
+    # ---------------- NEW: safe allocator application -------------------------
+    def _apply_allocator_deltas(self, deltaP: int, deltaD: int):
+        """Apply allocator-suggested deltas while *guaranteeing* budget compliance."""
+        # ---- 1.  Adapter rank change (deltaP) --------------------------------
+        if deltaP != 0:
+            if deltaP > 0:
+                # How many +1 rank steps fit in the remaining memory?
+                room = self.budget_bytes - (self.model.bytes_lora() + self._buffer_bytes())
+                per_rank_bytes = self.model.bytes_per_rank()
+                max_addable = room // per_rank_bytes
+                deltaP_clamped = min(deltaP, max_addable)
+            else:
+                # Cannot prune below rank-1
+                current_r = self.model.adapters[0].r
+                max_reducible = current_r - 1
+                deltaP_clamped = -min(abs(deltaP), max_reducible)
+            if deltaP_clamped != 0:
+                self.model.adapt_rank(int(deltaP_clamped))
+
+        # ---- 2.  Replay-buffer adjustment (deltaD) ---------------------------
+        # *deltaD* is interpreted in BYTES for simplicity.
+        target_bytes = int(max(0, self._buffer_bytes() + deltaD))
+        if target_bytes < self._buffer_bytes():
+            # Shrink buffer (FIFO) until we match the target.
+            byte_cnt = 0
+            new_buf: List[Tuple[torch.Tensor, int]] = []
+            for code, lab in self.replay_buffer:
+                if byte_cnt >= target_bytes:
+                    break
+                new_buf.append((code, lab))
+                byte_cnt += code.numel() * self.vqvae.code_bytes
+            self.replay_buffer = new_buf
+
     def _after_task(self, val_acc: float):
-        # actor-critic chooses allocation delta
+        # Actor-critic chooses allocation delta (untrained – random initially)
         state = torch.tensor([
             self.model.bytes_lora(),
             self._buffer_bytes(),
@@ -306,21 +362,13 @@ class VisionCLTrainer:
             self.budget_bytes,
         ], dtype=torch.float32, device=self.device)
         deltaP, deltaD = self.alloc.act(state).round().to(torch.int64).cpu().tolist()
-        self.model.adapt_rank(int(deltaP))
 
-        # adjust replay buffer size
-        target = max(0, self._buffer_bytes() + int(deltaD))
-        if target < self._buffer_bytes():
-            byte_cnt = 0
-            new_buf: List[Tuple[torch.Tensor, int]] = []
-            for code, lab in self.replay_buffer:
-                if byte_cnt >= target:
-                    break
-                new_buf.append((code, lab))
-                byte_cnt += code.numel() * self.vqvae.code_bytes
-            self.replay_buffer = new_buf
+        # Safely apply suggested changes
+        self._apply_allocator_deltas(int(deltaP), int(deltaD))
+
+        # Final budget check (fail-fast)
         if not self._footprint_ok():
-            raise RuntimeError("Memory budget overflow – allocator error")
+            raise RuntimeError("Memory budget overflow – allocator error (post-sanity-check)")
 
     # --------------------------------------------------
     # Public API – train a single task
