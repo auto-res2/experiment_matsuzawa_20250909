@@ -8,8 +8,12 @@ from typing import Dict
 import networkx as nx
 import torch
 from torch_geometric.data import Data
-from torch_geometric.datasets import (Planetoid, Coauthor, WebKB,
-                                       WikipediaNetwork)
+from torch_geometric.datasets import (
+    Planetoid,
+    Coauthor,
+    WebKB,
+    WikipediaNetwork,
+)
 from torch_geometric.transforms import NormalizeFeatures
 from torch_geometric.utils import to_undirected
 
@@ -17,9 +21,16 @@ from torch_geometric.utils import to_undirected
 #  Directory structure -------------------------------------------------------
 # ---------------------------------------------------------------------------
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT / "data"; DATA_DIR.mkdir(exist_ok=True)
-FIG_DIR = ROOT / "figs"; FIG_DIR.mkdir(exist_ok=True)
-RES_DIR = ROOT / "results"; RES_DIR.mkdir(exist_ok=True)
+
+# Mandatory paths enforced by the evaluation harness ------------------------
+_RESEARCH_ROOT = ROOT / ".research" / "iteration2"
+FIG_DIR = _RESEARCH_ROOT / "images"  # .research/iteration2/images
+RES_DIR = _RESEARCH_ROOT               # .research/iteration2/
+DATA_DIR = ROOT / "data"
+
+# Make sure all directories exist ------------------------------------------
+for _d in (FIG_DIR, RES_DIR, DATA_DIR):
+    _d.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 #  Reproducibility -----------------------------------------------------------
@@ -29,6 +40,7 @@ def set_seed(seed: int = 0):
     random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
 
 # ---------------------------------------------------------------------------
 #  Dataset loader ------------------------------------------------------------
@@ -56,9 +68,21 @@ def graph_curvature(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
     try:
         import GraphRicciCurvature as grc
     except ImportError:
-        # Lazy, one-time install if missing.
+        # Lazy, one-time install if missing. We intentionally pin the version
+        # to 0.5.3.2 to remain consistent with the upper-bound specified in
+        # pyproject.toml.
         import subprocess, sys
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "GraphRicciCurvature", "--quiet"])
+
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "GraphRicciCurvature==0.5.3.2",
+                "--quiet",
+            ]
+        )
         import GraphRicciCurvature as grc
 
     g = nx.Graph()

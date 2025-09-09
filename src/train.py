@@ -84,7 +84,6 @@ class GradeGCN(nn.Module):
         graph_curvature_fn,
     ):
         super().__init__()
-        from .preprocess import graph_curvature  # late import to avoid circularity
 
         in_dim, out_dim = data.num_features, int(data.y.max().item()) + 1
         # --- curvature & gates ------------------------------------------------

@@ -16,7 +16,6 @@ from .evaluate import test as evaluate, plot_training_loss
 from .preprocess import (
     load_dataset,
     set_seed,
-    DATA_DIR,
     FIG_DIR,
     RES_DIR,
     graph_curvature,
@@ -58,7 +57,9 @@ class ExpConf:
 # ---------------------------------------------------------------------------
 #  Config loader -------------------------------------------------------------
 # ---------------------------------------------------------------------------
-CONFIG_FILE = (DATA_DIR.parent / "config" / "config.yaml").resolve()
+from pathlib import Path
+
+CONFIG_FILE = (Path(__file__).resolve().parent.parent / "config" / "config.yaml").resolve()
 if not CONFIG_FILE.exists():
     sys.exit(f"Config file not found at {CONFIG_FILE}")
 
@@ -189,6 +190,10 @@ def launch_experiment():
     print("================ Figures saved ========================")
     for pdf in FIG_DIR.glob("*.pdf"):
         print(pdf.name)
+
+        # Also output JSON content for verification as mandated ---------
+    print("================ Saved JSON content ==================")
+    print(out_file.read_text())
 
 
 # ---------------------------------------------------------------------------
