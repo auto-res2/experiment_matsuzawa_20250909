@@ -89,10 +89,14 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
 
             projector = Projector(feat_dim).to(device)
 
+            # Cast hyperparameters to float to avoid accidental string typing
+            lr = float(exp_cfg["optimiser"]["lr"])
+            weight_decay = float(exp_cfg["optimiser"]["weight_decay"])
+
             optimiser = AdamW(
                 itertools.chain(backbone.parameters(), projector.parameters()),
-                lr=exp_cfg["optimiser"]["lr"],
-                weight_decay=exp_cfg["optimiser"]["weight_decay"],
+                lr=lr,
+                weight_decay=weight_decay,
             )
             scaler = GradScaler()
 
@@ -116,7 +120,7 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
                         backbone,
                         val_loader,
                         device,
-                        out_json=Path(".research/iteration4")
+                        out_json=Path(".research/iteration5")
                         / f"{exp_name}_{model_name}_seed{seed}_e{epoch+1}.json",
                     )
                     val_top1.append(metrics["top1"])
@@ -126,7 +130,7 @@ def run_experiment(exp_name: str, exp_cfg: DotDict, global_cfg: DotDict):
     # ----------------------------------------------------------------------
     # Persist per-experiment summary
     # ----------------------------------------------------------------------
-    out_dir = Path(".research/iteration4")
+    out_dir = Path(".research/iteration5")
     out_dir.mkdir(parents=True, exist_ok=True)
     summary_path = out_dir / f"{exp_name}_summary.json"
     with open(summary_path, "w") as f:
