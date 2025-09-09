@@ -1,0 +1,22 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+Resolved 6 packages in 113ms
+   Building sodef-cl @ file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909
+Downloading numpy (16.2MiB)
+ Downloading numpy
+      Built sodef-cl @ file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909
+Prepared 3 packages in 2.18s
+Installed 3 packages in 384ms
+ + numpy==2.3.3
+ + pyyaml==6.0.2
+ + sodef-cl==0.1.0 (from file:///home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 189, in _run_module_as_main
+  File "<frozen runpy>", line 159, in _get_module_details
+  File "<frozen importlib._bootstrap_external>", line 1074, in get_code
+  File "<frozen importlib._bootstrap_external>", line 1004, in source_to_code
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/toma/t-80-8-b-01/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/main.py", line 1
+    (unchanged – see previous content)
+               ^
+SyntaxError: invalid character '–' (U+2013)
