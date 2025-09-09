@@ -18,11 +18,54 @@ import torch.optim as optim
 # AMP imports – support both new (torch.amp) and legacy (torch.cuda.amp) APIs
 # -----------------------------------------------------------------------------
 try:
-    # PyTorch ≥2.0 – preferred
-    from torch.amp import autocast, GradScaler  # type: ignore
+    # PyTorch ≥2.0 – preferred, device agnostic
+    from torch.amp import autocast as _raw_autocast  # type: ignore
+    from torch.amp import GradScaler as _RawGradScaler  # type: ignore
 except (ImportError, AttributeError):
-    # Fallback for older versions; will raise deprecation warnings but is safe
-    from torch.cuda.amp import autocast, GradScaler  # type: ignore
+    # Fallback for older versions (CUDA-only).  These may raise deprecation
+    # warnings but remain functional.
+    from torch.cuda.amp import autocast as _raw_autocast  # type: ignore
+    from torch.cuda.amp import GradScaler as _RawGradScaler  # type: ignore
+
+# -----------------------------------------------------------------------------
+# Helper wrappers so the *rest of the code* can remain agnostic to the concrete
+# AMP version available at runtime.
+# -----------------------------------------------------------------------------
+from inspect import signature
+
+# ---- autocast wrapper --------------------------------------------------------
+
+def _autocast_with_optional_device(device_type: str | None = None, *args, **kwargs):  # noqa: D401
+    """Return an autocast context manager.
+
+    The first argument in the upstream APIs differs between versions:
+      • torch.amp.autocast(device_type="cuda", dtype=torch.float16, …)
+      • torch.cuda.amp.autocast(enabled=True, dtype=torch.float16, …)
+
+    To write version-agnostic code we dynamically test whether the wrapped
+    function supports the *device_type* keyword.  If not, the argument is
+    simply ignored.
+    """
+    if device_type is not None:
+        try:
+            return _raw_autocast(device_type=device_type, *args, **kwargs)  # type: ignore[arg-type]
+        except TypeError:
+            # Older API – silently fall back to calling without the keyword.
+            pass
+    return _raw_autocast(*args, **kwargs)
+
+# Expose the compatibility wrapper under the canonical name expected below.
+autocast = _autocast_with_optional_device  # type: ignore[assignment]
+
+# ---- GradScaler factory ------------------------------------------------------
+
+def create_grad_scaler(device_type: str, **kwargs):  # noqa: D401
+    """Instantiate a GradScaler irrespective of the underlying API version."""
+    try:
+        return _RawGradScaler(device_type=device_type, **kwargs)  # type: ignore[arg-type]
+    except TypeError:
+        # Legacy API – *device_type* is not accepted.
+        return _RawGradScaler(**kwargs)  # type: ignore[call-arg]
 
 # --------------------------------------------------------------
 # 0.  Globals & deterministic seed utilities
@@ -82,7 +125,10 @@ class ResNet18SparseLoRA(nn.Module):
         super().__init__()
         from timm import create_model
 
-        self.encoder = create_model("resnet18", pretrained=True)
+        # NOTE: Setting *pretrained=False* avoids network calls when running in
+        # offline/CI environments.  If the weight download is desired users can
+        # toggle this by passing a checkpoint path instead.
+        self.encoder = create_model("resnet18", pretrained=False)
 
         # Freeze original backbone params FIRST
         for p in self.encoder.parameters():
@@ -168,6 +214,7 @@ class VQVAE8bit(nn.Module):
         return idx.view(x.size(0), -1)
 
     def decode(self, idx: torch.Tensor) -> torch.Tensor:  # noqa: D401
+        # The latent grid is 4×4=16 positions for a 32×32 input (given 3 downsamples)
         embed = self.codebook(idx).view(idx.size(0), 4, 4, 128).permute(0, 3, 1, 2)
         return torch.sigmoid(self.dec(embed))
 
@@ -215,8 +262,9 @@ class VisionCLTrainer:
             lr=0.05, momentum=0.9, weight_decay=5e-4,
         )
         self.opt_adam = optim.Adam(list(self.vqvae.parameters()) + list(self.alloc.parameters()), lr=1e-3)
-        # Use device-aware GradScaler (new API)
-        self.scaler = GradScaler(device_type=self.device.type, init_scale=2.0)
+
+        # Device-agnostic GradScaler
+        self.scaler = create_grad_scaler(self.device.type, init_scale=2.0)
 
         # (code_tensor, label)
         self.replay_buffer: List[Tuple[torch.Tensor, int]] = []
@@ -263,7 +311,7 @@ class VisionCLTrainer:
         import numpy as np
         from sklearn.metrics import accuracy_score
 
-        loader = DataLoader(train_ds, batch_size=128, shuffle=True, num_workers=8, pin_memory=True)
+        loader = DataLoader(train_ds, batch_size=128, shuffle=True, num_workers=0, pin_memory=False)
         for _ in range(epochs):
             self.model.train()
             for img, lbl in loader:
@@ -287,7 +335,7 @@ class VisionCLTrainer:
                 self.scaler.update()
 
         # ---------------- evaluation ----------------
-        test_loader = DataLoader(test_ds, batch_size=256, shuffle=False, num_workers=8)
+        test_loader = DataLoader(test_ds, batch_size=256, shuffle=False, num_workers=0)
         self.model.eval(); preds: List[int] = []; gts: List[int] = []
         with torch.no_grad():
             for img, lbl in test_loader:
