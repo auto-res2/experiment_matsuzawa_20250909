@@ -12,12 +12,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # ---------------------------------------------------------------------------
-# Global paths that are shared across all modules – UPDATED TO ITERATION17
+# Global paths that are shared across all modules – UPDATED TO ITERATION18
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
-# All JSON artefacts must live under “.research/iteration17/”
-RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration17"
-# All figure artefacts must live under “.research/iteration17/images”
+# All JSON artefacts must live under “.research/iteration18/”
+RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration18"
+# All figure artefacts must live under “.research/iteration18/images”
 FIG_DIR = RESULTS_DIR / "images"
 # Keep the original data dir unchanged
 DATA_DIR = PROJECT_ROOT / "data"
@@ -192,6 +192,23 @@ class HVQReGen(nn.Module):
 # Backbone & strategy wrappers (Avalanche-lib)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# *** Compatibility patch for Torch ≥2.1 where `T_co` has been removed ***
+# Some versions of Avalanche (<0.4) import `T_co` from `torch.utils.data.dataset`.
+# We monkey-patch it back BEFORE Avalanche is imported so that the import succeeds
+# without forcing users to downgrade PyTorch.
+# ---------------------------------------------------------------------------
+import types as _types  # noqa: E402
+import typing as _typing  # noqa: E402
+
+_torch_dataset_mod = sys.modules.get("torch.utils.data.dataset")
+if _torch_dataset_mod is None:
+    import torch.utils.data.dataset as _torch_dataset_mod  # type: ignore
+
+if not hasattr(_torch_dataset_mod, "T_co"):
+    _torch_dataset_mod.T_co = _typing.TypeVar("T_co", covariant=True)  # type: ignore
+
+# Heavy torchvision import after the patch
 from torchvision import models  # noqa: E402 (delayed heavy import)
 
 
