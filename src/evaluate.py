@@ -1,12 +1,13 @@
 # src/evaluate.py
 """Runs the *Ultra-low-footprint* experiment and handles statistics/plots.
 
-All I/O artefacts are saved under `.research/iteration4/` so that multiple
+All I/O artefacts are saved under `.research/iteration5/` so that multiple
 independent experiment runs are kept separate from the source code.
 """
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, TypeVar
 
@@ -17,19 +18,78 @@ import torch
 import yaml
 
 # ---------------------------------------------------------------------------
-#  TEMPORARY MONKEY-PATCH ----------------------------------------------------
+#  TEMPORARY MONKEY-PATCHES --------------------------------------------------
 # ---------------------------------------------------------------------------
-# Newer PyTorch versions (>=2.8) have removed the `T_co` symbol from
-# `torch.utils.data.dataset`, breaking older releases of Avalanche.  Since the
-# type alias is only used for static typing, re-introducing it at runtime is
-# perfectly safe and restores compatibility without downgrading PyTorch.
+# 1. Restore the removed `T_co` symbol (see detailed explanation in prototype)
 import torch.utils.data.dataset as _torch_dataset  # noqa: E402  (import after torch)
 if not hasattr(_torch_dataset, "T_co"):
     _torch_dataset.T_co = TypeVar("T_co", covariant=True)  # type: ignore[attr-defined]
 
+# 2. Restore `DwsConvBlock`, which was removed from recent `pytorchcv` releases
+#    but is still required by the version of Avalanche we rely on.
+try:
+    import pytorchcv.models.common as _pc_common  # noqa: E402
+    import pytorchcv.models.mobilenet as _pc_mobilenet  # noqa: E402
+    import torch.nn as _nn  # noqa: E402
+
+    if not hasattr(_pc_common, "DwsConvBlock") or not hasattr(_pc_mobilenet, "DwsConvBlock"):
+
+        class DwsConvBlock(_nn.Sequential):  # type: ignore[misc]
+            """Depth-wise separable convolution block (minimal stub).
+
+            This implementation is **not** performance-critical for the current
+            project – it merely needs to exist so that Avalanche can import its
+            MobileNetV1 definition without crashing. The block follows the
+            original structure but omits exotic options for brevity.
+            """
+
+            def __init__(
+                self,
+                in_channels: int,
+                out_channels: int,
+                kernel_size: int | tuple[int, int] = 3,
+                stride: int | tuple[int, int] = 1,
+                padding: int | tuple[int, int] | None = None,
+                **_: Any,
+            ) -> None:
+                if padding is None:
+                    # Same padding heuristic used in the original implementation
+                    padding = kernel_size // 2 if isinstance(kernel_size, int) else kernel_size[0] // 2
+                layers = [
+                    # Depth-wise convolution
+                    _nn.Conv2d(
+                        in_channels,
+                        in_channels,
+                        kernel_size,
+                        stride,
+                        padding,
+                        groups=in_channels,
+                        bias=False,
+                    ),
+                    _nn.BatchNorm2d(in_channels),
+                    _nn.ReLU6(inplace=True),
+                    # Point-wise convolution
+                    _nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=False),
+                    _nn.BatchNorm2d(out_channels),
+                    _nn.ReLU6(inplace=True),
+                ]
+                super().__init__(*layers)
+
+        # Register the stub in both expected namespaces and in `sys.modules`
+        _pc_common.DwsConvBlock = DwsConvBlock  # type: ignore[attr-defined]
+        _pc_mobilenet.DwsConvBlock = DwsConvBlock  # type: ignore[attr-defined]
+        # Some modules do `from pytorchcv.models.common import DwsConvBlock` – make sure import machinery sees it
+        if "pytorchcv.models.common" in sys.modules:
+            sys.modules["pytorchcv.models.common"].DwsConvBlock = DwsConvBlock  # type: ignore[attr-defined]
+except ModuleNotFoundError:
+    # If `pytorchcv` is missing for some reason, we fail fast – it is declared
+    # as a transitive dependency of Avalanche, so absence indicates a bigger
+    # problem we should not silently ignore.
+    raise
+
 from avalanche.benchmarks.classic import SplitCIFAR100  # noqa: E402  (after monkey-patch)
 from avalanche.training.strategies import Replay  # noqa: E402
-from torch import nn
+from torch import nn  # noqa: E402
 
 from .preprocess import get_cifar100_benchmark  # noqa: E402
 from .train import PenultimateMapper, ResNet18Backbone, OrthogonalClassifier  # noqa: E402
@@ -40,7 +100,7 @@ matplotlib.use("Agg")  # headless rendering only
 #  GLOBAL PATHS  (resolved from project root)  ------------------------------
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration4"
+RESEARCH_DIR = ROOT / ".research" / "iteration5"
 IMAGES_DIR = RESEARCH_DIR / "images"
 for p in (RESEARCH_DIR, IMAGES_DIR):
     p.mkdir(parents=True, exist_ok=True)
@@ -95,7 +155,7 @@ class BaseExperiment:
     def __init__(self, name: str):
         self.name = name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Save JSON results directly under iteration4/
+        # Save JSON results directly under iteration5/
         self.results_path = RESEARCH_DIR / f"{self.name}_results.json"
         self.figures: List[str] = []
         self.metric_log: Dict[str, Any] = {}
