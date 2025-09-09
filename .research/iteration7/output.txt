@@ -1,0 +1,12 @@
+=== uv sync start Tue Sep  9 04:07:48 AM UTC 2025 ===
+=== uv install end Tue Sep  9 04:07:53 AM UTC 2025 ===
+=== experiment start Tue Sep  9 04:07:53 AM UTC 2025 ===
+===== exp1_diff_waterbirds | resnet18 | seed 0 =====
+Epoch 000 | acc = 82.13% | loss = 1.141 | time = 0.6 m
+{
+  "top1": 76.14678955078125
+}
+{
+  "resnet18_seed0": 76.14678955078125
+}
+=== experiment end Tue Sep  9 04:08:56 AM UTC 2025 ===
