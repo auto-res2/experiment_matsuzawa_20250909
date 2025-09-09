@@ -223,8 +223,8 @@ class Trainer:
     # ------------------------------------------------------------------
     def run_exp1(self):
         exp_cfg = self.cfg["experiment1"]
-        # Mandatory research directory (iteration-3 per instructions)
-        research_dir = Path(".research/iteration3")
+        # Mandatory research directory (iteration-4 as per instructions)
+        research_dir = Path(".research/iteration4")
         img_dir = research_dir / "images"
         research_dir.mkdir(parents=True, exist_ok=True)
         img_dir.mkdir(exist_ok=True)
@@ -287,6 +287,6 @@ class Trainer:
             json.dump(all_results, fh, indent=2)
         print("DEPTH-SCALING STRESS-TEST (Experiment 1)")
         print(json.dumps(all_results, indent=2))
-        print("Generated figures (stored in .research/iteration3/images):")
+        print("Generated figures (stored in .research/iteration4/images):")
         for dname in exp_cfg["datasets"]:
             print(f"accuracy_{dname.lower()}.pdf")
