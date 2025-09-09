@@ -17,7 +17,8 @@ from .train import ExperimentConfig, build_model, train
 # -----------------------------------------------------------------------------
 # I/O paths --------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-RESEARCH_DIR = PROJECT_ROOT / ".research" / "iteration12"
+# Mandatory research directory for this iteration
+RESEARCH_DIR = PROJECT_ROOT / ".research" / "iteration13"
 IMAGE_DIR = RESEARCH_DIR / "images"
 RESULTS_DIR = RESEARCH_DIR  # JSON files live directly here per instruction
 for _d in [IMAGE_DIR, RESULTS_DIR]:
