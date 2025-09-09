@@ -249,7 +249,8 @@ class CLTrainer:
     #  Run full stream (continual-learning experiment)
     # ------------------------------------------------------------------
     def run_stream(self, stream_gen, exp_name: str):
-        out_root = Path(".research/iteration12")
+        # Updated output paths as per iteration13 requirement
+        out_root = Path(".research/iteration13")
         img_dir = out_root / "images"
         out_root.mkdir(parents=True, exist_ok=True)
         img_dir.mkdir(exist_ok=True)

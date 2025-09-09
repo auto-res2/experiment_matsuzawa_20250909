@@ -3,20 +3,22 @@ name = "hvqregen-cl"
 version = "0.1.0"
 description = "H-VQ ReGen: ultra-low-footprint rehearsal for continual learning"
 requires-python = ">=3.8"
-authors = [ {name = "OpenAI Assistant"} ]
-license = {text = "Apache-2.0"}
+authors = [ { name = "OpenAI Assistant" } ]
+license = { text = "Apache-2.0" }
 
 # --------------------------------------------------------------------
-#  Core dependencies  (ordered to avoid circular / optional extras)
+#  Core dependencies  (listed as an array per PEP 621)
 # --------------------------------------------------------------------
-[project.dependencies]
-torch = ">=2.0"
-torchvision = ">=0.15"
-numpy = "*"
-matplotlib = "*"
-seaborn = "*"
-pyyaml = "*"
-fvcore = "*"
+dependencies = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "numpy",
+    "matplotlib",
+    "seaborn",
+    "pyyaml",
+    "fvcore"
+]
 
 [build-system]
 requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
