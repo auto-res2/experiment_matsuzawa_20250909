@@ -188,6 +188,12 @@ class ResNet18SparseLoRA(nn.Module):
         if delta_rows == 0:
             return
         for ad in self.adapters:
+            # Reset gradients **before** altering tensor shapes to avoid mismatches
+            if ad.A.grad is not None:
+                ad.A.grad = None
+            if ad.B.grad is not None:
+                ad.B.grad = None
+
             if delta_rows > 0:
                 # ----- GROW -----
                 growA = torch.zeros((delta_rows, ad.A.shape[1]), device=ad.A.device)
@@ -198,6 +204,7 @@ class ResNet18SparseLoRA(nn.Module):
                 # ----- PRUNE -----
                 keep_r = ad.r + delta_rows  # delta_rows negative
                 keep_r = max(1, keep_r)  # never drop below rank-1
+                # Select rows/columns with largest magnitude to preserve capacity
                 idx = torch.topk(ad.B.abs().mean(0), k=keep_r, largest=True).indices
                 ad.A.data = ad.A.data[idx]
                 ad.B.data = ad.B.data[:, idx]
@@ -283,12 +290,7 @@ class VisionCLTrainer:
         self.vqvae = VQVAE8bit().to(self.device)
         self.alloc = RLAllocator().to(self.device)
 
-        # Ensure the *initial* footprint already satisfies the budget by
-        # pruning adapter rank if necessary.  This prevents later crashes when
-        # the buffer is still empty but the model itself is too large.
-        self._shrink_model_to_budget()
-
-        # ---------------- optimisers ----------------
+        # ---------------- optimisers (initialised *before* any pruning) --------
         self.opt_sgd = optim.SGD(
             filter(lambda p: p.requires_grad, self.model.parameters()),
             lr=0.05, momentum=0.9, weight_decay=5e-4,
@@ -297,6 +299,11 @@ class VisionCLTrainer:
 
         # Device-agnostic GradScaler
         self.scaler = create_grad_scaler(self.device.type, init_scale=2.0)
+
+        # Ensure the *initial* footprint already satisfies the budget by
+        # pruning adapter rank if necessary.  This must come *after* the
+        # optimiser has been created so that we can purge stale state tensors.
+        self._shrink_model_to_budget()
 
     # --------------------------------------------------
     # Internal helpers
@@ -307,13 +314,31 @@ class VisionCLTrainer:
     def _footprint_ok(self) -> bool:
         return self.model.bytes_lora() + self._buffer_bytes() <= self.budget_bytes
 
+    # --------- optimiser state maintenance -----------------------------------
+    def _purge_mismatched_optimizer_state(self):
+        """Remove stale tensors in optimizer state whose shapes no longer match parameters."""
+        for opt in [self.opt_sgd]:  # only SGD tracks momentum buffers for model params
+            if opt is None:
+                continue
+            for group in opt.param_groups:
+                for p in group["params"]:
+                    if p.grad is not None and p.grad.shape != p.data.shape:
+                        p.grad = None  # discard mismatched grad
+                    state = opt.state.get(p, {})
+                    # Momentum buffer (if present)
+                    buf = state.get("momentum_buffer")
+                    if buf is not None and buf.shape != p.data.shape:
+                        # Remove – new buffer will be instantiated on next step
+                        del state["momentum_buffer"]
+
+    # -------------------------------------------------------------------------
     def _shrink_model_to_budget(self):
         """Reduce adapter rank until the (model-only) footprint fits budget."""
         if self._footprint_ok():
             return
-        # Uniformly prune one rank at a time across all adapters.
         while (not self._footprint_ok()) and self.model.adapters[0].r > 1:
             self.model.adapt_rank(-1)
+            self._purge_mismatched_optimizer_state()
         if not self._footprint_ok():
             raise RuntimeError(
                 "Memory budget is too small even for rank-1 adapters. "
@@ -329,7 +354,7 @@ class VisionCLTrainer:
                 # How many +1 rank steps fit in the remaining memory?
                 room = self.budget_bytes - (self.model.bytes_lora() + self._buffer_bytes())
                 per_rank_bytes = self.model.bytes_per_rank()
-                max_addable = room // per_rank_bytes
+                max_addable = room // per_rank_bytes if per_rank_bytes > 0 else 0
                 deltaP_clamped = min(deltaP, max_addable)
             else:
                 # Cannot prune below rank-1
@@ -338,9 +363,9 @@ class VisionCLTrainer:
                 deltaP_clamped = -min(abs(deltaP), max_reducible)
             if deltaP_clamped != 0:
                 self.model.adapt_rank(int(deltaP_clamped))
+                self._purge_mismatched_optimizer_state()
 
         # ---- 2.  Replay-buffer adjustment (deltaD) ---------------------------
-        # *deltaD* is interpreted in BYTES for simplicity.
         target_bytes = int(max(0, self._buffer_bytes() + deltaD))
         if target_bytes < self._buffer_bytes():
             # Shrink buffer (FIFO) until we match the target.
