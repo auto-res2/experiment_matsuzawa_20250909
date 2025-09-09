@@ -12,12 +12,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # ---------------------------------------------------------------------------
-# Global paths that are shared across all modules
+# Global paths that are shared across all modules – MANDATORY DIRECTORY UPDATE
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
+# All JSON artefacts must live under “.research/iteration15/”
+RESULTS_DIR = PROJECT_ROOT / ".research" / "iteration15"
+# All figure artefacts must live under “.research/iteration15/images”
+FIG_DIR = RESULTS_DIR / "images"
+# Keep the original data dir unchanged
 DATA_DIR = PROJECT_ROOT / "data"
-RESULTS_DIR = PROJECT_ROOT / "results"
-FIG_DIR = PROJECT_ROOT / "figures"
 
 # Create directories if they do not exist.
 for _p in (DATA_DIR, RESULTS_DIR, FIG_DIR):
@@ -54,11 +57,13 @@ class ByteCappedBuffer:
         if item_bytes > self.byte_budget:
             raise RuntimeError("Single item exceeds buffer budget")
         # Evict oldest items until the new item fits.
-        while self.bytes_used + item_bytes > self.byte_budget:
+        while self.bytes_used + item_bytes > self.byte_budget and self.storage:
             removed = self.storage.pop(0)
             self.bytes_used -= self._sizeof(removed)
-        self.storage.append(item)
-        self.bytes_used += item_bytes
+        # Only append if it now fits (guard against empty-budget edge-case)
+        if self.bytes_used + item_bytes <= self.byte_budget:
+            self.storage.append(item)
+            self.bytes_used += item_bytes
 
     def sample(self, k: int):
         k = min(k, len(self.storage))
@@ -76,12 +81,15 @@ class VectorQuantizer(nn.Module):
         super().__init__()
         self.codebook = nn.Embedding(num_codes, code_dim)
         self.register_buffer("beta", torch.tensor(0.25))
-        nn.init.uniform_(self.codebook.weight,
-                         -1 / math.sqrt(num_codes),
-                         1 / math.sqrt(num_codes))
+        nn.init.uniform_(
+            self.codebook.weight,
+            -1 / math.sqrt(num_codes),
+            1 / math.sqrt(num_codes),
+        )
 
     def forward(self, z: torch.Tensor):  # type: ignore[override]
-        flat_z = z.view(-1, z.size(-1))  # (B*H, D)
+        flat_z = z.view(-1, z.size(-1))  # (B*H*W, D)
+        # Efficient pairwise L2 distance
         dist = (
             flat_z.pow(2).sum(-1, keepdim=True)
             - 2 * flat_z @ self.codebook.weight.t()
@@ -117,9 +125,9 @@ class TinyDecoder(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(8 * 8 * latent_dim, 512),
+            nn.Linear(latent_dim, 128),  # adjusted for 1×1 latent
             nn.ReLU(),
-            nn.Linear(512, out_dim),
+            nn.Linear(128, out_dim),
         )
 
     def forward(self, z: torch.Tensor):  # type: ignore[override]
@@ -141,14 +149,15 @@ class HVQReGen(nn.Module):
     def encode(self, x: torch.Tensor):
         z = self.encoder1(x)
         z_q1, idx1, _ = self.vq1(z)
-        z_mean = z_q1.mean(dim=[2, 3], keepdim=True)
-        z_q2, idx2, _ = self.vq2(z_mean)
+        z_mean = z_q1.mean(dim=[2, 3])  # (B, D)
+        z_q2, idx2, _ = self.vq2(z_mean.unsqueeze(-1))
         return idx1.cpu(), idx2.cpu()
 
     @torch.no_grad()
     def decode(self, idx1: torch.Tensor, idx2: torch.Tensor):
-        z2 = self.vq2.codebook(idx2.to(self.vq2.codebook.weight.device))
-        feat = self.decoder(z2.unsqueeze(-1).unsqueeze(-1))
+        # Decoding only uses the tier-2 indices for the toy sanity-check
+        z2 = self.vq2.codebook(idx2.to(self.vq2.codebook.weight.device))  # (B, D)
+        feat = self.decoder(z2)
         return feat
 
 
@@ -156,7 +165,7 @@ class HVQReGen(nn.Module):
 # Backbone & strategy wrappers (Avalanche-lib)
 # ---------------------------------------------------------------------------
 
-from torchvision import models  # noqa: E402  (delayed to avoid heavy import at top level)
+from torchvision import models  # noqa: E402 (delayed heavy import)
 
 
 def build_backbone() -> nn.Module:
@@ -169,11 +178,8 @@ try:
     from avalanche.training import strategies as cl_strategies  # noqa: E402
     from avalanche.logging import InteractiveLogger  # noqa: E402
     from avalanche.training.plugins import EvaluationPlugin  # noqa: E402
-    from avalanche.evaluation.metrics import (
-        accuracy_metrics,
-        loss_metrics,  # noqa: F401 (imported for completeness)
-    )
-except ImportError as _err:
+    from avalanche.evaluation.metrics import accuracy_metrics, loss_metrics  # noqa: F401,E402
+except ImportError as _err:  # pragma: no cover
     raise RuntimeError(
         "'avalanche-lib' is required but not installed. Install via `pip install avalanche-lib`."
     ) from _err

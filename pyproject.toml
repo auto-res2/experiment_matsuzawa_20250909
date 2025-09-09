@@ -6,13 +6,14 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 
-# Core dependencies extracted from import statements
-[project.dependencies]
-torch = ">=1.12"
-torchvision = ">=0.13"
-avalanche-lib = ">=0.4"
-matplotlib = ">=3.5"
-PyYAML = ">=6.0"
+# PEP-621 – dependencies must be a list, not a table
+dependencies = [
+  "torch>=1.12",
+  "torchvision>=0.13",
+  "avalanche-lib>=0.4",
+  "matplotlib>=3.5",
+  "PyYAML>=6.0"
+]
 
 [build-system]
 requires = ["setuptools", "wheel"]

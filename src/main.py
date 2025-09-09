@@ -10,7 +10,7 @@ from .train import PROJECT_ROOT
 # ---------------------------------------------------------------------------
 # Load configuration (single YAML file for the whole project)
 # ---------------------------------------------------------------------------
-CONFIG_PATH = PROJECT_ROOT / "config.yaml"
+CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"
 with open(CONFIG_PATH) as fp:
     CFG = yaml.safe_load(fp)
 

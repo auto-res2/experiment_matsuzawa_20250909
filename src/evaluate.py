@@ -39,6 +39,16 @@ __all__ = [
 
 
 # ---------------------------------------------------------------------------
+# Helper – auto-resolve device irrespective of YAML string content
+# ---------------------------------------------------------------------------
+
+def _resolve_device(yaml_device_entry: str) -> torch.device:
+    if yaml_device_entry.strip().lower().startswith("cuda") and torch.cuda.is_available():
+        return torch.device("cuda")
+    return torch.device("cpu")
+
+
+# ---------------------------------------------------------------------------
 # Experiment 1 – CI-Gate sanity checks
 # ---------------------------------------------------------------------------
 
@@ -49,7 +59,7 @@ def experiment1_ci_gate(global_cfg: Dict[str, Any], cfg: Dict[str, Any]):
     )
     print(description)
 
-    device = global_cfg["device"]
+    device = _resolve_device(global_cfg.get("device", "cpu"))
     hvq = HVQReGen().to(device)
 
     # Round-trip on CIFAR10 & MNIST
@@ -110,18 +120,16 @@ def experiment1_ci_gate(global_cfg: Dict[str, Any], cfg: Dict[str, Any]):
 # ---------------------------------------------------------------------------
 
 def experiment2_memory_accuracy(global_cfg: Dict[str, Any], cfg: Dict[str, Any]):
-    print(
-        "Experiment-2: Memory × Accuracy benchmark comparing DER++ under different byte caps."
-    )
+    print("Experiment-2: Memory × Accuracy benchmark comparing DER++ under different byte caps.")
     seed_everything(cfg["seeds"][0])
 
     benchmark = run_split_cifar100()
-    device = global_cfg["device"]
+    device = _resolve_device(global_cfg.get("device", "cpu"))
     results: Dict[str, Dict[str, float]] = {}
 
     for budget in cfg["budgets"]:
         model = build_backbone().to(device)
-        # 1 image ≈ 3 × 32 × 32 × 4 bytes ≈ 12 kB → use rough 3 kB/feature heuristic ⇒ divide by 3072
+        # 1 image ≈ 3 × 32 × 32 × 4 bytes ≈ 12 kB → rough 3 kB/feature heuristic
         strategy = DERPPStrategy(model, buffer_size=budget // 3072, cfg=global_cfg)
 
         accs: List[float] = []
@@ -161,7 +169,7 @@ def experiment3_long_horizon(global_cfg: Dict[str, Any], cfg: Dict[str, Any]):
     seed_everything(cfg["seeds"][0])
 
     benchmark = PermutedMNIST(n_experiences=cfg["tasks"], seed=0)
-    device = global_cfg["device"]
+    device = _resolve_device(global_cfg.get("device", "cpu"))
 
     model = build_backbone().to(device)
     strategy = DERPPStrategy(model, buffer_size=cfg["budget"] // 3072, cfg=global_cfg)
