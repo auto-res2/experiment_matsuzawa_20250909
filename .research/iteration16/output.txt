@@ -1,0 +1,24 @@
+=== uv sync start Tue Sep  9 06:36:02 AM UTC 2025 ===
+=== uv install end Tue Sep  9 06:37:43 AM UTC 2025 ===
+=== experiment start Tue Sep  9 06:37:43 AM UTC 2025 ===
+===== EXPERIMENT DESCRIPTION =====
+Benchmark on Cora dataset comparing 2-layer GCN baseline vs GRADE-GNN. Metrics: train loss and final test accuracy. Figures are saved as .pdf in results directory.
+===== INDIVIDUAL JSON RESULTS =====
+--- Cora_GRADE_GCN2.json ---
+{
+  "dataset": "Cora",
+  "method": "GRADE_GCN2",
+  "test_acc": 0.156,
+  "runtime_sec": 1.7531054019927979
+}
+--- Cora_GCN2_baseline.json ---
+{
+  "dataset": "Cora",
+  "method": "baseline_gcn2",
+  "test_acc": 0.777,
+  "runtime_sec": 8.790294647216797
+}
+===== FIGURE FILES =====
+training_loss_Cora_grade.pdf
+training_loss_Cora_baseline.pdf
+=== experiment end Tue Sep  9 06:40:30 AM UTC 2025 ===

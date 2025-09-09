@@ -2,5 +2,5 @@
   "dataset": "Cora",
   "method": "baseline_gcn2",
   "test_acc": 0.777,
-  "runtime_sec": 2.3479626178741455
+  "runtime_sec": 8.790294647216797
 }
