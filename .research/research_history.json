@@ -6,5 +6,82 @@
     "memory-efficient continual learning",
     "continual learning replay compression",
     "parameter-efficient continual learning"
+  ],
+  "research_study_list": [
+    {
+      "title": "Contextual Transformation Networks for Online Continual Learning"
+    },
+    {
+      "title": "SparCL: Sparse Continual Learning on the Edge"
+    },
+    {
+      "title": "Computationally Budgeted Continual Learning: What Does Matter?"
+    },
+    {
+      "title": "Continual Learning in Low-rank Orthogonal Subspaces"
+    },
+    {
+      "title": "MECTA: Memory-Economic Continual Test-Time Model Adaptation"
+    },
+    {
+      "title": "Incremental Learning of Structured Memory via Closed-Loop Transcription"
+    },
+    {
+      "title": "Decoupling Learning and Remembering: A Bilevel Memory Framework With Knowledge Projection for Task-Incremental Learning"
+    },
+    {
+      "title": "RMM: Reinforced Memory Management for Class-Incremental Learning"
+    },
+    {
+      "title": "A Model or 603 Exemplars: Towards Memory-Efficient Class-Incremental Learning"
+    },
+    {
+      "title": "Learning a Condensed Frame for Memory-Efficient Video Class-Incremental Learning"
+    },
+    {
+      "title": "Continual Learning in Low-rank Orthogonal Subspaces"
+    },
+    {
+      "title": "Contextual Transformation Networks for Online Continual Learning"
+    },
+    {
+      "title": "Improving Task-free Continual Learning by Distributionally Robust Memory Evolution"
+    },
+    {
+      "title": "Improving Task-free Continual Learning by Distributionally Robust Memory Evolution"
+    },
+    {
+      "title": "SparCL: Sparse Continual Learning on the Edge"
+    },
+    {
+      "title": "Towards Backward-Compatible Continual Learning of Image Compression"
+    },
+    {
+      "title": "Online Learned Continual Compression with Adaptive Quantization Modules"
+    },
+    {
+      "title": "Layerwise Proximal Replay: A Proximal Point Method for Online Continual Learning"
+    },
+    {
+      "title": "EEC: Learning to Encode and Regenerate Images for Continual Learning"
+    },
+    {
+      "title": "Navigating Memory Construction by Global Pseudo-Task Simulation for Continual Learning"
+    },
+    {
+      "title": "InfLoRA: Interference-Free Low-Rank Adaptation for Continual Learning"
+    },
+    {
+      "title": "Semantically-Shifted Incremental Adapter-Tuning is A Continual ViTransformer"
+    },
+    {
+      "title": "SAFE: Slow and Fast Parameter-Efficient Tuning for Continual Learning with Pre-Trained Models"
+    },
+    {
+      "title": "Overcoming Generic Knowledge Loss with Selective Parameter Update"
+    },
+    {
+      "title": "Does Continual Learning Equally Forget All Parameters?"
+    }
   ]
 }
