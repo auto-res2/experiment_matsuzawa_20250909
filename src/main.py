@@ -2,8 +2,10 @@
 """Project entry-point – orchestrates the whole C3D pipeline."""
 from __future__ import annotations
 
+import sys
 import yaml
 from pathlib import Path
+from typing import Any, Dict, List
 
 from .preprocess import (
     ExperimentConfig,
@@ -19,28 +21,66 @@ from .evaluate import save_results, plot_results
 CONFIG_PATH = ROOT / "config" / "config.yaml"
 
 # ────────────────────────────────────────────────────────────────────────────────
+# Type registry for forward‐reference resolution ---------------------------------
+# ────────────────────────────────────────────────────────────────────────────────
+_TYPE_REGISTRY = {
+    "ExperimentConfig": ExperimentConfig,
+    "DatasetConfig": DatasetConfig,
+    "ModelConfig": ModelConfig,
+    "TrainConfig": TrainConfig,
+    "OptimConfig": OptimConfig,
+}
+
+# ────────────────────────────────────────────────────────────────────────────────
 # Helper to recursively build dataclasses ---------------------------------------
 
-def _dict_to_dataclass(d, cls):
+
+def _resolve_forward_ref(t):
+    """Resolve postponed annotation (string) to the actual type if registered."""
+    if isinstance(t, str):
+        return _TYPE_REGISTRY.get(t, t)  # fallback to original string if unknown
+    return t
+
+
+def _dict_to_dataclass(d: Any, cls: Any):
+    """Recursively convert a (nested) dictionary *d* into an instance of *cls*.
+
+    The implementation is lightweight and purposely avoids external packages. It
+    additionally resolves forward references produced by the `from __future__ import
+    annotations` directive.
+    """
+    cls = _resolve_forward_ref(cls)
+
+    # Primitive, list or unsupported target – return as is --------------------
     if not hasattr(cls, "__annotations__"):
-        return d  # primitive
-    kwargs = {}
+        return d
+
+    kwargs: Dict[str, Any] = {}
     for k, t in cls.__annotations__.items():
         if k not in d:
-            continue
+            continue  # use default defined in the dataclass
         val = d[k]
-        origin = getattr(t, "__origin__", None)
+        t_resolved = _resolve_forward_ref(t)
+        origin = getattr(t_resolved, "__origin__", None)
+
         if origin is list:
-            sub_cls = t.__args__[0]
+            sub_cls = t_resolved.__args__[0]
             kwargs[k] = [_dict_to_dataclass(i, sub_cls) for i in val]
         elif origin is dict:
+            # dictionary – keep as is (dataclass field default handles it)
             kwargs[k] = val
         else:
-            kwargs[k] = _dict_to_dataclass(val, t)
-    return cls(**kwargs)
+            kwargs[k] = _dict_to_dataclass(val, t_resolved)
+
+    try:
+        return cls(**kwargs)
+    except TypeError as exc:
+        print(f"[WARNING] Could not instantiate {cls.__name__}: {exc}. Falling back to raw dict.")
+        return d
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Main driver -------------------------------------------------------------------
+
 
 def main():
     if not CONFIG_PATH.exists():

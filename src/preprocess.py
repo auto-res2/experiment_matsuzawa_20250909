@@ -7,7 +7,7 @@ import sys
 import warnings
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -80,13 +80,24 @@ def _fail(msg: str):
 # ----------------------------------------------------------------------------
 # Dataset loader --------------------------------------------------------------
 
-def get_dataset(cfg: DatasetConfig, split: str):
-    """Download (if needed) and return a HuggingFace *datasets* object for *split*."""
+def get_dataset(cfg: Union[DatasetConfig, Dict], split: str):
+    """Download (if needed) and return a HuggingFace *datasets* object for *split*.
+    Accepts either a DatasetConfig dataclass or a raw dictionary fallback to
+    enhance robustness against partially parsed configurations.
+    """
+    if isinstance(cfg, dict):
+        hf_name = cfg.get("hf_name")
+    else:
+        hf_name = cfg.hf_name
+
+    if hf_name is None:
+        _fail("[ERROR] 'hf_name' missing from dataset configuration – terminating.")
+
     try:
-        ds = load_dataset(cfg.hf_name, split=split, cache_dir=str(DATA_DIR))
+        ds = load_dataset(hf_name, split=split, cache_dir=str(DATA_DIR))
     except Exception as e:
         _fail(
-            f"[ERROR] Unable to download or access dataset '{cfg.hf_name}'.\nReason: {e}\nStrict NO-FALLBACK engaged – terminating."
+            f"[ERROR] Unable to download or access dataset '{hf_name}'.\nReason: {e}\nStrict NO-FALLBACK engaged – terminating."
         )
     return ds
 
