@@ -1,0 +1,35 @@
+hardware:
+  num_gpus: 8
+  gpu_type: A100-80GB
+  ram: 2048GB
+datasets:
+  cifar100: https://huggingface.co/datasets/uoft-cs/cifar100
+  tiny_imagenet: https://huggingface.co/datasets/israfelsr/mm_tiny_imagenet
+  ag_news: https://huggingface.co/datasets/fancyzhx/ag_news
+models:
+  resnet18: glasses/resnet18
+  bert_base: google-bert/bert-base-uncased
+hyperparams:
+  batch_size_vision: 128
+  batch_size_text: 64
+  epochs_per_task: 50
+  optimizer:
+    sgd:
+      lr: 0.05
+      momentum: 0.9
+      weight_decay: 0.0005
+    adam:
+      lr: 0.001
+      betas:
+      - 0.9
+      - 0.999
+  scheduler:
+    type: cosine
+    warmup_iters: 500
+budgets_mb:
+- 0.25
+- 0.5
+- 1
+- 2
+- 4
+- 8

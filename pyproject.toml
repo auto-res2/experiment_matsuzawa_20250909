@@ -1,1 +1,27 @@
-# Please list the required python packages.
+[project]
+name = "buma"
+version = "0.1.0"
+description = "Budgeted Unified Memory Adaptation – research codebase"
+requires-python = ">=3.9"
+readme = "README.md"
+
+[project.dependencies]
+torch = ">=2.1"
+torchvision = ">=0.16"
+timm = "==0.9.10"
+datasets = "==2.14"
+transformers = "==4.34"
+sentencepiece = "*"
+scikit-learn = "*"
+seaborn = "*"
+matplotlib = "*"
+tqdm = "*"
+einops = "*"
+fvcore = "*"
+onnxruntime = "*"
+onnx = "*"
+accelerate = "*"
+pyyaml = "*"
+
+[build-system]
+requires = ["setuptools", "wheel"]
