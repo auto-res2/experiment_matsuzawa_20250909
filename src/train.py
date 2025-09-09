@@ -146,7 +146,16 @@ class Engine:
         _set_seed(cfg.get("seed", 11))
 
         ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=False)
-        self.accel = Accelerator(fp16=cfg.get("amp", True), kwargs_handlers=[ddp_kwargs])
+        # ------------------------------------------------------------------
+        # accelerate>=0.25 removed the "fp16" arg; use mixed_precision instead.
+        # Enable FP16 only when a CUDA device is available _and_ cfg['amp'] is True.
+        # On CPU we must set "no" to avoid NotImplemented errors.
+        # ------------------------------------------------------------------
+        if torch.cuda.is_available() and cfg.get("amp", True):
+            mp_setting = "fp16"
+        else:
+            mp_setting = "no"
+        self.accel = Accelerator(mixed_precision=mp_setting, kwargs_handlers=[ddp_kwargs])
 
         # ---- DATA ---------------------------------------------------------
         self.train_ds, self.val_ds, self.test_ds = make_dataset(cfg, self.accel)
