@@ -1,37 +1,5 @@
-exp1_rho0.9_resnet50:
-  name: DistractImageNet++_rho0.9_resnet50
-  dataset:
-    hf_name: c3d/DistractImageNetPP
-    url: https://huggingface.co/datasets/c3d/DistractImageNetPP
-    split_files:
-      train: splits/rho0p9/train_indices_seed0.json
-      val: splits/rho0p9/val_indices_seed0.json
-      test: splits/rho0p9/test_indices_seed0.json
-  model:
-    classifier_name: resnet50
-    pretrained: true
-    num_classes: 1000
-    clip_name: openai/clip-vit-large-patch14
-    diffusion_name: stabilityai/stable-diffusion-2-inpainting
-  train:
-    epochs: 50
-    batch_size: 1024
-    optimiser:
-      lr: 0.0003
-      weight_decay: 0.05
-      betas:
-      - 0.9
-      - 0.999
-    warmup_epochs: 5
-    lambda_cer: 1.0
-    refresh: 3
-    prompts: 8
-  seeds:
-  - 0
-  - 1
-  - 2
-exp2_waterbirds_vit:
-  name: Waterbirds_ViT_B16
+exp_waterbirds_quick:
+  name: Waterbirds_Quick_Demo
   dataset:
     hf_name: grodino/waterbirds
     url: https://huggingface.co/datasets/grodino/waterbirds
@@ -43,21 +11,17 @@ exp2_waterbirds_vit:
     clip_name: openai/clip-vit-large-patch14
     diffusion_name: stabilityai/stable-diffusion-2-inpainting
   train:
-    epochs: 90
-    batch_size: 512
+    epochs: 2          # shortened for quick execution in the testing environment
+    batch_size: 32     # modest batch to avoid OOM on limited VRAM
     optimiser:
       lr: 0.0003
       weight_decay: 0.05
       betas:
       - 0.9
       - 0.999
-    warmup_epochs: 5
+    warmup_epochs: 1
     lambda_cer: 1.0
-    refresh: 5
-    prompts: 8
+    refresh: 1
+    prompts: 2         # fewer prompts → less CLIP compute
   seeds:
   - 0
-  - 1
-  - 2
-  - 3
-  - 4

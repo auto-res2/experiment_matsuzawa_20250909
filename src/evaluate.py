@@ -2,9 +2,9 @@
 """Evaluation, statistics and visualisation helpers.
 
 All numerical results (JSON) are written to
-    .research/iteration9/
+    .research/iteration10/
 All plots are written to
-    .research/iteration9/images/
+    .research/iteration10/images/
 
 Both folders are created on demand.
 """
@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 # Paths – must follow the mandatory specification
 # ────────────────────────────────────────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration9"
+RESEARCH_DIR = ROOT / ".research" / "iteration10"
 IMAGE_DIR = RESEARCH_DIR / "images"
 
 # create folders if they do not exist -------------------------------------------
@@ -35,7 +35,7 @@ IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def save_results(exp_key: str, results: Dict) -> Path:
-    """Save *results* as JSON under the mandatory .research/iteration9/ path."""
+    """Save *results* as JSON under the mandatory .research/iteration10/ path."""
     json_path = RESEARCH_DIR / f"{exp_key}_results.json"
     with open(json_path, "w", encoding="utf-8") as fp:
         json.dump(results, fp, indent=2)

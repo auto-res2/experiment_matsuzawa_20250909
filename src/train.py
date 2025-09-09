@@ -47,21 +47,21 @@ def cer_loss(original_logits: torch.Tensor, cf_logits: torch.Tensor) -> torch.Te
 # ────────────────────────────────────────────────────────────────────────────────
 # Main training routine ----------------------------------------------------------
 
-def _safe_get_validation_split(ds_cfg: ExperimentConfig | Dict):
+def _safe_get_validation_split(exp_cfg: ExperimentConfig | Dict):
     """Attempt to load the most common names for the validation split.
 
     Some datasets expose the split as "validation", others as "val". We try both
     in a fail-safe manner and raise a clear error if neither exists.
     """
     try:
-        return get_dataset(ds_cfg.dataset, "validation")
+        return get_dataset(exp_cfg.dataset, "validation")
     except SystemExit:
         # propagate fatal errors (e.g. dataset missing entirely)
         raise
     except Exception:
         # fall-back to "val" in case "validation" is absent
         try:
-            return get_dataset(ds_cfg.dataset, "val")
+            return get_dataset(exp_cfg.dataset, "val")
         except Exception:
             _fail("[ERROR] Neither a 'validation' nor a 'val' split could be located in the requested dataset – terminating.")
 
@@ -154,11 +154,11 @@ def run_training(exp_key: str, exp_cfg: ExperimentConfig) -> Dict:
         train_ds,
         batch_size=per_device_bs,
         shuffle=True,
-        num_workers=8,
+        num_workers=4,
         pin_memory=True,
     )
     val_loader = DataLoader(
-        val_ds, batch_size=256, shuffle=False, num_workers=4, pin_memory=True
+        val_ds, batch_size=64, shuffle=False, num_workers=2, pin_memory=True
     )
 
     # --------------- training loop ----------
