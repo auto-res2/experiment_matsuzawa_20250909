@@ -1,1 +1,17 @@
-[KEEP_ORIGINAL_FILE
+global:
+  seed_list: [0]
+
+experiments:
+  exp1_diff_waterbirds:
+    dataset: "grodino/waterbirds"
+    batch_size: 4
+    epochs: 1
+    models:
+      - "resnet18"
+    optimiser:
+      lr: 1e-4
+      weight_decay: 1e-4
+    dcd:
+      enabled: false  # Disable diffusion editing to keep runtime light for tests
+      guidance: 7.5
+      amp_dtype: "bfloat16"

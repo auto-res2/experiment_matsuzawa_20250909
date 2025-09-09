@@ -14,7 +14,7 @@ def evaluate(
     device: torch.device,
     out_json: str | Path,
 ):
-    """Compute top-1 accuracy (and worst group accuracy in the future)."""
+    """Compute top-1 accuracy (and persist results to JSON)."""
 
     model.eval()
     acc = Accuracy(task="multiclass", num_classes=len(loader.dataset.features["label"].names)).to(device)

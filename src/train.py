@@ -69,7 +69,7 @@ class SupConLoss(nn.Module):
 
 
 ###############################################################################
-# Diffusion-based counter-factual editor
+# Diffusion-based counter-factual editor (optional)
 ###############################################################################
 
 from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
@@ -79,6 +79,7 @@ _PIPE = None
 
 
 def _load_pipe(device: str = "cuda", torch_dtype=torch.float16):
+    """Lazy–load Stable Diffusion pipeline the first time it is needed."""
     global _PIPE
     if _PIPE is None:
         _PIPE = StableDiffusionPipeline.from_pretrained(
@@ -100,6 +101,7 @@ def edit_image_pnp(
     guidance: float = 7.5,
     steps: int = 20,
 ):
+    """Edit `pil_img` with prompt‐to‐prompt (PnP) editing via Stable Diffusion."""
     pipe = _load_pipe()
     edited = pipe(
         prompt=prompt,
@@ -126,7 +128,14 @@ def train_one_epoch(
     device: torch.device,
     img_size: int = 224,
 ):
-    """One training epoch with ERM + consistency + supervised contrastive losses."""
+    """One training epoch with ERM + consistency + supervised contrastive losses.
+
+    If `dcd_cfg.enabled` is False, counterfactual generation is skipped to avoid
+    the heavy Stable Diffusion dependency. This makes the behaviour *explicit*
+    in the configuration and avoids silent fallbacks.
+    """
+
+    dcd_enabled: bool = dcd_cfg.get("enabled", True)
 
     model.train()
     projector.train()
@@ -143,21 +152,24 @@ def train_one_epoch(
         labels = batch["label"].to(device, non_blocking=True)
 
         # --------------------------------------------------------------
-        # Counter-factual generation via diffusion editing (on CPU/GPU)
+        # Counter-factual generation via diffusion editing (optional)
         # --------------------------------------------------------------
-        cf_imgs = []
-        for img in imgs:
-            pil = to_pil_image(img.cpu())
-            edited = edit_image_pnp(
-                pil_img=pil,
-                prompt="a photo of a bird",
-                negative_prompt="background",
-                guidance=dcd_cfg.get("guidance", 7.5),
-                steps=20,
-            )
-            cf_imgs.append(transform_train(img_size)(edited))
-
-        cf_imgs = torch.stack(cf_imgs).to(device, non_blocking=True)
+        if dcd_enabled:
+            cf_imgs = []
+            for img in imgs:
+                pil = to_pil_image(img.cpu())
+                edited = edit_image_pnp(
+                    pil_img=pil,
+                    prompt="a photo of a bird",
+                    negative_prompt="background",
+                    guidance=dcd_cfg.get("guidance", 7.5),
+                    steps=dcd_cfg.get("steps", 20),
+                )
+                cf_imgs.append(transform_train(img_size)(edited))
+            cf_imgs = torch.stack(cf_imgs).to(device, non_blocking=True)
+        else:
+            # Explicitly replicate the original images when DCD is disabled.
+            cf_imgs = imgs.clone()
 
         with autocast(dtype=getattr(torch, dcd_cfg.get("amp_dtype", "bfloat16"))):
             # Forward pass for original images
