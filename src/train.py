@@ -22,7 +22,7 @@ SEED_SEQ = [2023, 2024, 2025]
 
 def set_global_seed(seed: int):
     """Sets seeds for Python, NumPy and PyTorch – deterministic mode."""
-    import random, numpy as np, torch
+    import random, numpy as np, torch  # pylint: disable=redefined-outer-name
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -52,7 +52,7 @@ class LoRAConv2d(nn.Module):
     # --------------------------------------------------
     # Forward & misc
     # --------------------------------------------------
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # noqa: D401
         w = (self.B @ self.A).view(self.out_ch, self.in_ch, self.ks, self.ks)
         return F.conv2d(x, w, stride=self.stride, padding=self.padding)
 
@@ -72,17 +72,29 @@ class ResNet18SparseLoRA(nn.Module):
         from timm import create_model
 
         self.encoder = create_model("resnet18", pretrained=True)
+
+        # Freeze original backbone params FIRST
         for p in self.encoder.parameters():
             p.requires_grad_(False)
 
-        # Inject adapters
+        # Inject adapters + forward hooks
         self.adapters: List[LoRAConv2d] = []
+        self._hook_handles: List[torch.utils.hooks.RemovableHandle] = []
+
         for name, module in self.encoder.named_modules():
             if isinstance(module, nn.Conv2d) and module.kernel_size == (3, 3):
                 lora = LoRAConv2d(module.in_channels, module.out_channels, 3,
                                   r=rank, stride=module.stride[0], padding=1)
-                setattr(module, "lora_adapter", lora)
+                # attach adapter as a sub-module so its parameters are registered
+                module.add_module("lora_adapter", lora)
                 self.adapters.append(lora)
+
+                # Forward hook that adds LoRA output to the conv output
+                def _add_lora_out(mod, inputs, output, l=lora):  # noqa: ANN001
+                    return output + l(inputs[0])
+
+                h = module.register_forward_hook(_add_lora_out)
+                self._hook_handles.append(h)
 
     # --------------------------------------------------
     # Helper utilities
@@ -135,7 +147,7 @@ class VQVAE8bit(nn.Module):
         self.code_bytes = code_bytes
 
     # ------------ encode / decode ------------
-    def encode(self, x: torch.Tensor) -> torch.Tensor:
+    def encode(self, x: torch.Tensor) -> torch.Tensor:  # noqa: D401
         z = self.enc(x)
         z = z.permute(0, 2, 3, 1).contiguous().view(-1, 128)
         dist = (z.pow(2).sum(1, keepdim=True)
@@ -144,11 +156,11 @@ class VQVAE8bit(nn.Module):
         idx = dist.argmin(1)
         return idx.view(x.size(0), -1)
 
-    def decode(self, idx: torch.Tensor) -> torch.Tensor:
+    def decode(self, idx: torch.Tensor) -> torch.Tensor:  # noqa: D401
         embed = self.codebook(idx).view(idx.size(0), 4, 4, 128).permute(0, 3, 1, 2)
         return torch.sigmoid(self.dec(embed))
 
-    def forward(self, x):
+    def forward(self, x):  # noqa: D401, ANN001
         idx = self.encode(x)
         recon = self.decode(idx)
         return recon, idx
@@ -166,7 +178,7 @@ class RLAllocator(nn.Module):
         self.actor = nn.Sequential(nn.Linear(state_dim, hidden), nn.ReLU(), nn.Linear(hidden, 2))
         self.critic = nn.Sequential(nn.Linear(state_dim, hidden), nn.ReLU(), nn.Linear(hidden, 1))
 
-    def act(self, state: torch.Tensor) -> torch.Tensor:
+    def act(self, state: torch.Tensor) -> torch.Tensor:  # noqa: D401
         logits = self.actor(state)
         action = torch.tanh(logits)  # (-1, 1)
         return action * 32  # coarse discretisation
@@ -178,19 +190,21 @@ class RLAllocator(nn.Module):
 class VisionCLTrainer:
     """Task-agnostic continual-learning trainer for the vision experiments."""
 
-    def __init__(self, budget_mb: float, device: torch.device, seed: int):
+    def __init__(self, budget_mb: float, device: str | torch.device, seed: int):
         set_global_seed(seed)
-        self.device = device
+        self.device = torch.device(device) if isinstance(device, str) else device
         self.budget_bytes = int(budget_mb * 1024 ** 2)
 
-        self.model = ResNet18SparseLoRA(rank=4).to(device)
-        self.vqvae = VQVAE8bit().to(device)
-        self.alloc = RLAllocator().to(device)
+        self.model = ResNet18SparseLoRA(rank=4).to(self.device)
+        self.vqvae = VQVAE8bit().to(self.device)
+        self.alloc = RLAllocator().to(self.device)
 
-        self.opt_sgd = optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()),
-                                 lr=0.05, momentum=0.9, weight_decay=5e-4)
+        self.opt_sgd = optim.SGD(
+            filter(lambda p: p.requires_grad, self.model.parameters()),
+            lr=0.05, momentum=0.9, weight_decay=5e-4,
+        )
         self.opt_adam = optim.Adam(list(self.vqvae.parameters()) + list(self.alloc.parameters()), lr=1e-3)
-        self.scaler = GradScaler()
+        self.scaler = GradScaler(init_scale=2.0)
 
         # (code_tensor, label)
         self.replay_buffer: List[Tuple[torch.Tensor, int]] = []
@@ -199,29 +213,40 @@ class VisionCLTrainer:
     # Internal helpers
     # --------------------------------------------------
     def _buffer_bytes(self) -> int:
-        return len(self.replay_buffer)  # 1 byte / code by design
+        return sum(code.numel() * self.vqvae.code_bytes for code, _ in self.replay_buffer)
 
     def _footprint_ok(self) -> bool:
         return self.model.bytes_lora() + self._buffer_bytes() <= self.budget_bytes
 
     def _after_task(self, val_acc: float):
         # actor-critic chooses allocation delta
-        state = torch.tensor([self.model.bytes_lora(), self._buffer_bytes(),
-                              val_acc, self.budget_bytes], dtype=torch.float32, device=self.device)
+        state = torch.tensor([
+            self.model.bytes_lora(),
+            self._buffer_bytes(),
+            val_acc,
+            self.budget_bytes,
+        ], dtype=torch.float32, device=self.device)
         deltaP, deltaD = self.alloc.act(state).round().to(torch.int64).cpu().tolist()
         self.model.adapt_rank(int(deltaP))
 
         # adjust replay buffer size
         target = max(0, self._buffer_bytes() + int(deltaD))
         if target < self._buffer_bytes():
-            self.replay_buffer = self.replay_buffer[:target]
+            byte_cnt = 0
+            new_buf: List[Tuple[torch.Tensor, int]] = []
+            for code, lab in self.replay_buffer:
+                if byte_cnt >= target:
+                    break
+                new_buf.append((code, lab))
+                byte_cnt += code.numel() * self.vqvae.code_bytes
+            self.replay_buffer = new_buf
         if not self._footprint_ok():
             raise RuntimeError("Memory budget overflow – allocator error")
 
     # --------------------------------------------------
     # Public API – train a single task
     # --------------------------------------------------
-    def train_task(self, task_id: int, train_ds, test_ds, epochs: int = 50):
+    def train_task(self, task_id: int, train_ds, test_ds, epochs: int = 50):  # noqa: D401, ANN001
         from torch.utils.data import DataLoader
         import numpy as np
         from sklearn.metrics import accuracy_score
@@ -234,7 +259,6 @@ class VisionCLTrainer:
 
                 # ---- latent replay ----
                 if self.replay_buffer:
-                    import random
                     buf_samples = random.sample(self.replay_buffer, min(len(self.replay_buffer), img.size(0)))
                     codes, buf_lbls = zip(*buf_samples)
                     codes = torch.stack(codes).to(self.device)
@@ -242,18 +266,21 @@ class VisionCLTrainer:
                     img = torch.cat([img, buf_imgs], dim=0)
                     lbl = torch.cat([lbl, torch.tensor(buf_lbls, device=self.device)])
 
-                with autocast():
+                with autocast("cuda"):
                     out = self.model(img)
                     loss_cls = F.cross_entropy(out, lbl)
-                self.opt_sgd.zero_grad(); self.scaler.scale(loss_cls).backward(); self.scaler.step(self.opt_sgd)
+                self.opt_sgd.zero_grad()
+                self.scaler.scale(loss_cls).backward()
+                self.scaler.step(self.opt_sgd)
+                self.scaler.update()
 
         # ---------------- evaluation ----------------
         test_loader = DataLoader(test_ds, batch_size=256, shuffle=False, num_workers=8)
-        self.model.eval(); preds, gts = [], []
+        self.model.eval(); preds: List[int] = []; gts: List[int] = []
         with torch.no_grad():
             for img, lbl in test_loader:
                 img = img.to(self.device)
-                with autocast():
+                with autocast("cuda"):
                     logits = self.model(img)
                 preds.extend(logits.argmax(1).cpu().tolist())
                 gts.extend(lbl.tolist())
@@ -262,8 +289,8 @@ class VisionCLTrainer:
         # ---------------- buffer update ----------------
         per_class = 10
         class_cnt: Dict[int, int] = {}
-        for img, lbl in train_ds:
-            c = lbl
+        for img, lbl in train_ds:  # type: ignore[assignment]
+            c = int(lbl)
             if class_cnt.get(c, 0) >= per_class:
                 continue
             code = self.vqvae.encode(img.unsqueeze(0).to(self.device)).squeeze(0).cpu()

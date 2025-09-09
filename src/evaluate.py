@@ -1,7 +1,7 @@
 """
 Contains evaluation utilities, plotting helpers and the three experiment
-entry-points.  Results are written to .research/iteration2/ and figures to
-.research/iteration2/images/ as required by the specification.
+entry-points.  Results are written to .research/iteration3/ and figures to
+.research/iteration3/images/ as required by the specification.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .preprocess import split_cifar100
 # --------------------------------------------------------------
 # 0.  Directories (auto-create)
 # --------------------------------------------------------------
-RESEARCH_DIR = Path(".research/iteration2")
+RESEARCH_DIR = Path(".research/iteration3")
 IMAGES_DIR = RESEARCH_DIR / "images"
 RESEARCH_DIR.mkdir(parents=True, exist_ok=True)
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
@@ -54,12 +54,12 @@ def save_curve(x, ys: Dict[str, List[float]], title: str, ylabel: str, fname_cor
 # 2.  Experiment 1 – Scaling across budgets
 # --------------------------------------------------------------
 
-def run_experiment_1(config):
+def run_experiment_1(config):  # noqa: ANN001
     budgets = config.get("budgets_mb", [1])
     all_json_paths = []
     for b in budgets:
         for seed in SEED_SEQ:
-            trainer = VisionCLTrainer(b, device=os.environ.get("DEVICE", "cuda"), seed=seed)  # type: ignore[arg-type]
+            trainer = VisionCLTrainer(b, device=os.environ.get("DEVICE", "cuda"), seed=seed)
             tasks = split_cifar100(Path("data/cifar100"), seed)
             task_acc = []
             for t in tasks:
@@ -93,7 +93,7 @@ def run_experiment_1(config):
 # 3.  Experiment 2 – Allocator ablation study
 # --------------------------------------------------------------
 
-def run_experiment_2(config):
+def run_experiment_2(config):  # noqa: ANN001, D401
     budget = 1.0
     seed = 2023
     trainers = {
@@ -122,5 +122,5 @@ def run_experiment_2(config):
 # 4.  Experiment 3 – Not implemented in this refactor
 # --------------------------------------------------------------
 
-def run_experiment_3(_config):
+def run_experiment_3(_config):  # noqa: D401, ANN001
     raise RuntimeError("Experiment 3 requires additional code not provided in this refactor.")
