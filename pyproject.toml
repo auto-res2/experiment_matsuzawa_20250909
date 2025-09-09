@@ -17,7 +17,9 @@ license = { text = "MIT" }
 dependencies = [
     "torch",            # tested with 2.1+
     "torchvision",
-    "avalanche-lib",
+    # Pin Avalanche to a version that doesn't rely on the `proxsuite` wheels,
+    # which are currently unavailable for Python 3.11.
+    "avalanche-lib==0.3.1",
     "PyYAML",
     "matplotlib",
     "seaborn"

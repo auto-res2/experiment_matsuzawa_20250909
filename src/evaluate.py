@@ -1,7 +1,7 @@
 # src/evaluate.py
 """Runs the *Ultra-low-footprint* experiment and handles statistics/plots.
 
-All I/O artefacts are saved under `.research/iteration2/` so that multiple
+All I/O artefacts are saved under `.research/iteration3/` so that multiple
 independent experiment runs are kept separate from the source code.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ matplotlib.use("Agg")  # headless rendering only
 #  GLOBAL PATHS  (resolved from project root)  ------------------------------
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_DIR = ROOT / ".research" / "iteration2"
+RESEARCH_DIR = ROOT / ".research" / "iteration3"
 IMAGES_DIR = RESEARCH_DIR / "images"
 for p in (RESEARCH_DIR, IMAGES_DIR):
     p.mkdir(parents=True, exist_ok=True)
@@ -83,6 +83,7 @@ class BaseExperiment:
     def __init__(self, name: str):
         self.name = name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Save JSON results directly under iteration3/
         self.results_path = RESEARCH_DIR / f"{self.name}_results.json"
         self.figures: List[str] = []
         self.metric_log: Dict[str, Any] = {}
@@ -91,6 +92,7 @@ class BaseExperiment:
     def _save_and_print(self):
         with open(self.results_path, "w") as f:
             json.dump(self.metric_log, f, indent=2)
+        # Print JSON contents to stdout for verification
         print(f"\n===== Experiment: {self.name} =====")
         print(json.dumps(self.metric_log, indent=2))
         print("Figures generated:")
