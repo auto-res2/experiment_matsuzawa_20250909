@@ -1,0 +1,213 @@
+Using CPython 3.11.13
+Creating virtual environment at: .venv
+Resolved 76 packages in 873ms
+   Building dcd-counterfactual @ file:///home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909
+Downloading aiohttp (1.7MiB)
+Downloading nvidia-cusparselt-cu12 (273.9MiB)
+Downloading pillow (6.3MiB)
+Downloading fonttools (4.7MiB)
+Downloading pandas (11.8MiB)
+Downloading nvidia-cufft-cu12 (184.2MiB)
+Downloading matplotlib (8.3MiB)
+Downloading torchvision (8.2MiB)
+Downloading nvidia-cufile-cu12 (1.1MiB)
+Downloading nvidia-cusparse-cu12 (274.9MiB)
+Downloading torch (846.9MiB)
+Downloading setuptools (1.1MiB)
+Downloading nvidia-nvjitlink-cu12 (37.4MiB)
+Downloading nvidia-cudnn-cu12 (674.0MiB)
+Downloading numpy (16.2MiB)
+Downloading nvidia-cublas-cu12 (566.8MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (84.0MiB)
+Downloading nvidia-nccl-cu12 (307.4MiB)
+Downloading networkx (1.9MiB)
+Downloading timm (2.4MiB)
+Downloading hf-xet (3.0MiB)
+Downloading diffusers (3.9MiB)
+Downloading nvidia-cuda-cupti-cu12 (9.8MiB)
+Downloading nvidia-cusolver-cu12 (255.1MiB)
+Downloading pyarrow (40.8MiB)
+Downloading sympy (6.0MiB)
+Downloading kiwisolver (1.4MiB)
+Downloading nvidia-curand-cu12 (60.7MiB)
+Downloading triton (148.3MiB)
+ Downloading nvidia-cufile-cu12
+ Downloading kiwisolver
+ Downloading aiohttp
+ Downloading hf-xet
+ Downloading timm
+ Downloading setuptools
+ Downloading networkx
+ Downloading fonttools
+ Downloading diffusers
+ Downloading pillow
+      Built dcd-counterfactual @ file:///home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909
+ Downloading torchvision
+ Downloading matplotlib
+ Downloading nvidia-cuda-cupti-cu12
+ Downloading sympy
+ Downloading numpy
+ Downloading nvidia-nvjitlink-cu12
+ Downloading pandas
+ Downloading nvidia-curand-cu12
+ Downloading pyarrow
+ Downloading nvidia-cuda-nvrtc-cu12
+ Downloading triton
+ Downloading nvidia-cufft-cu12
+ Downloading nvidia-cusolver-cu12
+ Downloading nvidia-cusparse-cu12
+ Downloading nvidia-cusparselt-cu12
+ Downloading nvidia-nccl-cu12
+ Downloading nvidia-cublas-cu12
+ Downloading nvidia-cudnn-cu12
+ Downloading torch
+Prepared 71 packages in 1m 05s
+Installed 71 packages in 6.40s
+ + aiohappyeyeballs==2.6.1
+ + aiohttp==3.12.15
+ + aiosignal==1.4.0
+ + attrs==25.3.0
+ + certifi==2025.8.3
+ + charset-normalizer==3.4.3
+ + contourpy==1.3.3
+ + cycler==0.12.1
+ + datasets==4.0.0
+ + dcd-counterfactual==0.1.0 (from file:///home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909)
+ + diffusers==0.35.1
+ + dill==0.3.8
+ + filelock==3.19.1
+ + fonttools==4.59.2
+ + frozenlist==1.7.0
+ + fsspec==2025.3.0
+ + hf-xet==1.1.9
+ + huggingface-hub==0.34.4
+ + idna==3.10
+ + importlib-metadata==8.7.0
+ + jinja2==3.1.6
+ + kiwisolver==1.4.9
+ + lightning-utilities==0.15.2
+ + markupsafe==3.0.2
+ + matplotlib==3.10.6
+ + mpmath==1.3.0
+ + multidict==6.6.4
+ + multiprocess==0.70.16
+ + networkx==3.5
+ + numpy==2.3.2
+ + nvidia-cublas-cu12==12.8.4.1
+ + nvidia-cuda-cupti-cu12==12.8.90
+ + nvidia-cuda-nvrtc-cu12==12.8.93
+ + nvidia-cuda-runtime-cu12==12.8.90
+ + nvidia-cudnn-cu12==9.10.2.21
+ + nvidia-cufft-cu12==11.3.3.83
+ + nvidia-cufile-cu12==1.13.1.3
+ + nvidia-curand-cu12==10.3.9.90
+ + nvidia-cusolver-cu12==11.7.3.90
+ + nvidia-cusparse-cu12==12.5.8.93
+ + nvidia-cusparselt-cu12==0.7.1
+ + nvidia-nccl-cu12==2.27.3
+ + nvidia-nvjitlink-cu12==12.8.93
+ + nvidia-nvtx-cu12==12.8.90
+ + packaging==25.0
+ + pandas==2.3.2
+ + pillow==11.3.0
+ + propcache==0.3.2
+ + pyarrow==21.0.0
+ + pyparsing==3.2.3
+ + python-dateutil==2.9.0.post0
+ + pytz==2025.2
+ + pyyaml==6.0.2
+ + regex==2025.9.1
+ + requests==2.32.5
+ + safetensors==0.6.2
+ + setuptools==80.9.0
+ + six==1.17.0
+ + sympy==1.14.0
+ + timm==1.0.19
+ + torch==2.8.0
+ + torchmetrics==1.8.2
+ + torchvision==0.23.0
+ + tqdm==4.67.1
+ + triton==3.4.0
+ + typing-extensions==4.15.0
+ + tzdata==2025.2
+ + urllib3==2.5.0
+ + xxhash==3.5.0
+ + yarl==1.20.1
+ + zipp==3.23.0
+Generating train split:   0%|          | 0/4795 [00:00<?, ? examples/s]Generating train split:  17%|█▋        | 800/4795 [00:00<00:00, 4368.46 examples/s]Generating train split:  33%|███▎      | 1600/4795 [00:00<00:00, 5861.13 examples/s]Generating train split:  48%|████▊     | 2300/4795 [00:00<00:00, 6147.28 examples/s]Generating train split:  63%|██████▎   | 3000/4795 [00:01<00:00, 2218.73 examples/s]Generating train split:  77%|███████▋  | 3700/4795 [00:01<00:00, 2810.16 examples/s]Generating train split: 100%|██████████| 4795/4795 [00:01<00:00, 3851.95 examples/s]Generating train split: 100%|██████████| 4795/4795 [00:01<00:00, 2662.33 examples/s]
+Generating validation split:   0%|          | 0/1199 [00:00<?, ? examples/s]Generating validation split:   8%|▊         | 100/1199 [00:00<00:01, 918.33 examples/s]Generating validation split: 100%|██████████| 1199/1199 [00:00<00:00, 6605.25 examples/s]Generating validation split: 100%|██████████| 1199/1199 [00:00<00:00, 4337.30 examples/s]
+Generating test split:   0%|          | 0/5794 [00:00<?, ? examples/s]Generating test split:   2%|▏         | 100/5794 [00:00<00:08, 681.83 examples/s]Generating test split:  14%|█▍        | 800/5794 [00:00<00:01, 3112.74 examples/s]Generating test split:  28%|██▊       | 1600/5794 [00:00<00:00, 4863.39 examples/s]Generating test split:  41%|████▏     | 2400/5794 [00:00<00:00, 5364.10 examples/s]Generating test split:  55%|█████▌    | 3200/5794 [00:00<00:00, 5989.61 examples/s]Generating test split:  69%|██████▉   | 4000/5794 [00:00<00:00, 6019.60 examples/s]Generating test split:  97%|█████████▋| 5600/5794 [00:00<00:00, 7667.99 examples/s]Generating test split: 100%|██████████| 5794/5794 [00:01<00:00, 4152.83 examples/s]
+/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/main.py:101: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = GradScaler()
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/main.py", line 160, in <module>
+    main()
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/main.py", line 156, in main
+    run_experiment(args.exp, cfg["experiments"][args.exp], cfg)
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/main.py", line 108, in run_experiment
+    train_one_epoch(
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/train.py", line 150, in train_one_epoch
+    for step, batch in enumerate(loader):
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 734, in __next__
+    data = self._next_data()
+           ^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1516, in _next_data
+    return self._process_data(data, worker_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1551, in _process_data
+    data.reraise()
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/_utils.py", line 769, in reraise
+    raise exception
+TypeError: Caught TypeError in DataLoader worker process 0.
+Original Traceback (most recent call last):
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/utils/data/_utils/worker.py", line 349, in _worker_loop
+    data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 50, in fetch
+    data = self.dataset.__getitems__(possibly_batched_index)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/datasets/arrow_dataset.py", line 2863, in __getitems__
+    batch = self.__getitem__(keys)
+            ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/datasets/arrow_dataset.py", line 2859, in __getitem__
+    return self._getitem(key)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/datasets/arrow_dataset.py", line 2841, in _getitem
+    formatted_output = format_table(
+                       ^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/datasets/formatting/formatting.py", line 657, in format_table
+    return formatter(pa_table, query_type=query_type)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/datasets/formatting/formatting.py", line 414, in __call__
+    return self.format_batch(pa_table)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/datasets/formatting/formatting.py", line 540, in format_batch
+    return self.transform(batch)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/src/preprocess.py", line 79, in _apply
+    return {"pixel_values": tfm(example["image"]), "label": example["label"]}
+                            ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torchvision/transforms/transforms.py", line 95, in __call__
+    img = t(img)
+          ^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torchvision/transforms/transforms.py", line 972, in forward
+    i, j, h, w = self.get_params(img, self.scale, self.ratio)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torchvision/transforms/transforms.py", line 933, in get_params
+    _, height, width = F.get_dimensions(img)
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torchvision/transforms/functional.py", line 80, in get_dimensions
+    return F_pil.get_dimensions(img)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/toma/t-80-8-a/_work/experiment_matsuzawa_20250909/experiment_matsuzawa_20250909/.venv/lib/python3.11/site-packages/torchvision/transforms/_functional_pil.py", line 34, in get_dimensions
+    raise TypeError(f"Unexpected type {type(img)}")
+TypeError: Unexpected type <class 'list'>
+
