@@ -10,8 +10,11 @@ license = {text = "MIT"}
 authors = [{name = "Researcher", email = "research@example.com"}]
 
 dependencies = [
-  "torch",
-  "torch_geometric",
+  # Pinned versions chosen to avoid the massive CUDA-split wheels that inflate
+  # download size and are unnecessary for CPU-only execution environments.
+  "torch==2.1.2+cpu",
+  "torch_geometric==2.5.3",
+  "torch-scatter==2.1.2",
   "pyyaml",
   "matplotlib",
   "numpy"

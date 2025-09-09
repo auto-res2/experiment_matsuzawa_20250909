@@ -4,7 +4,8 @@ Model and training utilities for the Meta-MPNN experiments.
 All heavy lifting (models, optimisation, experiment loops) lives here.
 """
 from __future__ import annotations
-import json, time
+import json
+import time
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
 
@@ -13,9 +14,32 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
-from torch_geometric.utils import scatter_sum, scatter_std
+
+# -----------------------------------------------------------------------------
+#  Torch-scatter is the canonical location of scatter_* utilities. Importing
+#  from torch_geometric.utils is *version–dependent* and failed with the wheels
+#  available on the execution platform. We therefore import directly from
+#  torch_scatter and keep a minimal fallback implementation for safety.
+# -----------------------------------------------------------------------------
+try:
+    from torch_scatter import scatter_sum, scatter_std  # type: ignore
+except ImportError:  # pragma: no cover – rare fallback path
+    def _na_msg(name: str):
+        raise RuntimeError(
+            f"'{name}' not available – torch_scatter failed to install. "
+            "Please ensure the correct wheels are fetched for your platform."
+        )
+
+    def scatter_sum(*args, **kwargs):  # type: ignore
+        _na_msg("scatter_sum")
+
+    def scatter_std(*args, **kwargs):  # type: ignore
+        _na_msg("scatter_std")
+
 from torch_geometric.nn import GCNConv
+
 import matplotlib
+
 matplotlib.use("Agg")  # head-less image backend
 import matplotlib.pyplot as plt
 
@@ -27,6 +51,7 @@ from .preprocess import load_dataset, generate_masks
 # --------------------------------------------------------------------------------------
 SEEDS = [11, 29, 97]
 
+
 def set_seed(seed: int):
     """Force deterministic behaviour."""
     np.random.seed(seed)
@@ -34,6 +59,7 @@ def set_seed(seed: int):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
 
 # --------------------------------------------------------------------------------------
 #  Meta-MPNN Layer
@@ -79,6 +105,7 @@ class MetaLayer(nn.Module):
         msg = self.nei_lin(x)[edge_index[0]] * p
         out = alpha * self.self_lin(x) + (1 - alpha) * scatter_sum(msg, edge_index[1], dim=0)
         return out, alpha, p
+
 
 # --------------------------------------------------------------------------------------
 #  GCN backbone (optionally equipped with Meta-layers)
@@ -127,6 +154,7 @@ class GCNNet(nn.Module):
         out = self.cls(x)
         return out, alphas, ps, x
 
+
 # --------------------------------------------------------------------------------------
 #  Trainer class (supports Experiment-1 depth scaling)
 # --------------------------------------------------------------------------------------
@@ -134,7 +162,9 @@ class Trainer:
     def __init__(self, cfg: Dict[str, Any]):
         self.cfg = cfg
         requested = cfg["device"].lower()
-        self.device = torch.device("cuda" if requested == "cuda" and torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda" if requested == "cuda" and torch.cuda.is_available() else "cpu"
+        )
         if requested == "cuda" and not torch.cuda.is_available():
             print("WARNING: CUDA requested but not available. Falling back to CPU.")
 
@@ -175,7 +205,7 @@ class Trainer:
             if bad_counter >= patience:
                 break
         # -------------------------------- best model --------------------------------
-        model.load_state_dict(best_state)
+        model.load_state_dict(best_state)  # type: ignore[arg-type]
         model.eval()
         with torch.no_grad():
             logits, _, _, emb = model(data)
@@ -193,7 +223,8 @@ class Trainer:
     # ------------------------------------------------------------------
     def run_exp1(self):
         exp_cfg = self.cfg["experiment1"]
-        research_dir = Path(".research/iteration2")
+        # Mandatory research directory (iteration-3 per instructions)
+        research_dir = Path(".research/iteration3")
         img_dir = research_dir / "images"
         research_dir.mkdir(parents=True, exist_ok=True)
         img_dir.mkdir(exist_ok=True)
@@ -208,7 +239,7 @@ class Trainer:
             for depth in exp_cfg["depths"]:
                 for variant in exp_cfg["variants"]:
                     key = f"{dname}_{variant}_{depth}"
-                    seed_res = []
+                    seed_res: List[Dict[str, Any]] = []
                     for sd in SEEDS:
                         set_seed(sd)
                         model = GCNNet(
@@ -231,7 +262,7 @@ class Trainer:
                         metrics["train_time"] = time.time() - start
                         seed_res.append(metrics)
                     # aggregate mean/std over seeds
-                    agg = {k: float(np.mean([m[k] for m in seed_res])) for k in seed_res[0].keys()}
+                    agg: Dict[str, float] = {k: float(np.mean([m[k] for m in seed_res])) for k in seed_res[0].keys()}
                     for k in seed_res[0].keys():
                         agg[f"{k}_std"] = float(np.std([m[k] for m in seed_res]))
                     all_results[key] = agg
@@ -251,11 +282,11 @@ class Trainer:
             plt.close()
 
         # ---------------- write json & stdout ----------------
-        out_file = Path(".research/iteration2/exp1_depth_scaling.json")
+        out_file = research_dir / "exp1_depth_scaling.json"
         with open(out_file, "w") as fh:
             json.dump(all_results, fh, indent=2)
         print("DEPTH-SCALING STRESS-TEST (Experiment 1)")
         print(json.dumps(all_results, indent=2))
-        print("Generated figures (stored in .research/iteration2/images):")
+        print("Generated figures (stored in .research/iteration3/images):")
         for dname in exp_cfg["datasets"]:
             print(f"accuracy_{dname.lower()}.pdf")
